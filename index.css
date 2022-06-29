@@ -283,8 +283,7 @@ li {
 
   .logo {
     width: 50%;
-    margin: 0 4.5% 0 26%;
-    float: left;
+    margin: 0 4.5% 1% 26%;
     pointer-events: none;
   }
 
@@ -293,7 +292,7 @@ li {
     font-family: "NotosansSC medium";
     font-size: 3vw;
     text-align: left;
-    position: absolute;
-    margin: 23vh 0 0 26vw;
+    position: fixed;
+    margin: 35% 0 0 28vw;
     line-height: 1.92em;
   }
