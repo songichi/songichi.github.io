@@ -1,13 +1,8 @@
-@font-face{
-  font-family: "Source Han Sans CN-light";
-  src: url("font/SourceHanSansCN-Light.otf") format("truetype");
-}
 
 @font-face{
-  font-family: "Source Han Sans CN-medium";
-  src: url("font/SourceHanSansCN-medium.otf") format("truetype");
+    font-family: "NotosansSC medium";
+  src: url("font/NotoSansSC-Medium.otf") format("opentype");
 }
-
 
 html {
     -webkit-font-smoothing: antialiased;
@@ -52,7 +47,7 @@ li {
   position: absolute;
   font-size: 2vw;
   line-height: 3vw;
-  font-family: Source Han Sans CN-light;
+  font-family: "NotosansSC medium";
   margin: 2vh 0 1vh 0;
   pointer-events: none;
   text-align: right;
@@ -62,7 +57,8 @@ li {
 .tt1 {
   color: var(--darkgray);
   font-size: 2.5vw;
-  font-family: Source Han Sans CN-medium;
+  font-family: "NotosansSC medium";
+  font-style: medium;
   line-height: 12vh;
   margin: 15vh 5vw 15vh;
   position: relative;
@@ -98,7 +94,7 @@ li {
 .tt1-on {
   color: var(--darkgray);
   font-size: 2.5vw;
-  font-family: Source Han Sans CN-medium;
+  font-family: "NotosansSC medium";
   line-height: 12vh;
   margin: 15vh 5vw 15vh;
   position: relative;
@@ -135,7 +131,7 @@ li {
 .yi {
   color: var(--darkgray);
   font-size: 10vw;
-  font-family: Source Han Sans CN-black;
+  font-family: Source Han Sans CN black;
   line-height: 10vh;
   position: relative;
   text-align: center;
@@ -155,7 +151,7 @@ li {
 
 .p1 {
   color: var(--darkgray);
-  font-family: Source Han Sans CN-medium;
+  font-family: "NotosansSC medium";
   font-size: 1.4vw;
   text-align: left;
   margin: 8vh 0 0 24vw;
@@ -165,7 +161,7 @@ li {
 
 .p2 {
   color: var(--darkgray);
-  font-family: Source Han Sans CN-medium;
+  font-family: "NotosansSC medium";
   font-size: 1.1vw;
   text-align: left;
   margin: 1vh 25vw 0 24vw;
@@ -270,7 +266,7 @@ li {
   .yi {
     color: var(--darkgray);
     font-size: 10vw;
-    font-family: Source Han Sans CN-black;
+    font-family: Source Han Sans CN black;
     line-height: 6vh;
     margin: 10vh 0vw 5vh;
   }
