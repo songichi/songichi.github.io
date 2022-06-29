@@ -1,0 +1,275 @@
+
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --darkgray: #222222;
+  --imagesize: 250px;
+  --smallimagesize: 120px;
+}
+
+ul {
+  margin:0;
+  padding:0;
+  list-style: none;
+  display: inline-block;
+}
+
+li {
+  display: inline;
+  align-content: center;
+}
+
+
+
+
+.cd {
+  text-align: center;
+}
+
+
+.bodystyle {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.side-text {
+  writing-mode: vertical-rl;
+  text-orientation: sideways;
+  position: absolute;
+  font-size: 2vw;
+  line-height: 3vw;
+  font-family: Source Han Sans CN thin;
+  margin: 2vh 0 1vh 0;
+  pointer-events: none;
+  text-align: right;
+
+}
+
+.tt1 {
+  color: var(--darkgray);
+  font-size: 2.5vw;
+  font-family: Source Han Sans CN medium;
+  line-height: 12vh;
+  margin: 15vh 5vw 15vh;
+  position: relative;
+  text-decoration: none;
+  width: 10vw;
+  transition: 300ms;
+  pointer-events: auto;
+  -moz-user-select: -moz-none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+}
+
+.tt1::after {
+  content: "";
+  position: absolute;
+  left: -10%;
+  top: 0.55em;
+  width: 120%;
+  height: 1.25vw;
+  background: currentcolor;
+
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 360ms ;
+}
+
+
+.tt1:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.tt1-on {
+  color: var(--darkgray);
+  font-size: 2.5vw;
+  font-family: Source Han Sans CN medium;
+  line-height: 12vh;
+  margin: 15vh 5vw 15vh;
+  position: relative;
+  text-decoration: none;
+  width: 10vw;
+  transition: 300ms;
+  -moz-user-select: -moz-none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+}
+
+.tt1-on::after {
+  content: "";
+  position: absolute;
+  left: -10%;
+  top: 0.55em;
+  width: 120%;
+  height: 1.25vw;
+  background: currentcolor;
+
+  transform: scaleX(1);
+  transform-origin: right;
+  transition: transform 360ms ;
+}
+
+
+.tt1-on:hover::after {
+  transform: scaleX(0);
+  transform-origin: right;
+}
+
+
+
+.yi {
+  color: var(--darkgray);
+  font-size: 10vw;
+  font-family: Source Han Sans CN black;
+  line-height: 10vh;
+  position: relative;
+  text-align: center;
+  align-content: center;
+  justify-content: center;
+  margin: 20vh 0vw 14vh;
+  text-decoration: none;
+
+}
+
+.logo {
+  width: 13%;
+  margin: 0 4.5% 0 26%;
+  float: left;
+  pointer-events: none;
+}
+
+.p1 {
+  color: var(--darkgray);
+  font-family: Source Han Sans CN semibold;
+  font-size: 1.4vw;
+  text-align: left;
+  margin: 8vh 0 0 24vw;
+  line-height: 1.92em;
+}
+
+
+.p2 {
+  color: var(--darkgray);
+  font-family: Source Han Sans CN medium;
+  font-size: 1.1vw;
+  text-align: left;
+  margin: 1vh 25vw 0 24vw;
+  white-space: pre;
+}
+
+.line1 {
+  height: 0.4vh;
+  background: black;
+  margin: 0 20vw 0;
+}
+
+.poster-grid {
+  display: grid;
+  gap: 2vw;
+  grid-template-columns:
+    repeat(4, 1fr);
+  margin: 3rem 5% 2rem;
+}
+
+.poster {
+  width: 100%;
+  filter: grayscale(0);
+  opacity: 1;
+  transition: 300ms;
+  margin: 0 0 2vw;
+}
+
+
+#tiaodao-gif {
+}
+
+#tiaodao-gif:hover {
+  content: url('mis/tiaodao poster gif.gif');
+}
+
+#diaolan-gif:hover {
+  content: url('mis/diaolan gif.gif');
+}
+#santi1-gif:hover {
+  content: url('mis/santi1 gif.gif');
+}
+
+.brand-grid {
+  display: grid;
+  gap: 3vw;
+  grid-template-columns:
+    repeat(2, 1fr);
+  margin: 3rem 5% 2rem;
+}
+
+.brand {
+  width: 100%;
+  opacity: 1;
+}
+
+
+
+.type-span {
+  width: 80%;
+  justify-content: center;
+  align-content: center;
+  display: block;
+  margin: auto;
+  margin-top: 4vh;
+  border-radius: 0.5em;
+
+  transition: 300ms;
+}
+
+.type-span:hover {
+  background: #f9f9f9;
+  transition: 400ms;
+  display: absolute;
+}
+
+.type-grid {
+  display: grid;
+  gap: 2vw;
+  grid-template-columns:
+    repeat(2, 1fr);
+  margin: 6rem 2rem 2rem;
+}
+
+#type-qiuxing:hover {
+  content: url('type/qiuxing-b.png');
+}
+
+
+
+@media (max-width: 708px) {
+  .poster-grid {
+    grid-template-columns:
+      repeat(2, 1fr);
+      margin: 2rem 2rem 2rem;
+      gap: 2vw;
+  }
+  .poster {
+    width: 40vw;
+  }
+
+  .yi {
+    color: var(--darkgray);
+    font-size: 10vw;
+    font-family: Source Han Sans CN black;
+    line-height: 6vh;
+    margin: 10vh 0vw 5vh;
+  }
+
+  .tt1 {
+    line-height: 8vh;
+    margin: 8vh 5vw 8vh;
+  }
+  .tt1-on {
+    line-height: 8vh;
+    margin: 8vh 5vw 8vh;
+  }
