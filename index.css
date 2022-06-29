@@ -1,11 +1,11 @@
 @font-face{
   font-family: "Source Han Sans CN-light";
-  src: url("font/SourceHanSansCN-Light.ttf") format("truetype");
+  src: url("font/SourceHanSansCN-Light.otf") format("truetype");
 }
 
 @font-face{
   font-family: "Source Han Sans CN-medium";
-  src: url("font/Source Han Sans CN-medium.ttf") format("truetype");
+  src: url("font/SourceHanSansCN-medium.otf") format("truetype");
 }
 
 
