@@ -4,6 +4,29 @@
   src: url("font/NotoSansSC-Medium.otf") format("opentype");
 }
 
+@font-face{
+    font-family: "NotosansSC regular";
+  src: url("font/NotoSansSC-Regular.otf") format("opentype");
+}
+
+
+
+/* width */
+::-webkit-scrollbar {
+  width: 6px;
+}
+/* Track */
+::-webkit-scrollbar-track {
+  border-radius: 10px;
+}
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #888888;
+  border-radius: 3px;
+}
+
+
+
 html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -174,6 +197,10 @@ li {
   margin: 0 20vw 0;
 }
 
+
+
+/* POSTER */
+
 .poster-grid {
   display: grid;
   gap: 2vw;
@@ -205,20 +232,91 @@ li {
   content: url('mis/santi1 gif.gif');
 }
 
+
+
+/* BRAND */
+
 .brand-grid {
   display: grid;
-  gap: 3vw;
+  gap: 3%;
   grid-template-columns:
     repeat(2, 1fr);
   margin: 3rem 5% 2rem;
+  height: 100%;
 }
 
 .brand {
   width: 100%;
   opacity: 1;
+  transition: 1600ms;
+  position: relative;
+}
+
+.brand:hover {
+  cursor: pointer;
+}
+
+.brand-info-left {
+  font-family: "NotosansSC regular";
+  font-size: 1rem;
+  position: absolute;
+  display: absolute;
+  bottom: 0;
+  left: 0.6rem;
+  transition: 300ms;
+  opacity: 0;
+  pointer-events: none;
+  white-space: pre;
 }
 
 
+
+#brand-popup {
+  background: black;
+  display: none;
+  opacity: 70%;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  z-index: 5;
+}
+
+#brand-popup:hover {
+  cursor: crosshair;
+}
+
+#brand-item-youyanshe {
+  position: absolute;
+  display: none;
+  top: 0;
+  justify-content: center;
+  align-items: center;
+  margin: 3% 20% 0;
+  overflow-y: scroll;
+  width: 60%;
+  height: 88%;
+  z-index: 6;
+}
+
+
+
+.brand-image {
+  width: 100%;
+  display: flex;
+  margin: 1% auto 0;
+  display: absolute;
+
+}
+
+#brand-img-youyanshe {
+  width: 100%;
+  opacity: 1;
+}
+
+
+
+/* TYPE */
 
 .type-span {
   width: 80%;
@@ -228,7 +326,6 @@ li {
   margin: auto;
   margin-top: 4vh;
   border-radius: 0.5em;
-
   transition: 300ms;
 }
 
@@ -251,6 +348,9 @@ li {
 }
 
 
+
+
+/* mobile devices */
 
 @media (max-width: 708px) {
   .poster-grid {
@@ -295,4 +395,12 @@ li {
     position: fixed;
     margin: 35% 0 0 28vw;
     line-height: 1.92em;
+  }
+
+  .brand-grid {
+    display: grid;
+    gap: 3vw;
+    grid-template-columns:
+      repeat(1, 1fr);
+    margin: 3rem 5% 2rem;
   }
