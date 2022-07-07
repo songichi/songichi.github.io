@@ -5,13 +5,13 @@
 document.getElementById('brand-img-youyanshe').addEventListener('mouseover',
 function() {
   document.querySelector('.brand-info-left').style.opacity = '100%';
-
+  document.querySelector('#brand-img-youyanshe').style.opacity = '80%';
 });
 
 document.getElementById('brand-img-youyanshe').addEventListener('mouseleave',
 function() {
   document.querySelector('.brand-info-left').style.opacity = '0%';
-
+  document.querySelector('#brand-img-youyanshe').style.opacity = '100%';
 });
 
 

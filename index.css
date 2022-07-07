@@ -299,6 +299,10 @@ li {
   z-index: 6;
 }
 
+#brand-img-youyanshe {
+  transition: 500ms;
+}
+
 
 
 .brand-image {
@@ -379,6 +383,7 @@ li {
   .tt1-on {
     line-height: 8vh;
     margin: 8vh 5vw 8vh;
+    font-size: 4vw;
   }
 
   .logo {
