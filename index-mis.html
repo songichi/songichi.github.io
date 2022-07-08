@@ -29,36 +29,29 @@
     </header>
     <main>
       <content>
-        <content class="poster-grid">
-          <div>
-            <img class="poster" src="mis/accent toutu.png"/>
-            <img class="poster" id="santi1-gif" src="mis/santi1.png"/>
-          </div>
-          <div>
-            <img class="poster" src="mis/huigui.png"/>
-            <img class="poster" src="mis/kun1.png"/>
-
-          </div>
-          <div>
-            <img class="poster" id="tiaodao-gif" src="mis/tiaodao poster.png"/>
-          </div>
-          <div>
-            <img class="poster" id="diaolan-gif" src="mis/diaolan.png"/>
-          </div>
-        </content>
+        <div class="poster-grid" data-masonry='{ "itemSelector": ".poster", "columnWidth": ".poster", "percentPosition": true }'>
+          <img class="poster" src="mis/pianruo.png"/>
+          <img class="poster" src="mis/huigui.png"/>
+          <img class="poster" src="mis/pifuyouze.png"/>
+          <img class="poster" src="mis/accent toutu.png"/>
+          <img class="poster" id="santi1-gif" src="mis/santi1.png"/>
+          <img class="poster" id="tiaodao-gif" src="mis/tiaodao poster.png"/>
+          <img class="poster" id="diaolan-gif" src="mis/diaolan.png"/>
+        </div>
       </content>
     </main>
 
 
   </body>
   <footer>
-      <content>
-
-      </content>
+    <content>
+      <p class="copyright">Copyright © Zunyi Wang. All Rights Reserved</p>
+    </content>
   </footer>
+
   <script src="index.js"></script>
-
-
+  <script src="plugin/vanilla.js"></script>
+  <script src="plugin/masonry.pkgd.min.js"></script>
 
 
 </html>

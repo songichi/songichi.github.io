@@ -207,14 +207,16 @@ li {
   grid-template-columns:
     repeat(4, 1fr);
   margin: 3rem 5% 2rem;
+  grid-template-rows: masonry;
 }
 
 .poster {
-  width: 100%;
+  width: 23%;
   filter: grayscale(0);
   opacity: 1;
   transition: 300ms;
-  margin: 0 0 2vw;
+  display: block;
+  margin: 0 0.8% 1.6%
 }
 
 
@@ -351,6 +353,13 @@ li {
   content: url('type/qiuxing-b.png');
 }
 
+
+.copyright {
+  font-family: "NotosansSC regular";
+  font-size: 0.8em;
+  margin: 8% 0 2%;
+  text-align: center;
+}
 
 
 

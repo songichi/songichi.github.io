@@ -2,6 +2,7 @@
 
 
 
+
 document.getElementById('brand-img-youyanshe').addEventListener('mouseover',
 function() {
   document.querySelector('.brand-info-left').style.opacity = '100%';
