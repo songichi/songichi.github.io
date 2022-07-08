@@ -207,7 +207,6 @@ li {
   grid-template-columns:
     repeat(4, 1fr);
   margin: 3rem 5% 2rem;
-  grid-template-rows: masonry;
 }
 
 .poster {
