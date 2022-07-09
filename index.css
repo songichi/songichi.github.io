@@ -237,7 +237,7 @@ li {
 }
 
 .poster {
-  width: 23%;
+  width: 100%;
   filter: grayscale(0);
   opacity: 1;
   transition: 300ms;

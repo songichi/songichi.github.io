@@ -1,13 +1,5 @@
 
 
-// init Masonry
-var $grid = $('.poster-grid').masonry({
-  // options...
-});
-// layout Masonry after each image loads
-$grid.imagesLoaded().progress( function() {
-  $grid.masonry('layout');
-});
 
 
 document.getElementById('brand-img-youyanshe').addEventListener('mouseover',
