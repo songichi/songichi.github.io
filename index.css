@@ -1,13 +1,41 @@
 
-@font-face{
-    font-family: "NotosansSC medium";
-  src: url("font/NotoSansSC-Medium.otf") format("opentype");
+/* noto-sans-sc-regular - latin_chinese-simplified */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-regular.eot'); /* IE9 Compat Modes */
+  src: local(''),
+
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-regular.woff2') format('woff2'), /* Super Modern Browsers */
+
+}
+/* noto-sans-sc-700 - latin_chinese-simplified */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-700.eot'); /* IE9 Compat Modes */
+  src: local(''),
+
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-700.woff2') format('woff2'), /* Super Modern Browsers */
+
 }
 
-@font-face{
-    font-family: "NotosansSC regular";
-  src: url("font/NotoSansSC-Regular.otf") format("opentype");
+/* noto-sans-sc-500 - latin_chinese-simplified */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 500;
+  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.eot'); /* IE9 Compat Modes */
+  src: local(''),
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.woff2') format('woff2'), /* Super Modern Browsers */
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.woff') format('woff'), /* Modern Browsers */
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.ttf') format('truetype'), /* Safari, Android, iOS */
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.svg#NotoSansSC') format('svg'); /* Legacy iOS */
 }
+
 
 
 
@@ -70,7 +98,9 @@ li {
   position: absolute;
   font-size: 2vw;
   line-height: 3vw;
-  font-family: "NotosansSC medium";
+  font-family: "Noto Sans SC";
+  font-style: normal;
+  font-weight: 400;
   margin: 2vh 0 1vh 0;
   pointer-events: none;
   text-align: right;
@@ -80,8 +110,9 @@ li {
 .tt1 {
   color: var(--darkgray);
   font-size: 2.5vw;
-  font-family: "NotosansSC medium";
-  font-style: medium;
+  font-family: "Noto Sans SC";
+  font-style: normal;
+  font-weight: 500;
   line-height: 12vh;
   margin: 15vh 5vw 15vh;
   position: relative;
@@ -117,7 +148,8 @@ li {
 .tt1-on {
   color: var(--darkgray);
   font-size: 2.5vw;
-  font-family: "NotosansSC medium";
+  font-family: "Noto Sans SC";
+  font-weight: 500;
   line-height: 12vh;
   margin: 15vh 5vw 15vh;
   position: relative;
@@ -174,7 +206,8 @@ li {
 
 .p1 {
   color: var(--darkgray);
-  font-family: "NotosansSC medium";
+  font-family: "Noto Sans SC";
+  font-weight: 500;
   font-size: 1.4vw;
   text-align: left;
   margin: 8vh 0 0 24vw;
@@ -184,7 +217,8 @@ li {
 
 .p2 {
   color: var(--darkgray);
-  font-family: "NotosansSC medium";
+  font-family: "Noto Sans SC";
+  font-weight: 500;
   font-size: 1.1vw;
   text-align: left;
   margin: 1vh 25vw 0 24vw;
@@ -258,7 +292,8 @@ li {
 }
 
 .brand-info-left {
-  font-family: "NotosansSC regular";
+  font-family: "Noto Sans SC";
+  font-weight: 500;
   font-size: 1em;
   position: absolute;
   display: absolute;
@@ -354,7 +389,8 @@ li {
 
 
 .copyright {
-  font-family: "NotosansSC regular";
+  font-family: "Noto Sans SC";
+  font-weight: 500;
   font-size: 0.8em;
   margin: 8% 0 2%;
   text-align: center;
@@ -402,7 +438,8 @@ li {
 
   .p1 {
     color: var(--darkgray);
-    font-family: "NotosansSC medium";
+    font-family: "Noto Sans SC";
+    font-weight: 500;
     font-size: 3vw;
     text-align: left;
     position: fixed;
