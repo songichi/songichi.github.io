@@ -77,7 +77,7 @@ li {
   position: absolute;
   font-size: 1.5vw;
   line-height: 3vw;
-  font-family: "Noto Sans SC";
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-style: normal;
   font-weight: 400;
   margin: 2vh 0 1vh 0;
@@ -88,7 +88,7 @@ li {
 .tt1 {
   color: var(--darkgray);
   font-size: 2.5vw;
-  font-family: "Noto Sans SC";
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-style: normal;
   font-weight: 500;
   line-height: 12vh;
@@ -126,7 +126,7 @@ li {
 .tt1-on {
   color: var(--darkgray);
   font-size: 2.5vw;
-  font-family: "Noto Sans SC";
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
   line-height: 12vh;
   margin: 15vh 5vw 15vh;
@@ -149,29 +149,13 @@ li {
   background: currentcolor;
   transform: scaleX(1);
   transform-origin: right;
-  transition: transform 360ms ;
+  transition: 360ms ;
 }
 
 
 .tt1-on:hover::after {
   transform: scaleX(0);
   transform-origin: right;
-}
-
-
-
-.yi {
-  color: var(--darkgray);
-  font-size: 10vw;
-  font-family: Source Han Sans CN black;
-  line-height: 10vh;
-  position: relative;
-  text-align: center;
-  align-content: center;
-  justify-content: center;
-  margin: 20vh 0vw 14vh;
-  text-decoration: none;
-
 }
 
 .logo {
@@ -183,7 +167,7 @@ li {
 
 .p1 {
   color: var(--darkgray);
-  font-family: "Noto Sans SC";
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
   font-size: 1.4vw;
   text-align: left;
@@ -257,7 +241,7 @@ li {
 }
 
 .brand-info-left {
-  font-family: "Noto Sans SC";
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
   font-size: 1em;
   position: absolute;
@@ -316,7 +300,7 @@ li {
 }
 
 .copyright {
-  font-family: "Noto Sans SC";
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
   font-size: 0.8em;
   margin: 8% 0 2%;
@@ -397,7 +381,7 @@ li {
 
   .p1 {
     color: var(--darkgray);
-    font-family: "Noto Sans SC";
+    font-family: "Noto Sans SC", PingFang SC, sans-serif;
     font-weight: 500;
     font-size: 3vw;
     text-align: left;
