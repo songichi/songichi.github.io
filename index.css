@@ -148,7 +148,6 @@ li {
   width: 120%;
   height: 1.25vw;
   background: currentcolor;
-
   transform: scaleX(1);
   transform-origin: right;
   transition: transform 360ms ;
@@ -322,6 +321,13 @@ li {
   opacity: 1;
 }
 
+.copyright {
+  font-family: "Noto Sans SC";
+  font-weight: 500;
+  font-size: 0.8em;
+  margin: 8% 0 2%;
+  text-align: center;
+}
 /* TYPE
 .type-span {
   width: 80%;
@@ -353,13 +359,7 @@ li {
 }
 
 
-.copyright {
-  font-family: "Noto Sans SC";
-  font-weight: 500;
-  font-size: 0.8em;
-  margin: 8% 0 2%;
-  text-align: center;
-}
+
 */
 
 
