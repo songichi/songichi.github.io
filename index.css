@@ -1,14 +1,4 @@
 
-/* noto-sans-sc-regular - latin_chinese-simplified */
-@font-face {
-  font-family: 'Noto Sans SC';
-  font-style: normal;
-  font-weight: 400;
-  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-regular.eot'); /* IE9 Compat Modes */
-  src: local(''),
-       url('../font/noto-sans-sc-v26-latin_chinese-simplified-regular.woff2') format('woff2'), /* Super Modern Browsers */
-}
-
 /* noto-sans-sc-700 - latin_chinese-simplified */
 @font-face {
   font-family: 'Noto Sans SC';
@@ -30,8 +20,6 @@
 }
 
 
-
-
 /* width */
 ::-webkit-scrollbar {
   width: 6px;
@@ -45,8 +33,6 @@
   background: #888888;
   border-radius: 3px;
 }
-
-
 
 html {
     -webkit-font-smoothing: antialiased;
@@ -207,7 +193,6 @@ li {
   line-height: 1.92em;
 }
 
-
 .p2 {
   color: var(--darkgray);
   font-family: "Noto Sans SC";
@@ -225,9 +210,7 @@ li {
 }
 
 
-
 /* POSTER */
-
 .poster-grid {
   display: grid;
   gap: 2vw;
@@ -245,7 +228,6 @@ li {
   margin: 0 0.8% 1.6%
 }
 
-
 #tiaodao-gif {
 }
 
@@ -260,10 +242,7 @@ li {
   content: url('mis/santi1 gif.gif');
 }
 
-
-
 /* BRAND */
-
 .brand-grid {
   display: grid;
   gap: 3%;
@@ -298,8 +277,6 @@ li {
   white-space: pre;
 }
 
-
-
 #brand-popup {
   background: black;
   display: none;
@@ -332,8 +309,6 @@ li {
   transition: 500ms;
 }
 
-
-
 .brand-image {
   width: 100%;
   display: flex;
@@ -347,10 +322,7 @@ li {
   opacity: 1;
 }
 
-
-
-/* TYPE */
-
+/* TYPE
 .type-span {
   width: 80%;
   justify-content: center;
@@ -388,7 +360,7 @@ li {
   margin: 8% 0 2%;
   text-align: center;
 }
-
+*/
 
 
 /* mobile devices */
