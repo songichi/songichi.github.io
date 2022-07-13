@@ -19,13 +19,13 @@ function() {
   document.querySelector('#brand-popup').style.display = 'flex';
   document.querySelector('#brand-item-youyanshe').style.display = 'inline';
   document.querySelector('.brand').style.filter = 'grayscale(100%)';
-
+  document.querySelector('.bodystyle').style.overflow = 'clip';
 });
-
 
 document.getElementById('brand-popup').addEventListener('click',
 function() {
   document.querySelector('#brand-popup').style.display = 'none';
   document.querySelector('#brand-item-youyanshe').style.display = 'none';
   document.querySelector('.brand').style.filter = 'grayscale(0%)';
+  document.querySelector('.bodystyle').style.overflow = 'inherit';
 });

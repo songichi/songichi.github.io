@@ -336,13 +336,9 @@ li {
   content: url('type/qiuxing-b.png');
 }
 
-
-
 */
 
-
 /* mobile devices */
-
 @media (max-width: 708px) {
   .poster-grid {
     grid-template-columns:
