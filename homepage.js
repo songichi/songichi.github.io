@@ -45,22 +45,25 @@ try{
     document.getElementById('homepageQuote').style.color = recent.colorS;
     document.getElementById('homepageSource').textContent = recent.source;
     document.getElementById('homepageSource').style.color = recent.colorS;
+    document.getElementById('homepageFooter').textContent = 
+        recent.name + " 更新于 " + recent.date.toDateString();
 }
 catch{}
 
 //on other pages
 try{
     document.getElementById('home').style.backgroundColor = recent.color;
+    
 
     document.getElementById('home').addEventListener('mouseover',
 function() {
-    document.getElementById('home').style.backgroundColor = "#ffffff";
-    document.getElementById('home').style.scale = "5";
+    //document.getElementById('home').style.backgroundColor = "#ffffff";
+    document.getElementById('home').style.scale = "4";
 });
 
     document.getElementById('home').addEventListener('mouseleave',
 function() {
-    document.getElementById('home').style.backgroundColor = recent.color;
+    //document.getElementById('home').style.backgroundColor = recent.color;
     document.getElementById('home').style.scale = "1";
 });
     
