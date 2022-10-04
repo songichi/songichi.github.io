@@ -224,6 +224,7 @@ li {
 
 
 
+/* TYPE*/
 .type-grid {
   display: grid;
   gap: 0.3vw;
@@ -236,12 +237,9 @@ li {
 .type {
   width: 100%;
   z-index: 5;
-  
+  transition: 400ms;
 }
 
-.show {
-  display: block;
-}
 
 /* POSTER */
 .poster-grid {
