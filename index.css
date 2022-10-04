@@ -98,6 +98,7 @@ li {
   width: 10vw;
   transition: 300ms;
   pointer-events: auto;
+  user-select: none;
   -moz-user-select: -moz-none;
   -khtml-user-select: none;
   -webkit-user-select: none;
@@ -134,6 +135,7 @@ li {
   text-decoration: none;
   width: 10vw;
   transition: 300ms;
+  user-select: none;
   -moz-user-select: -moz-none;
   -khtml-user-select: none;
   -webkit-user-select: none;
@@ -186,6 +188,60 @@ li {
   margin: 0 20vw 0;
 }
 
+/* TYPE */ /* TYPE */ /* TYPE */
+/* TYPE */ /* TYPE */ /* TYPE */
+/* TYPE */ /* TYPE */ /* TYPE */
+.button-grid {
+  display: grid;
+  gap: 1vw;
+  grid-template-columns:
+    repeat(3, 1fr);
+  margin: 1.5rem 36vw 0;
+  text-align: center;
+}
+
+
+.button-type {
+  position: static;
+  margin: 0 auto 0;
+  border: none;
+  outline: none;
+  border-radius: 3em;
+  background-color: #f1f1f1;
+  cursor: pointer;
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-weight: 500;
+  font-size: 0.8vw;
+  width: 8em;
+  height: 4em;;
+  
+}
+
+.button-type:hover {
+  transition: 300ms;
+  background-color: #888888;
+}
+
+
+
+.type-grid {
+  display: grid;
+  gap: 0.3vw;
+  grid-template-columns:
+    repeat(6, 1fr);
+  margin: 2rem 5% 2rem;
+  height: 100%;
+}
+
+.type {
+  width: 100%;
+  z-index: 5;
+  
+}
+
+.show {
+  display: block;
+}
 
 /* POSTER */
 .poster-grid {
@@ -205,9 +261,6 @@ li {
   margin: 0 0.8% 1.6%
 }
 
-#tiaodao-gif {
-}
-
 #tiaodao-gif:hover {
   content: url('mis/tiaodao poster gif.gif');
 }
@@ -225,7 +278,7 @@ li {
   gap: 3%;
   grid-template-columns:
     repeat(2, 1fr);
-  margin: 3rem 5% 2rem;
+  margin: 3rem 10% 2rem;
   height: 100%;
 }
 
@@ -252,6 +305,7 @@ li {
   opacity: 0;
   pointer-events: none;
   white-space: pre;
+  
 }
 
 #brand-popup {
@@ -307,37 +361,79 @@ li {
   margin: 8% 0 2%;
   text-align: center;
 }
-/* TYPE
-.type-span {
-  width: 80%;
-  justify-content: center;
-  align-content: center;
+
+ /* HOMEPAGE */ /* HOMEPAGE */ /* HOMEPAGE */
+ /* HOMEPAGE */ /* HOMEPAGE */ /* HOMEPAGE */
+#homepageGroup {
+  background: #888888;
+  position: absolute;
   display: block;
-  margin: auto;
-  margin-top: 4vh;
-  border-radius: 0.5em;
-  transition: 300ms;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  z-index: -5;
+}
+#homepageImage {
+  position: relative;
+  display: block;
+  align-items: center;
+  justify-content: center;
+  width: 36%;
+  margin:12vh 32% 0% ;
+  user-select: none;
+}
+#homepageQuote{
+  position: relative;
+  text-align: center;
+  font-size: 1.8vw;
+  color: black;
+  
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-weight: 700;
+  user-select: none;
 }
 
-.type-span:hover {
-  background: #f9f9f9;
-  transition: 400ms;
-  display: absolute;
+#homepageSource{
+  position: relative;
+  text-align: center;
+  font-size: 1vw;
+  color: black;
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-weight: 500;
+  top: 1.2vh;
+  user-select: none;
+}
+#homepageName{
+  writing-mode: vertical-rl;
+  text-orientation: sideways;
+  position: absolute;
+  font-size: 12vh;
+  color: black;
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-weight: 500;
+  top: 1.2vh;
+  user-select: none;
 }
 
-.type-grid {
-  display: grid;
-  gap: 2vw;
-  grid-template-columns:
-    repeat(2, 1fr);
-  margin: 6rem 2rem 2rem;
+#home{
+  position: absolute;
+  margin: 2%;
+  font-style: none;
+  padding: 3vw;
+  border-radius: 15vw;
+  border: none;
+  background-color: white;
+  transition: 700ms;
+  z-index: 0;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+#home:hover {
+  transition: 1800ms;
 }
 
-#type-qiuxing:hover {
-  content: url('type/qiuxing-b.png');
-}
 
-*/
 
 /* mobile devices */
 @media (max-width: 708px) {
@@ -404,3 +500,76 @@ li {
     position: relative;
     font-size: 0.6em;
   }
+
+
+
+  /* TYPE */
+
+  .button-grid {
+    display: grid;
+    gap: 1vw;
+    grid-template-columns:
+      repeat(3, 1fr);
+    margin: 1.5rem 24vw 0;
+    text-align: center;
+  }
+  .button-type {
+    position: static;
+    margin: 0 auto 0;
+    border: none;
+    outline: none;
+    border-radius: 3em;
+    background-color: #f1f1f1;
+    cursor: pointer;
+    font-family: "Noto Sans SC", PingFang SC, sans-serif;
+    font-weight: 500;
+    font-size: 2vw;
+    width: 7em;
+    height: 4em;;
+    
+  }
+  .type-grid {
+    display: grid;
+    gap: 1.2vw;
+    grid-template-columns:
+      repeat(3, 1fr);
+    margin: 2rem 5% 2rem;
+    height: 100%;
+  }
+
+
+
+  /* HOMEPAGE */
+
+  #homepageImage {
+    position: relative;
+    display: block;
+    align-items: center;
+    justify-content: center;
+    width: 70%;
+    margin:8vh 15% 0% ;
+    user-select: none;
+  }
+
+  #homepageQuote{
+    position: relative;
+    text-align: center;
+    font-size: 4vw;
+    color: black;
+    font-family: "Noto Sans SC", PingFang SC, sans-serif;
+    font-weight: 700;
+    user-select: none;
+  }
+  
+  #homepageSource{
+    position: relative;
+    text-align: center;
+    font-size: 2vw;
+    color: black;
+    font-family: "Noto Sans SC", PingFang SC, sans-serif;
+    font-weight: 500;
+    top: 1.2vh;
+    user-select: none;
+  }
+  
+}
