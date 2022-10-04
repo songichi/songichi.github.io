@@ -7,6 +7,7 @@ var languages = ["hanzi", "latin", "kana"];
 var filterLanguages = [];
 var typeLanguage = "none";
 var typeLanguageS = "none";
+var typeLanguageT = "none";
 var Clicked = false;
 var btn;
 
@@ -21,6 +22,7 @@ for(var i = 0; i < TypeList.length; i++)
 {
   TypeList[i].typeLanguage = "none";
   TypeList[i].typeLanguageS = "none";
+  TypeList[i].typeLanguageT = "none";
 
   //for each language, check if the class matches the input type
   languages.forEach(function(t){
@@ -28,16 +30,17 @@ for(var i = 0; i < TypeList.length; i++)
       if(TypeList[i].typeLanguage == "none"){
         TypeList[i].typeLanguage = t;
       }
-      else{
+      else if(TypeList[i].typeLanguageS == "none"){
         TypeList[i].typeLanguageS = t;
       }
-      
-      
+      else if(TypeList[i].typeLanguageT == "none"){
+        TypeList[i].typeLanguageT = t;
+      }
     }
   });
 
-  console.log(TypeList[i].typeLanguage);
-  console.log(TypeList[i].typeLanguageS);
+  //console.log(TypeList[i].typeLanguage);
+  //console.log(TypeList[i].typeLanguageS);
 }
 
 function filterType(clickedButton ,language){
@@ -73,8 +76,15 @@ function filterType(clickedButton ,language){
         }
       }
       //if the object has two languages
-      else{
+      else if(TypeList[i].typeLanguageT == "none"){
         if(TypeList[i].typeLanguage !== a && TypeList[i].typeLanguageS !== a){
+          TypeList[i].style.display = "none";
+          //console.log(a);
+        }
+      }
+      //if object has three languages
+      else {
+        if(TypeList[i].typeLanguage !== a && TypeList[i].typeLanguageS !== a && TypeList[i].typeLanguageT !== a){
           TypeList[i].style.display = "none";
           //console.log(a);
         }

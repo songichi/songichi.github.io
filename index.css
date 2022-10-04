@@ -196,7 +196,7 @@ li {
   gap: 1vw;
   grid-template-columns:
     repeat(3, 1fr);
-  margin: 1.5rem 36vw 0;
+  margin: 1.5rem 38vw 0;
   text-align: center;
 }
 
@@ -212,7 +212,7 @@ li {
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
   font-size: 0.8vw;
-  width: 8em;
+  width: 7em;
   height: 4em;;
   
 }
@@ -554,8 +554,8 @@ li {
     display: block;
     align-items: center;
     justify-content: center;
-    width: 70%;
-    margin:8vh 15% 0% ;
+    width: 90vw;
+    margin:9vh auto 2vh ;
     user-select: none;
   }
 
@@ -576,7 +576,7 @@ li {
     color: black;
     font-family: "Noto Sans SC", PingFang SC, sans-serif;
     font-weight: 500;
-    top: 1.2vh;
+    top: 0.5vh;
     user-select: none;
   }
   

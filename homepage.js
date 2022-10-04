@@ -22,7 +22,7 @@ CreateNewGroup(
     "#ffffff",
     "「天人の五衰も目の前に見えてあさましや」",
     "———『天人五衰』三島由紀夫",
-    new Date(2022, 9, 28,     0, 0, 0, 0)
+    new Date(2022, 10, 4,     0, 0, 0, 0)
 )
 
 //priting last element in the groupList array
@@ -36,6 +36,7 @@ function CreateNewGroup(name, image, color, colorS, quote, source, date){
     newGroup.name = name;
     groupList.push(newGroup);
 }
+
 
 //for homepage
 try{
