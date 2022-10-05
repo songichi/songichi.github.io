@@ -67,6 +67,11 @@ li {
   text-align: center;
 }
 
+#canvas{
+  position: absolute;
+  left: 0px;
+  bottom: 0px;
+}
 
 .bodystyle {
   margin: 0;

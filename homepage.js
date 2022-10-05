@@ -52,7 +52,6 @@ console.log(recent);
 
 
 
-
 //for homepage
 try{
     LoadHomepage();
@@ -113,14 +112,19 @@ function LoadHomepage(){
 
     //delay changing image, otherwise there will be an ungly box
     
-    setTimeout(() => {
-        document.getElementById('homepageImage').style.transition = "800ms";
-        document.getElementById('homepageImage').style.opacity = "100%";
-      }, transitionDelay)
+    document.getElementById('homepageImage').addEventListener("load", () => {
+        //document.getElementById('homepageImage').style.transition = "800ms";
+        //document.getElementById('homepageImage').style.opacity = "100%";
+        setTimeout(() => {
+            document.getElementById('homepageImage').style.transition = "800ms";
+            document.getElementById('homepageImage').style.opacity = "100%";
+          }, transitionDelay)
+
+    });
     
     
-    
-    
+      
+   
 }
 function Reroll(){
     
@@ -135,5 +139,32 @@ function Reroll(){
     }
     
     recent = newRecent
+    LoadHomepage();
+}
+
+//GetImageColors();
+function GetImageColors(){
+    //for testing
+    groupList[0].color = "#111111";
+
+
+    const img = new Image();
+    img.src = "./type/tenningosui.png";
+    console.log(img);
+    const cvs = document.getElementById("canvas");
+    const ctx = cvs.getContext("2d");
+    img.addEventListener("load", () => {
+        ctx.drawImage(img, 0, 0, 3, 3, 0, 0, 20, 20);
+        img.style.display = "none";
+        cvs.display = "none";
+        var pixel = ctx.getImageData( 1, 1, 1, 1);
+        var data = pixel.data;
+        console.log(data);
+    });
+
+    
+    
+    
+    groupList[0].color;
     LoadHomepage();
 }
