@@ -3,6 +3,8 @@
 <html>
   <head>
     <link rel="stylesheet" href="index.css">
+
+   
     <meta charset="UTF-8">
     <meta name="author" content="Zunyi Wang">
     <meta name="viewport" content="width=device-width, initial-sclae=1.0" >
@@ -15,11 +17,11 @@
     <header>
       <a id="home" href="index.html"></a>
       <div class="cd">
-        <ul>
+        <div>
           <li><a class="tt1-on" href="index-type.html">文字</a></li>
           <li><a class="tt1" href="index-mis.html">海報</a></li>
           <li><a class="tt1" href="index-about.html">關於</a></li>
-        </ul>
+        </div>
       </div>
       <div class="line1"></div>
     </header>
@@ -30,14 +32,34 @@
         <button class="button-type" onclick="filterType(this, 'kana')"> かな</button>
       </div>
       <content class="type-grid">
-        <img class= "type hanzi" src="type/tenningosui.png"/>
-        <img class= "type hanzi" src="type/leifengta.png"/>
-        <img class= "type hanzi" src="type/nongzhuangdanmo.png">
-        <img class= "type latin" src="type/hamlet.png">
-        <img class= "type hanzi kana" src="type/wagahai.png">
-        <img class= "type hanzi" src="type/guanzizai.png">
-        <img class= "type hanzi" src="type/guoshang.png">
-        <img class= "type hanzi kana latin" src="type/knobenten.png">
+
+        <div class= "type hanzi">
+          <div class="typeDiv">
+            <div class = "typeBackground"></div>
+            <p class = "typeTitle"> title</p>
+            <p class = "typeText typeQuote"> title</p>
+            <p class = "typeText typeSource"> title</p>
+          </div>
+          <img class= "typeImage" id="天人五衰" src="type/tenningosui.png"/>
+        </div>
+        
+        <img class= "type typeImage hanzi" src="type/leifengta.png"/>
+        <img class= "type typeImage hanzi" src="type/nongzhuangdanmo.png">
+        <img class= "type typeImage latin" src="type/hamlet.png">
+        <img class= "type typeImage hanzi kana" src="type/wagahai.png">
+        <img class= "type typeImage hanzi" src="type/guanzizai.png">
+        
+        <div class= "type hanzi">
+          <div class="typeDiv">
+            <div class = "typeBackground"></div>
+            <p class = "typeTitle"> title</p>
+            <p class = "typeText typeQuote"> title</p>
+            <p class = "typeText typeSource"> title</p>
+          </div>
+          <img class= "typeImage" id="國殤" src="type/guoshang.png"/>
+        </div>
+
+        <img class= "type typeImage hanzi kana latin" src="type/knobenten.png">
       </content>
     </main>
 
@@ -50,6 +72,7 @@
   </footer>
   <script src="homepage.js"></script>
   <script src="index.js"></script>
+  <script src="index-type.js"></script>
 
 
 

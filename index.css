@@ -39,7 +39,10 @@ html {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* default values */
 :root {
+  --primaryColor: #ffffff;
+  --secondaryColor: #222222;
   --darkgray: #222222;
   --imagesize: 250px;
   --smallimagesize: 120px;
@@ -86,16 +89,15 @@ li {
 }
 
 .tt1 {
-  color: var(--darkgray);
-  font-size: 2.5vw;
+  color: var(--secondaryColor);
+  font-size: 4vh;
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-style: normal;
   font-weight: 500;
   line-height: 12vh;
-  margin: 15vh 5vw 15vh;
+  margin: 15vh 2vw 15vh;
   position: relative;
   text-decoration: none;
-  width: 10vw;
   transition: 300ms;
   pointer-events: auto;
   user-select: none;
@@ -125,12 +127,12 @@ li {
 }
 
 .tt1-on {
-  color: var(--darkgray);
-  font-size: 2.5vw;
+  color: var(--secondaryColor);
+  font-size: 4vh;
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
   line-height: 12vh;
-  margin: 15vh 5vw 15vh;
+  margin: 15vh 2vw 15vh;
   position: relative;
   text-decoration: none;
   width: 10vw;
@@ -192,18 +194,20 @@ li {
 /* TYPE */ /* TYPE */ /* TYPE */
 /* TYPE */ /* TYPE */ /* TYPE */
 .button-grid {
-  display: grid;
   gap: 1vw;
   grid-template-columns:
     repeat(3, 1fr);
-  margin: 1.5rem 38vw 0;
+  margin: 1.5rem 20vw 0;
+  justify-content: center;
+  align-items: center;
   text-align: center;
+  
 }
 
 
 .button-type {
   position: static;
-  margin: 0 auto 0;
+  margin: 0 1vh 0;
   border: none;
   outline: none;
   border-radius: 3em;
@@ -211,7 +215,7 @@ li {
   cursor: pointer;
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
-  font-size: 0.8vw;
+  font-size: 1.6vh;
   width: 7em;
   height: 4em;;
   
@@ -222,23 +226,86 @@ li {
   background-color: #888888;
 }
 
-
-
-/* TYPE*/
 .type-grid {
   display: grid;
-  gap: 0.3vw;
+  gap: 0.4vw;
   grid-template-columns:
-    repeat(6, 1fr);
-  margin: 2rem 5% 2rem;
+    repeat(5, 1fr);
+  margin: 2vh 5% 0;
   height: 100%;
 }
 
+.typeDiv{
+  width: 100%;
+  z-index: -5;
+  transition: 400ms;
+}
+
 .type {
+  position: relative;
   width: 100%;
   z-index: 5;
   transition: 400ms;
+  height: auto;
 }
+.typeImage{
+  width: 100%;
+  transition: 500ms;
+  z-index: 15;
+  border-radius: 0.5vw;
+}
+.typeImage:hover{
+    transition: 420ms;
+}
+.typeDiv{
+  position: relative;
+  top: 0;
+  width: 100%;
+  height: 0;
+}
+
+.typeBackground{
+  position: absolute;
+  background-color: #ffffff;
+  width: 100%;
+  padding-bottom: 100%;
+  z-index: -12;
+  border-radius: 0.5vw;
+}
+
+.typeTitle{
+  position: relative;
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 120%;
+  z-index: -5;
+  line-height: 120%;
+  margin: 0 6% 10%;
+  text-align: left;
+  top: 2vh;
+  
+}
+
+.typeText{
+  position: relative;
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 80%;
+  line-height: 120%;
+  z-index: -5;
+  margin: 5% 6.4% 0;
+  text-align: left;
+}
+.typeSource{
+  position: relative;
+  font-size: 60%;
+  line-height: 90%;
+  text-align: right;
+  margin: 5% 8% 0;
+}
+
 
 
 /* POSTER */
@@ -353,9 +420,10 @@ li {
 }
 
 .copyright {
+  
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
-  font-size: 1em;
+  font-size: 2vh;
   margin: 8% 0 2%;
   text-align: center;
 }
@@ -417,7 +485,7 @@ li {
   position: absolute;
   margin: 2%;
   font-style: none;
-  padding: 3vw;
+  padding: 4vw;
   border-radius: 15vw;
   border: none;
   background-color: white;
@@ -440,7 +508,17 @@ li {
   bottom: 0.1vh;
 }
 
-
+/* medium screens */
+@media (max-width: 1040px) {
+  .type-grid {
+    display: grid;
+    gap: 1.2vw;
+    grid-template-columns:
+      repeat(4, 1fr);
+    margin: 2vh 5% 2rem;
+    height: 100%;
+  }
+}
 /* mobile devices */
 @media (max-width: 708px) {
   .poster-grid {
@@ -516,7 +594,7 @@ li {
     gap: 1vw;
     grid-template-columns:
       repeat(3, 1fr);
-    margin: 1.5rem 24vw 0;
+    margin: 2vh 24vw 0;
     text-align: center;
   }
   .button-type {
@@ -539,7 +617,7 @@ li {
     gap: 1.2vw;
     grid-template-columns:
       repeat(3, 1fr);
-    margin: 2rem 5% 2rem;
+    margin: 2vh 5% 2rem;
     height: 100%;
   }
 

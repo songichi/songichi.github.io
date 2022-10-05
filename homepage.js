@@ -10,24 +10,8 @@ class group{
         this.date = date;
     }
 }
+
 var groupList = [];
-
-
-//adding new files
-
-CreateNewGroup(
-    "「天人五衰」",
-    "type/tenningosui.png",
-    "#ce1906", 
-    "#ffffff",
-    "「天人の五衰も目の前に見えてあさましや」",
-    "———『天人五衰』三島由紀夫",
-    new Date(2022, 10, 4,     0, 0, 0, 0)
-)
-
-//priting last element in the groupList array
-var recent = groupList[groupList.length - 1];
-console.log(recent);
 
 function CreateNewGroup(name, image, color, colorS, quote, source, date){
     var newGroup = new group(
@@ -36,6 +20,33 @@ function CreateNewGroup(name, image, color, colorS, quote, source, date){
     newGroup.name = name;
     groupList.push(newGroup);
 }
+
+
+//adding new files
+
+CreateNewGroup(
+    "天人五衰", "type/tenningosui.png",
+    "#ce1906", "#ffffff",
+    "天人の五衰も目の前に見えてあさましや",
+    "———『天人五衰』三島由紀夫",
+    new Date(2022, 10, 4,     0, 0, 0, 0)
+)
+CreateNewGroup(
+    "國殤", "type/tenningosui.png",
+    "#11f7af", "#000000",
+    "操吳戈兮被犀甲，車錯轂兮短兵接",
+    "———『國殤』屈原",
+    new Date(2022, 10, 4,     0, 0, 0, 0)
+)
+
+
+//priting last element in the groupList array
+var recent = groupList[0];
+console.log(recent);
+
+
+
+
 
 
 //for homepage
@@ -51,10 +62,11 @@ try{
 }
 catch{}
 
+
+
 //on other pages
 try{
     document.getElementById('home').style.backgroundColor = recent.color;
-    
 
     document.getElementById('home').addEventListener('mouseover',
 function() {
