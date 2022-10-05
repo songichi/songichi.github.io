@@ -168,3 +168,4 @@ for(var i = 0; i < TypeButtonList.length; i++){
     }
   })
 }
+

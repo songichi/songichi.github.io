@@ -1,4 +1,6 @@
 
+var r = document.querySelector(':root');
+
 //declaring class
 class group{
     constructor(image, color, colorS, quote, source, date){
@@ -13,13 +15,7 @@ class group{
 
 var groupList = [];
 
-function CreateNewGroup(name, image, color, colorS, quote, source, date){
-    var newGroup = new group(
-        image, color, colorS, quote, source, date
-    )
-    newGroup.name = name;
-    groupList.push(newGroup);
-}
+
 
 
 //adding new files
@@ -32,7 +28,14 @@ CreateNewGroup(
     new Date(2022, 10, 4,     0, 0, 0, 0)
 )
 CreateNewGroup(
-    "國殤", "type/tenningosui.png",
+    "觀自在菩薩", "type/guanzizai.png",
+    "#153513", "#ffffff",
+    "觀自在菩薩，行深般若波羅蜜多時",
+    "———『心經』",
+    new Date(2022, 10, 4,     0, 0, 0, 0)
+)
+CreateNewGroup(
+    "國殤", "type/guoshang.png",
     "#11f7af", "#000000",
     "操吳戈兮被犀甲，車錯轂兮短兵接",
     "———『國殤』屈原",
@@ -42,6 +45,7 @@ CreateNewGroup(
 
 //priting last element in the groupList array
 var recent = groupList[0];
+var newRecent;
 console.log(recent);
 
 
@@ -51,14 +55,7 @@ console.log(recent);
 
 //for homepage
 try{
-    document.getElementById('homepageGroup').style.background = recent.color;
-    document.getElementById('homepageImage').src = recent.image;
-    document.getElementById('homepageQuote').textContent = recent.quote;
-    document.getElementById('homepageQuote').style.color = recent.colorS;
-    document.getElementById('homepageSource').textContent = recent.source;
-    document.getElementById('homepageSource').style.color = recent.colorS;
-    document.getElementById('homepageFooter').textContent = 
-        recent.name + " 更新于 " + recent.date.toDateString();
+    LoadHomepage();
 }
 catch{}
 
@@ -83,4 +80,60 @@ function() {
 }
 catch{
 
+}
+
+function CreateNewGroup(name, image, color, colorS, quote, source, date){
+    var newGroup = new group(
+        image, color, colorS, quote, source, date
+    )
+    newGroup.name = name;
+    groupList.push(newGroup);
+}
+
+function LoadHomepage(){
+    //setting transition
+    var transitionDelay = 300;
+    document.getElementById('homepageGroup').style.transition = transitionDelay + "ms";
+    //set transition
+    document.getElementById('homepageImage').style.transition = "none";
+    document.getElementById('homepageImage').style.opacity = "0%";
+    document.getElementById('homepageImage').src = recent.image;
+    
+    document.getElementById('homepageGroup').style.background = recent.color;
+    document.getElementById('homepageQuote').textContent = recent.quote;
+    document.getElementById('homepageQuote').style.color = recent.colorS;
+    document.getElementById('homepageSource').textContent = recent.source;
+    document.getElementById('homepageSource').style.color = recent.colorS;
+    document.getElementById('homepageFooter').textContent = 
+        recent.name + " 更新于 " + recent.date.toDateString();
+
+    //testing to change all ui's color
+    r.style.setProperty('--primaryColor', recent.color);
+    r.style.setProperty('--secondaryColor', recent.colorS);
+
+    //delay changing image, otherwise there will be an ungly box
+    
+    setTimeout(() => {
+        document.getElementById('homepageImage').style.transition = "800ms";
+        document.getElementById('homepageImage').style.opacity = "100%";
+      }, transitionDelay)
+    
+    
+    
+    
+}
+function Reroll(){
+    
+    document.getElementById('homepageImage').src = "type/blank.png";
+    
+    newRecent = null;
+    rnd = Math.floor(Math.random() * groupList.length)
+    newRecent = groupList[rnd];
+    while(recent == newRecent){
+        rnd = Math.floor(Math.random() * groupList.length)
+        newRecent = groupList[rnd];
+    }
+    
+    recent = newRecent
+    LoadHomepage();
 }

@@ -186,7 +186,7 @@ li {
 
 .line1 {
   height: 0.4vh;
-  background: black;
+  background: var(--secondaryColor);
   margin: 0 20vw 0;
 }
 
@@ -250,7 +250,7 @@ li {
 }
 .typeImage{
   width: 100%;
-  transition: 500ms;
+  transition: 300ms;
   z-index: 15;
   border-radius: 0.5vw;
 }
@@ -423,7 +423,7 @@ li {
   
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
-  font-size: 2vh;
+  font-size: 1.6vh;
   margin: 8% 0 2%;
   text-align: center;
 }
@@ -438,6 +438,7 @@ li {
   width: 100%;
   top: 0;
   z-index: -5;
+  transition: 0ms;
 }
 #homepageImage {
   position: relative;
@@ -457,6 +458,7 @@ li {
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 700;
   user-select: none;
+  transition: 1200ms;
 }
 
 #homepageSource{
@@ -468,6 +470,7 @@ li {
   font-weight: 500;
   top: 1.2vh;
   user-select: none;
+  transition: 1200ms;
 }
 #homepageName{
   writing-mode: vertical-rl;
@@ -494,18 +497,47 @@ li {
   justify-content: center;
   align-items: center;
   overflow: hidden;
+
 }
 #home:hover {
   transition: 1800ms;
 }
 #homepageFooter{
-  position: absolute;
-  font-size: 1.8vh;
+  display: inline;
+  position: relative;
+  font-size: 0.6em;
+  font-size: 1.4vh;
   left:0;
   right:0;
   margin-left:auto;
   margin-right:auto;  
-  bottom: 0.1vh;
+  bottom: 1.2vh;
+  color: var(--secondaryColor);
+  transition: 1200ms;
+}
+#homepageBtn{
+  display: inline;
+  position: relative;
+  font-size: 1.8vh;
+  bottom: 1.2vh;
+  left: 2vw;
+  height: 4vh;
+  width: 11vh;
+  border-radius: 3vh;
+  border-color: var(--secondaryColor);
+  color: var(--secondaryColor);
+  background-color: transparent;
+  box-shadow: none;
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  
+  transition: 500ms;;
+}
+#homepageBtn:hover {
+  border-color: transparent;
+  color: var(--primaryColor);
+  background-color: var(--secondaryColor);
 }
 
 /* medium screens */
@@ -621,7 +653,40 @@ li {
     height: 100%;
   }
 
+  .typeTitle{
+    position: relative;
+    font-family: "Noto Sans SC", PingFang SC, sans-serif;
+    font-style: normal;
+    font-weight: 700;
+    font-size: 3vw;
+    z-index: -5;
+    line-height: 60%;
+    margin: 0 6% 20%;
+    text-align: left;
+    top: 2vh;
+    
+  }
+  
+  .typeText{
+    position: relative;
+    font-family: "Noto Sans SC", PingFang SC, sans-serif;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 2vw;
+    line-height: 3vw;
+    z-index: -5;
+    margin: 5% 6.4% 0;
+    text-align: left;
+  }
 
+  .typeSource{
+    position: relative;
+    font-size: 1.6vw;
+    line-height: 50%;
+    text-align: right;
+    margin: 5% 8% 0;
+  }
+  
 
   /* HOMEPAGE */
 
