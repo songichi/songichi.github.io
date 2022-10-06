@@ -90,7 +90,7 @@ try{
         document.getElementById('homeBtn').style.scale = "1.5";
         var homeBtnText = document.getElementById('homeBtnText');
         homeBtnText.style.left = "0";
-        homeBtnText.style.letterSpacing = "-0.4vw";
+        homeBtnText.style.letterSpacing = "-0.6vw";
         homeBtnText.style.fontSize = "4.4vw";
         homeBtn.style.padding = "0px 0px";
         });
