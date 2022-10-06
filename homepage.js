@@ -85,7 +85,7 @@ try{
     document.getElementById('homeBtn').addEventListener('mouseover',
         function() {
     //document.getElementById('home').style.backgroundColor = "#ffffff";
-        document.getElementById('homeBtn').style.scale = "2";
+        document.getElementById('homeBtn').style.scale = "1.4";
         });
 
     document.getElementById('homeBtn').addEventListener('mouseleave',

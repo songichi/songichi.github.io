@@ -565,7 +565,7 @@ li {
   position: fixed;
   margin: 2%;
   font-style: none;
-  padding: 0.5vw 2vw;
+  padding: 0.8vw 2vw;
   border-radius: 20vw;
   border: none;
   background-color: var(--secondaryColor);
@@ -574,14 +574,14 @@ li {
   justify-content: center;
   align-items: center;
   overflow: hidden;
-  border-width: 2px;
+  border-width: 1.2px;
   border-color: var(--primaryColor);
   border-style: solid;
 }
 #homeBtn:hover { transition: 1800ms; }
 #homeBtnText{
   z-index: 30;
-  font-size: 6vw;
+  font-size: 5vw;
   text-decoration: none;
   margin: 0;
   text-align: center;
