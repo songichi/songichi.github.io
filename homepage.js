@@ -12,14 +12,9 @@ class group{
         this.date = date;
     }
 }
-
 var groupList = [];
 
-
-
-
 //adding new files
-
 CreateNewGroup(
     "天人五衰", "type/tenningosui.png",
     "#ce1906", "#ffffff",
@@ -41,7 +36,13 @@ CreateNewGroup(
     "———『國殤』屈原",
     new Date(2022, 10, 4,     0, 0, 0, 0)
 )
-
+CreateNewGroup(
+    "濃妝淡抹", "type/nongzhuangdanmo.png",
+    "#f7f5e2", "#f25e2f",
+    "欲把西湖比西子，淡妝濃抹總相宜",
+    "———『飲湖上初晴後雨二首·其二』蘇軾",
+    new Date(2022, 10, 4,     0, 0, 0, 0)
+)
 
 //priting last element in the groupList array
 var recent = groupList[0];

@@ -11,13 +11,14 @@ var typeLanguageT = "none";
 var Clicked = false;
 var HasText = false;
 var btn;
+var groupDetailed = [];
 
 //var typeType = "none";
 
 //finding all type elements, check which language family the type belongs to
 var TypeList = document.getElementsByClassName('type');
 var TypeButtonList = document.getElementsByClassName('button-type');
-console.log(TypeButtonList);
+//console.log(TypeButtonList);
 
 for(var i = 0; i < TypeList.length; i++)
 {
@@ -60,31 +61,52 @@ for(var i = 0; i < TypeList.length; i++)
   //applying text from the library
   groupList.forEach(function(g){
     
+    //getting group elements
+    //which means the images that don't have type attached to them
     try{
-        var imageElement = TypeList[i].querySelector("#" + g.name);
-        var a = imageElement.previousElementSibling;
-        a.querySelector(".typeTitle").textContent = g.name;
-        a.querySelector(".typeTitle").style.color = g.colorS;
-        a.querySelector(".typeQuote").textContent = g.quote;
-        a.querySelector(".typeQuote").style.color = g.colorS;
-        a.querySelector(".typeSource").textContent = g.source;
-        a.querySelector(".typeSource").style.color = g.colorS;
-        a.querySelector(".typeBackground").style.backgroundColor = g.color;
-        a.HasText = true;
 
-        imageElement.addEventListener('mouseover',
-        function() {
-            imageElement.style.opacity = "0%";
+      //shaving the long html address to readable address
+      var imageSrc = g.image;
+      var longImageSrc = TypeList[i].querySelector(".typeImage").src;
+      var lengthDiff = longImageSrc.length - imageSrc.length;
+      longImageSrc = longImageSrc.slice(lengthDiff);
+      //console.log(longImageSrc);
+      
+      if(imageSrc == longImageSrc){
+        var imageElement = TypeList[i].querySelector(".typeImage");
+        groupDetailed.push(g.name);
+        //console.log(longImageSrc);
+      }
+
+      //var imageElement = TypeList[i].querySelector("#" + g.name);
+      var a = imageElement.previousElementSibling;
+      a.querySelector(".typeTitle").textContent = g.name;
+      a.querySelector(".typeTitle").style.color = g.colorS;
+      a.querySelector(".typeQuote").textContent = g.quote;
+      a.querySelector(".typeQuote").style.color = g.colorS;
+      a.querySelector(".typeSource").textContent = g.source;
+      a.querySelector(".typeSource").style.color = g.colorS;
+      a.querySelector(".typeBackground").style.backgroundColor = g.color;
+      a.HasText = true;
+
+      imageElement.addEventListener('mouseover',
+      function() {
+          imageElement.style.opacity = "0%";
+          imageElement.style.filter = "blur(5px)";
+      });
+      imageElement.addEventListener('mouseleave',
+      function() {
+          imageElement.style.opacity = "100%";
+           imageElement.style.filter = "none";
+
         });
-        imageElement.addEventListener('mouseleave',
-        function() {
-            imageElement.style.opacity = "100%";
-        });
+      
     }
     catch{}
+    
   }); 
 }
-
+console.log("GROUPS: [ " + groupDetailed + " ]");
 
 
 function filterType(clickedButton ,language){
@@ -141,7 +163,7 @@ function filterType(clickedButton ,language){
   filterLanguages.forEach(function(element){
     filterList.push(element);
   });
-  console.log("filterinng " + "[ " + filterList + " ]");
+  console.log("filter " + "[ " + filterList + " ]");
 }
 
 
@@ -166,7 +188,6 @@ for(var i = 0; i < TypeButtonList.length; i++){
     k = "latin";
   }
   const key = k.toString();
-  console.log(key);
 
   btn.addEventListener('click',
   function(){
