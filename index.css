@@ -565,9 +565,9 @@ li {
 
 #homeBtn{
   position: fixed;
-  margin: 2%;
+  margin: 2.5%;
   font-style: none;
-  padding: 0.8vw 2vw;
+  padding: 1vw 5vw;
   border-radius: 20vw;
   border: none;
   background-color: var(--secondaryColor);
@@ -575,15 +575,18 @@ li {
   z-index: 20;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
   border-width: 1.2px;
   border-color: var(--primaryColor);
   border-style: solid;
+  
 }
 #homeBtn:hover { transition: 1800ms; }
 #homeBtnText{
+  position: relative;
+  left: -2.5vw;
   z-index: 30;
   font-size: 5vw;
+  letter-spacing: -5vw;
   text-decoration: none;
   margin: 0;
   text-align: center;
@@ -592,6 +595,8 @@ li {
   font-weight: 700;
   color: var(--primaryColor);
   user-select: none;
+  -webkit-text-stroke: 1px var(--primaryColor);
+  transition: 500ms;
 }
 
 
@@ -732,7 +737,7 @@ li {
     outline: none;
     border-radius: 3em;
     border-style: solid;
-    border-width: 0.5px;
+    border-width: 2px;
     border-color: var(--primaryColor);
     color: var(--primaryColor);
     background: transparent;
@@ -822,13 +827,13 @@ li {
 
   #homeBtn{
     position: fixed;
-    margin: 2%;
+    margin: 3%;
     font-style: none;
-    padding: 1.2vw 3.6vw;
     border-radius: 20vw;
+    
     border: none;
     background-color: var(--secondaryColor);
-    transition: 700ms;
+    transition: 500ms;
     z-index: 20;
     justify-content: center;
     align-items: center;
@@ -841,15 +846,16 @@ li {
 
   #homeBtnText{
     z-index: 30;
-    font-size: 10vw;
     text-decoration: none;
-    margin: 0;
+    
+    padding: 2vw 2vw;
     text-align: center;
     font-family: "Noto Sans SC", PingFang SC, sans-serif;
     font-style: normal;
     font-weight: 700;
     color: var(--primaryColor);
     user-select: none;
+
   }
 
 

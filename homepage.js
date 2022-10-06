@@ -80,19 +80,30 @@ catch{}
 
 //on other pages
 try{
-    //document.getElementById('home').style.backgroundColor = recent.color;
-    document.getElementById('homeBtnText').textContent = recent.name[0];
+
+    document.getElementById('homeBtnText').textContent = recent.name;
+    //document.getElementById('homeBtnText').textContent = recent.name[0];
+    
     document.getElementById('homeBtn').addEventListener('mouseover',
         function() {
     //document.getElementById('home').style.backgroundColor = "#ffffff";
-        document.getElementById('homeBtn').style.scale = "1.4";
+        document.getElementById('homeBtn').style.scale = "1.5";
+        var homeBtnText = document.getElementById('homeBtnText');
+        homeBtnText.style.left = "0";
+        homeBtnText.style.letterSpacing = "-0.4vw";
+        homeBtnText.style.fontSize = "4.4vw";
+        homeBtn.style.padding = "0px 0px";
         });
 
     document.getElementById('homeBtn').addEventListener('mouseleave',
         function() {
     //document.getElementById('home').style.backgroundColor = recent.color;
         document.getElementById('homeBtn').style.scale = "1";
-        });
+        document.getElementById('homeBtnText').style.left = "-2.5vw";
+        document.getElementById('homeBtnText').style.letterSpacing = "-5vw";
+        homeBtnText.style.fontSize = "5vw";
+        homeBtn.style.padding = "1vw 5vw";
+    });
     
 }
 catch{}
