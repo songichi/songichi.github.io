@@ -312,6 +312,7 @@ li {
   width: 100%;
   z-index: -5;
   transition: 400ms;
+  user-select: none;
 }
 
 .type {
@@ -330,6 +331,8 @@ li {
   z-index: 15;
   padding: 0;
   border-radius: 0.5vw;
+  user-select: none;
+  
 }
 .typeImage:hover{
     transition: 420ms;
@@ -589,6 +592,7 @@ li {
   font-style: normal;
   font-weight: 700;
   color: var(--primaryColor);
+  user-select: none;
 }
 
 
@@ -738,7 +742,8 @@ li {
     background: transparent;
     color: var(--secondaryColor);
     width: 5em;
-    height: 3em;;
+    height: 3em;
+    
     
     
   }
