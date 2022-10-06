@@ -1,6 +1,13 @@
+//import from homepage
 import {primaryColor} from './homepage.js';
+import {secondaryColor} from './homepage.js';
 import {groupList} from './homepage.js';
-console.log(primaryColor);
+
+//var documentRoot = document.querySelector(':root');
+//documentRoot.style.setProperty('--primaryColor', primaryColor);
+//documentRoot.style.setProperty('--secondaryColor', secondaryColor);
+
+
 ///// FOR TYPE PAGE
 //declaring language types
 var languages = ["hanzi", "latin", "kana"];
@@ -192,17 +199,52 @@ for(var i = 0; i < TypeButtonList.length; i++){
   btn.addEventListener('click',
   function(){
     if(btn.Clicked == false){
-      btn.style.background = "#333333";
-      btn.style.color = "#ffffff";
+      btnStyleIsClicked(btn, true);
       btn.Clicked = true;
     }
+    //when btn has been clicked
     else{
       btn.Clicked = false;
-      btn.style.background = "#f1f1f1";
-      btn.style.color = "#000000";
+      btnStyleIsClicked(btn, false);
     }
-
     filterType(btn, key)
   })
+
+  btn.addEventListener('mouseover',
+  function(){
+    if(btn.Clicked == false){
+      btnStyleIsClicked(btn, true);
+    }
+    //when btn has been clicked
+    else{
+      btnStyleIsClicked(btn, false);
+    }
+    })
+  
+
+  btn.addEventListener('mouseleave',
+  function(){
+    if(btn.Clicked == false){
+      btnStyleIsClicked(btn, false);
+    }
+      //when btn has been clicked
+    else{
+      btnStyleIsClicked(btn, true);
+    }
+    })
+}
+
+//this changes the button style when passing in true / false value
+function btnStyleIsClicked(btn, isClicked){
+  if(isClicked == false){ //this is the thinner style
+    btn.style.border = "2px solid var(--primaryColor)";
+    btn.style.background = "transparent";
+    btn.style.color = "var(--primaryColor)";
+  }
+  else if(isClicked == true){ //this is the thicker style
+    btn.style.border = "none";
+    btn.style.background = "var(--primaryColor)";
+    btn.style.color = "var(--secondaryColor)";
+  }
 }
 

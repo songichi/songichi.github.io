@@ -1,4 +1,5 @@
 
+
 var r = document.querySelector(':root');
 
 //declaring class
@@ -45,9 +46,23 @@ CreateNewGroup(
 )
 
 //priting last element in the groupList array
-var recent = groupList[0];
+
+var recent;
 var newRecent;
 console.log(recent);
+
+//checking if the user is visiting this page the first time
+if(sessionStorage.getItem("recentColor") == null){
+    console.log("WELCOME");
+    recent = groupList[0];
+}
+else{
+    var p = sessionStorage.getItem("recentColor");
+    var s = sessionStorage.getItem("recentColorS");
+    var selectedGroup = groupList.find(
+        item => item.color == p && item.colorS == s);
+    recent = selectedGroup;
+}
 
 //for homepage
 try{
@@ -65,19 +80,19 @@ catch{}
 
 //on other pages
 try{
-    document.getElementById('home').style.backgroundColor = recent.color;
-
-    document.getElementById('home').addEventListener('mouseover',
+    //document.getElementById('home').style.backgroundColor = recent.color;
+    document.getElementById('homeBtnText').textContent = recent.name[0];
+    document.getElementById('homeBtn').addEventListener('mouseover',
         function() {
     //document.getElementById('home').style.backgroundColor = "#ffffff";
-        document.getElementById('home').style.scale = "4";
-    });
+        document.getElementById('homeBtn').style.scale = "2";
+        });
 
-    document.getElementById('home').addEventListener('mouseleave',
+    document.getElementById('homeBtn').addEventListener('mouseleave',
         function() {
     //document.getElementById('home').style.backgroundColor = recent.color;
-        document.getElementById('home').style.scale = "1";
-    });
+        document.getElementById('homeBtn').style.scale = "1";
+        });
     
 }
 catch{}
@@ -121,7 +136,10 @@ function LoadHomepage(){
             document.getElementById('homepageImage').style.opacity = "100%";
           }, transitionDelay)
     });
+
+    
 }
+
 
 
 function Reroll(){
@@ -138,6 +156,13 @@ function Reroll(){
     
     recent = newRecent;
     LoadHomepage();
+
+    //save "recent" data
+    var primaryColor = recent.color;
+    var secondaryColor = recent.colorS;
+    sessionStorage.setItem("recentColor", primaryColor);
+    sessionStorage.setItem("recentColorS", secondaryColor);
+
 }
 //don't know if these actually work
 preloadImages();
@@ -148,10 +173,15 @@ function preloadImages(){
     });
 }
 
-
-
 export var primaryColor = recent.color;
+export var secondaryColor = recent.colorS;
 export var groupList;
+export var recent;
+
+
+
+
+
 //export var primaryColor = recent.color;
 
 /*
