@@ -36,7 +36,7 @@ function() {
 });
 }
 catch{
-  console.log("not brand page")
+  console.log("NOT ON BRAND")
 }
   
 

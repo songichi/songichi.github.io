@@ -48,38 +48,38 @@ var recent = groupList[0];
 var newRecent;
 console.log(recent);
 
-
-
-
-
 //for homepage
 try{
     LoadHomepage();
+
+    //adding eventlistener to button
+    document.getElementById('homepageBtn').addEventListener('click',
+        function() {
+    
+        Reroll();
+        //document.getElementById('homepageBtn').style.scale = "1";
+    });
 }
 catch{}
-
-
 
 //on other pages
 try{
     document.getElementById('home').style.backgroundColor = recent.color;
 
     document.getElementById('home').addEventListener('mouseover',
-function() {
+        function() {
     //document.getElementById('home').style.backgroundColor = "#ffffff";
-    document.getElementById('home').style.scale = "4";
-});
+        document.getElementById('home').style.scale = "4";
+    });
 
     document.getElementById('home').addEventListener('mouseleave',
-function() {
+        function() {
     //document.getElementById('home').style.backgroundColor = recent.color;
-    document.getElementById('home').style.scale = "1";
-});
+        document.getElementById('home').style.scale = "1";
+    });
     
 }
-catch{
-
-}
+catch{}
 
 function CreateNewGroup(name, image, color, colorS, quote, source, date){
     var newGroup = new group(
@@ -119,29 +119,32 @@ function LoadHomepage(){
             document.getElementById('homepageImage').style.transition = "800ms";
             document.getElementById('homepageImage').style.opacity = "100%";
           }, transitionDelay)
-
     });
-    
-    
-      
-   
 }
+
+
 function Reroll(){
     
-    document.getElementById('homepageImage').src = "type/blank.png";
+    //document.getElementById('homepageImage').src = "type/blank.png";
     
-    newRecent = null;
-    rnd = Math.floor(Math.random() * groupList.length)
-    newRecent = groupList[rnd];
+    //newRecent = null;
+    var rnd = Math.floor(Math.random() * groupList.length)
+    var newRecent = groupList[rnd];
     while(recent == newRecent){
         rnd = Math.floor(Math.random() * groupList.length)
         newRecent = groupList[rnd];
     }
     
-    recent = newRecent
+    recent = newRecent;
     LoadHomepage();
 }
 
+
+export var primaryColor = recent.color;
+export var groupList;
+//export var primaryColor = recent.color;
+
+/*
 //GetImageColors();
 function GetImageColors(){
     //for testing
@@ -163,8 +166,6 @@ function GetImageColors(){
     });
 
     
-    
-    
     groupList[0].color;
     LoadHomepage();
-}
+}*/

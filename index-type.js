@@ -1,5 +1,6 @@
-
-
+import {primaryColor} from './homepage.js';
+import {groupList} from './homepage.js';
+console.log(primaryColor);
 ///// FOR TYPE PAGE
 //declaring language types
 var languages = ["hanzi", "latin", "kana"];
@@ -81,20 +82,12 @@ for(var i = 0; i < TypeList.length; i++)
         });
     }
     catch{}
-    
-    
-    
   }); 
-
-  
-  
 }
 
 
 
 function filterType(clickedButton ,language){
-
-  btn = clickedButton;
 
   //check if filter list already has the target language
   //if no, then add it to the filter list
@@ -111,9 +104,11 @@ function filterType(clickedButton ,language){
 
   //check through each element to see if the filter type
   //by default, everything is turned on
+  
   for(var i = 0; i < TypeList.length; i++)
   {
     TypeList[i].style.display = "block";
+    
     
     //checking through each filter language
     filterLanguages.forEach(function(a){
@@ -121,7 +116,7 @@ function filterType(clickedButton ,language){
       if(TypeList[i].typeLanguageS == "none"){
         if(TypeList[i].typeLanguage != a){
           TypeList[i].style.display = "none";
-          console.log("not " + a);
+          //console.log("not " + a);
         }
       }
       //if the object has two languages
@@ -141,16 +136,37 @@ function filterType(clickedButton ,language){
       //turn off objects that don't have class names matching
       
     });
-
   }
+  var filterList = [];
+  filterLanguages.forEach(function(element){
+    filterList.push(element);
+  });
+  console.log("filterinng " + "[ " + filterList + " ]");
 }
+
+
+
 
 //for each button, add onclick function
 for(var i = 0; i < TypeButtonList.length; i++){
 
-  btn = TypeButtonList.item(i);
+  const btn = TypeButtonList.item(i);
   btn.Clicked = false;
   //console.log(btn);
+  var k = "a";
+    
+  //translating button text to type
+  if(btn.textContent == "漢字"){
+    k = "hanzi";
+  }
+  else if(btn.textContent == "かな"){
+    k = "kana";
+  }
+  else if(btn.textContent == "Latin"){
+    k = "latin";
+  }
+  const key = k.toString();
+  console.log(key);
 
   btn.addEventListener('click',
   function(){
@@ -158,14 +174,14 @@ for(var i = 0; i < TypeButtonList.length; i++){
       btn.style.background = "#333333";
       btn.style.color = "#ffffff";
       btn.Clicked = true;
-
     }
     else{
       btn.Clicked = false;
       btn.style.background = "#f1f1f1";
       btn.style.color = "#000000";
-
     }
+
+    filterType(btn, key)
   })
 }
 
