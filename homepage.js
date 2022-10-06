@@ -139,6 +139,15 @@ function Reroll(){
     recent = newRecent;
     LoadHomepage();
 }
+//don't know if these actually work
+preloadImages();
+function preloadImages(){
+    groupList.forEach(function(g){
+        var img = new Image();
+        img.src = g.image;
+    });
+}
+
 
 
 export var primaryColor = recent.color;
