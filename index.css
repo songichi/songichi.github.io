@@ -48,6 +48,7 @@ html {
   --smallimagesize: 120px;
   --titleMain: 4vh;
   --titleHalf: 2vh;
+  --titleDouble: 8vh;
   --spaceFromTop: 7vh;
 }
 
@@ -233,16 +234,18 @@ li {
 
 }
 #aboutDiv{
-  margin: 5vh 0 0 40vw;
+  display: flex;
+  margin: 5vh 27vw 0 ;
 }
 #aboutText{
   color: var(--secondaryColor);
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 700;
-  font-size: 1.6vw;
+  font-size: clamp(1.4em, 4vh, 5vh);
   text-align: left;
-  margin: 0 0 0 40vw;
-  line-height: 2.6vw;
+  margin: 0;
+  line-height: clamp(1.4em, 5vh, 6vw);
+  width: 100%;
 }
 
 .break {
@@ -312,6 +315,7 @@ li {
   z-index: -5;
   transition: 400ms;
   user-select: none;
+  aspect-ratio: 1/1;
 }
 
 .type {
@@ -727,23 +731,14 @@ li {
     gap: 0.6vw;
     grid-template-columns:
       repeat(3, 1fr);
-    margin: var(--spaceFromTop) 34vw 0;
+    margin: 4vh 34vw 0;
     text-align: center;
   }
   .button-type {
     position: static;
-    margin: 0 0.5vw 0;
-    border: none;
-    outline: none;
     border-radius: 3em;
     border-style: solid;
     border-width: 2px;
-    border-color: var(--primaryColor);
-    color: var(--primaryColor);
-    background: transparent;
-    cursor: pointer;
-    font-family: "Noto Sans SC", PingFang SC, sans-serif;
-    font-weight: 700;
     font-size: 2.4vw;
     width: 5em;
     height: 3em;
@@ -859,14 +854,8 @@ li {
   }
 
 
-  #aboutText{
-    color: var(--secondaryColor);
-    font-family: "Noto Sans SC", PingFang SC, sans-serif;
-    font-weight: 700;
-    font-size: 4vw;
-    text-align: left;
-    margin: 0 0 0 18vw;
-    line-height: 6vw;
+  #aboutDiv{
+    margin: 5vh 10vw 0 ;
   }
 
   .backgroundDiv{
