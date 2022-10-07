@@ -176,7 +176,7 @@ function LoadHomepage(){
 
     //delay changing image, otherwise there will be an ungly box
     document.getElementById('homepageImage').addEventListener("load", () => {
-        //clearInterval(loadInterval);  //stop loading interval
+        clearInterval(loadInterval);  //stop loading interval
         
         //document.getElementById('homepageImage').style.transition = "800ms";
         //document.getElementById('homepageImage').style.opacity = "100%";
