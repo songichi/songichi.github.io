@@ -549,8 +549,8 @@ li {
   z-index: 50;
   text-align: center;
   line-height: 62vh;
-  transition: 300ms;
-  filter: blur(4px);
+  transition: 220ms;
+  filter: blur(3px);
   
 }
 

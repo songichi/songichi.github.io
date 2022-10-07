@@ -167,9 +167,9 @@ function LoadHomepage(){
         else{ loadTime++; } //simply add one
         setTimeout(function(){
             loadObject.style.opacity = "0%";
-            loadObject.style.filter = "blur(4px)";
-          }, 900);
-    }, 1500);
+            loadObject.style.filter = "blur(3px)";
+          }, 660);
+    }, 1200);
     //clearInterval(loadInterval);  //stop loading interval
 
     
