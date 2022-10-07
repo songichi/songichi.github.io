@@ -2,6 +2,7 @@
 import {primaryColor} from './homepage.js';
 import {secondaryColor} from './homepage.js';
 import {groupList} from './homepage.js';
+//import tinycolor from './tinycolor.js';
 
 //var documentRoot = document.querySelector(':root');
 //documentRoot.style.setProperty('--primaryColor', primaryColor);
@@ -174,10 +175,13 @@ function filterType(clickedButton ,language){
 }
 
 
-
+var btnPrimaryColor;
+var btnSecondaryColor;
 
 //for each button, add onclick function
 for(var i = 0; i < TypeButtonList.length; i++){
+
+
 
   const btn = TypeButtonList.item(i);
   btn.Clicked = false;
@@ -196,6 +200,29 @@ for(var i = 0; i < TypeButtonList.length; i++){
   }
   const key = k.toString();
 
+
+  //change btn color
+  //check if the primary color is too light
+  //if it's too light, it will be unreadable
+  var primaryColorTiny = tinycolor(primaryColor);
+  //console.log(primaryColorTiny);
+
+  //if the color is too light and not readable, switch the colors
+  if(primaryColorTiny.isLight() == true){
+    btnPrimaryColor = secondaryColor;
+    btnSecondaryColor = primaryColor;
+  }
+  else{
+    btnPrimaryColor = primaryColor;
+    btnSecondaryColor = secondaryColor;
+  }
+  //set initial button style
+  btn.style.border = "2px solid " + btnPrimaryColor.toString();
+  btn.style.background = "transparent";
+  btn.style.color = btnPrimaryColor;
+
+
+  //add click function
   btn.addEventListener('click',
   function(){
     if(btn.Clicked == false){
@@ -236,15 +263,41 @@ for(var i = 0; i < TypeButtonList.length; i++){
 
 //this changes the button style when passing in true / false value
 function btnStyleIsClicked(btn, isClicked){
+  //console.log(primaryColorTiny);
   if(isClicked == false){ //this is the thinner style
-    btn.style.border = "2px solid var(--primaryColor)";
+    //console.log("2px solid " + btnPrimaryColor.toString());
+    btn.style.border = "2px solid " + btnPrimaryColor.toString();
     btn.style.background = "transparent";
-    btn.style.color = "var(--primaryColor)";
+    btn.style.color = btnPrimaryColor;
   }
   else if(isClicked == true){ //this is the thicker style
     btn.style.border = "none";
-    btn.style.background = "var(--primaryColor)";
-    btn.style.color = "var(--secondaryColor)";
+    btn.style.background = btnPrimaryColor;
+    btn.style.color = btnSecondaryColor;
   }
+
+  /*
+  //if the color is readable, 
+  if(primaryColorTiny.isLight() == false){
+    //console.log("is light");
+    
+  }
+  //if the color is not readable, then reverse the color
+  else{
+    if(isClicked == false){ //this is the thinner style
+      btn.style.border = "2px solid var(--secondaryColor)";
+      btn.style.background = "transparent";
+      btn.style.color = "var(--secondaryColor)";
+    }
+    else if(isClicked == true){ //this is the thicker style
+      btn.style.border = "none";
+      btn.style.background = "var(--primaryColor)";
+      btn.style.color = "var(--secondaryColor)";
+    }
+
+
+  }*/
+
+  
 }
 
