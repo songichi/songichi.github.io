@@ -58,7 +58,7 @@ loadTexts.push("髣髴兮若輕雲之蔽月飄颻兮若流風之迴雪");
 loadTexts.push("關關雎鳩在河之洲窈窕淑女君子好逑");
 console.log(loadTexts);
 
-var loadInterval;
+
 
 
 //priting last element in the groupList array
@@ -154,7 +154,7 @@ function LoadHomepage(){
     var loadTime = 0;
     
     var rndIndex = Math.floor(Math.random() * loadTexts.length)
-    loadInterval = setInterval(function() { 
+    var loadInterval = setInterval(function() { 
         var loadObject = document.getElementById('homepageImageLoad');
         var loadText = loadTexts[rndIndex];
         loadObject.textContent = loadText[loadTime];
