@@ -515,7 +515,7 @@ li {
  /* HOMEPAGE */ /* HOMEPAGE */ /* HOMEPAGE */
 #homepageGroup {
   background: var(--primaryColor);
-  position: absolute;
+  position: fixed;
   display: block;
   height: 100%;
   width: 100%;
@@ -529,9 +529,30 @@ li {
   align-items: center;
   justify-content: center;
   width: 62vh;
-  margin:12vh auto 0% ;
+  height: 62vh;
+  margin:12vh auto 0%;
   user-select: none;
 }
+#homepageImageLoad{
+  position: relative;
+  color: var(--secondaryColor);
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-weight: 500;
+  font-size: 20vh;
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin:12vh auto 0%;
+  width: 62vh;
+  height: 62vh;
+  z-index: 50;
+  text-align: center;
+  line-height: 62vh;
+  transition: 300ms;
+  filter: blur(7px);
+  
+}
+
 #homepageQuote{
   position: relative;
   text-align: center;
@@ -795,7 +816,8 @@ li {
     align-items: center;
     justify-content: center;
     width: 90vw;
-    margin:9vh auto 2vh ;
+    height: 90vw;
+    margin:9vh auto 0vh ;
     user-select: none;
   }
 

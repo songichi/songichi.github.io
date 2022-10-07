@@ -52,12 +52,18 @@ CreateNewGroup(
     new Date(2022, 10, 4,     0, 0, 0, 0)
 )
 
+//adding load screen poems
+var loadTexts = [];
+loadTexts.push("髣髴兮若輕雲之蔽月飄颻兮若流風之迴雪");
+loadTexts.push("關關雎鳩在河之洲窈窕淑女君子好逑");
+console.log(loadTexts);
+
+
+
+
 //priting last element in the groupList array
-
 var recent;
-var newRecent;
 console.log(recent);
-
 //checking if the user is visiting this page the first time
 if(sessionStorage.getItem("recentColor") == null){
     console.log("WELCOME");
@@ -144,9 +150,34 @@ function LoadHomepage(){
     r.style.setProperty('--primaryColor', recent.color);
     r.style.setProperty('--secondaryColor', recent.colorS);
 
-    //delay changing image, otherwise there will be an ungly box
+    //add a load text animation when the image is loading
+    var loadTime = 0;
+    var loadInterval;
+    var rndIndex = Math.floor(Math.random() * loadTexts.length)
+    loadInterval = setInterval(function() { 
+        var loadObject = document.getElementById('homepageImageLoad');
+        var loadText = loadTexts[rndIndex];
+        loadObject.textContent = loadText[loadTime];
+        loadObject.style.opacity = "100%";
+        loadObject.style.filter = "blur(0px)";
+        //if loadTime exceeds the string length
+        if(loadTime + 1 >= loadText.length){
+            loadTime = 0;
+        }
+        else{ loadTime++; } //simply add one
+        setTimeout(function(){
+            loadObject.style.opacity = "0%";
+            loadObject.style.filter = "blur(7px)";
+          }, 1300);
+    }, 2200);
+    //clearInterval(loadInterval);  //stop loading interval
+
     
+
+    //delay changing image, otherwise there will be an ungly box
     document.getElementById('homepageImage').addEventListener("load", () => {
+        clearInterval(loadInterval);  //stop loading interval
+        
         //document.getElementById('homepageImage').style.transition = "800ms";
         //document.getElementById('homepageImage').style.opacity = "100%";
         setTimeout(() => {
@@ -154,8 +185,6 @@ function LoadHomepage(){
             document.getElementById('homepageImage').style.opacity = "100%";
           }, transitionDelay)
     });
-
-    
 }
 
 
@@ -181,6 +210,7 @@ function Reroll(){
     sessionStorage.setItem("recentColor", primaryColor);
     sessionStorage.setItem("recentColorS", secondaryColor);
 
+    
 }
 //don't know if these actually work
 preloadImages();
