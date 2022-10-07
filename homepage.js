@@ -17,6 +17,13 @@ var groupList = [];
 
 //adding new files
 CreateNewGroup(
+    "Ｋの弁天", "type/knobenten.png",
+    "#f0ffff", "#3e0b6b",
+    "影ほど不思議なものはない",
+    "———『Kの弁天』谷崎潤一郎",
+    new Date(2022, 10, 7,     0, 0, 0, 0)
+)
+CreateNewGroup(
     "天人五衰", "type/tenningosui.png",
     "#ce1906", "#ffffff",
     "天人の五衰も目の前に見えてあさましや",
@@ -126,7 +133,7 @@ function LoadHomepage(){
     document.getElementById('homepageImage').src = recent.image;
     
     document.getElementById('homepageGroup').style.background = recent.color;
-    document.getElementById('homepageQuote').textContent = recent.quote;
+    document.getElementById('homepageQuote').textContent = recent.quote ;
     document.getElementById('homepageQuote').style.color = recent.colorS;
     document.getElementById('homepageSource').textContent = recent.source;
     document.getElementById('homepageSource').style.color = recent.colorS;
