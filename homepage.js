@@ -58,7 +58,7 @@ loadTexts.push("髣髴兮若輕雲之蔽月飄颻兮若流風之迴雪");
 loadTexts.push("關關雎鳩在河之洲窈窕淑女君子好逑");
 console.log(loadTexts);
 
-
+var loadInterval;
 
 
 //priting last element in the groupList array
@@ -152,7 +152,7 @@ function LoadHomepage(){
 
     //add a load text animation when the image is loading
     var loadTime = 0;
-    var loadInterval;
+    
     var rndIndex = Math.floor(Math.random() * loadTexts.length)
     loadInterval = setInterval(function() { 
         var loadObject = document.getElementById('homepageImageLoad');
@@ -167,16 +167,16 @@ function LoadHomepage(){
         else{ loadTime++; } //simply add one
         setTimeout(function(){
             loadObject.style.opacity = "0%";
-            loadObject.style.filter = "blur(7px)";
-          }, 1300);
-    }, 2200);
+            loadObject.style.filter = "blur(4px)";
+          }, 900);
+    }, 1500);
     //clearInterval(loadInterval);  //stop loading interval
 
     
 
     //delay changing image, otherwise there will be an ungly box
     document.getElementById('homepageImage').addEventListener("load", () => {
-        clearInterval(loadInterval);  //stop loading interval
+        //clearInterval(loadInterval);  //stop loading interval
         
         //document.getElementById('homepageImage').style.transition = "800ms";
         //document.getElementById('homepageImage').style.opacity = "100%";
