@@ -56,7 +56,7 @@ for(var i = 0; i < TypeList.length; i++)
     if(itemT.classList.contains("typeImage") == true){
         itemT.addEventListener('mouseover',
         function() {
-        itemT.style.filter = "blur(3px)";
+        itemT.style.filter = "blur(1.6px)";
         });
         itemT.addEventListener('mouseleave',
         function() {

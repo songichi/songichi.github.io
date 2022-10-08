@@ -120,11 +120,11 @@ try{
     document.getElementById('homeBtn').addEventListener('mouseleave',
         function() {
     //document.getElementById('home').style.backgroundColor = recent.color;
-        document.getElementById('homeBtn').style.scale = "1";
+        document.getElementById('homeBtn').style.scale = "0.9";
         document.getElementById('homeBtnText').style.left = "-2.5vw";
         document.getElementById('homeBtnText').style.letterSpacing = "-5vw";
         homeBtnText.style.fontSize = "5vw";
-        homeBtn.style.padding = "1vw 5vw";
+        homeBtn.style.padding = "0vw 4vw";
     });
     
 }

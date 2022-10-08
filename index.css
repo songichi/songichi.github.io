@@ -242,7 +242,7 @@ li {
   color: var(--secondaryColor);
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 700;
-  font-size: clamp(1.4em, 4vh, 5vh);
+  font-size: clamp(1.1em, 3.8vh, 5vh);
   text-align: left;
   margin: 0;
   line-height: clamp(1.4em, 5vh, 6vw);
@@ -593,7 +593,7 @@ li {
   position: fixed;
   margin: 2.5%;
   font-style: none;
-  padding: 1vw 5vw;
+  padding: 0vw 4vw;
   border-radius: 20vw;
   border: none;
   background-color: var(--secondaryColor);
@@ -601,7 +601,7 @@ li {
   z-index: 20;
   justify-content: center;
   align-items: center;
-  border-width: 1.2px;
+  border-width: 1.5px;
   border-color: var(--primaryColor);
   border-style: solid;
   
