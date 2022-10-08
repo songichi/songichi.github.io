@@ -16,6 +16,15 @@ class group{
 var groupList = [];
 
 //adding new files
+
+/*
+CreateNewGroup(
+    "蕪城賦", "type/wuchengfu.png",
+    "#fcffe0", "#170c06",
+    "觀基扃之固護，將萬祀而一君",
+    "———『蕪城賦』鮑照",
+    new Date(2022, 10, 8,     0, 0, 0, 0)
+)*/
 CreateNewGroup(
     "Ｋの弁天", "type/knobenten.png",
     "#f0ffff", "#3e0b6b",
