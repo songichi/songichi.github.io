@@ -7,7 +7,7 @@ html{
     display: grid;
     gap: 0.7vw;
     grid-template-columns:
-      repeat(4, 1fr);
+      repeat(5, 1fr);
     margin: 0 5% 0;
     height: 100%;
 
@@ -26,4 +26,13 @@ html{
   line-height: clamp(1.4em, 5vh, 6vw);
   width: 100%;
   margin: 5vh 5vw 5vh;
+}
+.list-group-item{
+  font-size: small;
+}
+.card-body{
+  font-size: small;
+}
+.card-text{
+  font-size: large;
 }

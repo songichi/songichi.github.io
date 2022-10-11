@@ -48,10 +48,10 @@ for(var i = 0; i < artistStyleList.length; i++){
             <li class="list-group-item">` + artistStyleList[i].usage + `</li>
             <li class="list-group-item">` + artistStyleList[i].medium + `</li>
         </ul>
-        <div class="card-body"><a href="#" class="card-link">Card link</a></div>
+        <div class="card-body"><a href="http://www.google.com/images?q=` + artistStyleList[i].artist + `" class="card-link">Click for details</a></div>
             `;
-            document.getElementById("notesGrid").appendChild(div);
-        }
+        document.getElementById("notesGrid").appendChild(div);
+    }
         
         //      <div class="card" style="width: 15rem;">
         
