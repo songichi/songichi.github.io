@@ -1,0 +1,29 @@
+html{
+    overflow: scroll;
+}
+
+/* NOTES APP */
+#notesGrid {
+    display: grid;
+    gap: 0.7vw;
+    grid-template-columns:
+      repeat(4, 1fr);
+    margin: 0 5% 0;
+    height: 100%;
+
+    
+}
+.card{
+  width: 100%;
+}
+
+#notesText{
+  color: var(--secondaryColor);
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.1em, 3.8vh, 5vh);
+  text-align: left;
+  line-height: clamp(1.4em, 5vh, 6vw);
+  width: 100%;
+  margin: 5vh 5vw 5vh;
+}
