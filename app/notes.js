@@ -27,7 +27,7 @@ addArtistStyle("Charley Harper", "minimalist, colorful", "digital", "illustratio
 addArtistStyle("Craig Mullins", "game epic scene, corase", "digital", "concept art", "notesImages/CraigMullins.jpg");
 addArtistStyle("eyvind earle", "detailed scenery", "digital", "illustration", "notesImages/EyvindEarle.webp");
 addArtistStyle("Hiroshi Yoshida", "nodoka, japanese", "watercolor", "illustration", "notesImages/HiroshiYoshida.jpg");
-
+addArtistStyle("Albert Marquet", "impressionist, french", "paint, acrylic", "paintnig", "notesImages/AlbertMarquet.jpg");
 // addArtistStyle("*name", "*style", "*medium", "*usage", "*image");
 
 
