@@ -28,6 +28,7 @@ addArtistStyle("Craig Mullins", "game epic scene, corase", "digital", "concept a
 addArtistStyle("eyvind earle", "detailed scenery", "digital", "illustration", "notesImages/EyvindEarle.webp");
 addArtistStyle("Hiroshi Yoshida", "nodoka, japanese", "watercolor", "illustration", "notesImages/HiroshiYoshida.jpg");
 addArtistStyle("Albert Marquet", "impressionist, french", "paint, acrylic", "paintnig", "notesImages/AlbertMarquet.jpeg");
+addArtistStyle("Anna Bocek", "creative protrait", "paint", "mural", "notesImages/AnnaBocek.jpeg");
 // addArtistStyle("*name", "*style", "*medium", "*usage", "*image");
 
 
