@@ -1,8 +1,8 @@
 //import from homepage
-import {primaryColor} from './homepage.js';
-import {secondaryColor} from './homepage.js';
-import {groupList} from './homepage.js';
-import {recent} from './homepage.js';
+import { primaryColor } from './homepage.js';
+import { secondaryColor } from './homepage.js';
+//import {exportGroupList} from './homepage.js';
+//mport {exportRecent} from './homepage.js';
 
 var primaryC = primaryColor;
 var secondaryC = secondaryColor;

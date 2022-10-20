@@ -1,7 +1,9 @@
 //import from homepage
+//import { JsxFlags } from 'typescript';
 import {primaryColor} from './homepage.js';
 import {secondaryColor} from './homepage.js';
-import {groupList} from './homepage.js';
+import {exportGroupList} from './homepage.js';
+import {typeCollectionList } from './typeData.js';
 //import tinycolor from './tinycolor.js';
 
 //var documentRoot = document.querySelector(':root');
@@ -21,15 +23,56 @@ var HasText = false;
 var btn;
 var groupDetailed = [];
 
+//GENERATE OBJECTS IN TYPE GRID
+//NEW PART, where each type object is created via code
 //var typeType = "none";
+//getting the typeGrid element
+var typeGridBody = document.getElementById("typeGrid");
+var newTypeHtml = "";
 
+for(var i = 0; i < typeCollectionList.length; i++){
+  //checking which language is the type
+  var typeString = "type";
+  var typeLang = typeCollectionList[i].language;
+  for(var j = 0; j < typeLang.length; j++){
+    if(typeLang[j] == "hanzi"){
+      typeString = typeString + " hanzi";
+    }else if(typeLang[j] == "kana"){
+      typeString = typeString + " kana";
+    }else if(typeLang[j] == "latin"){
+      typeString = typeString + " latin";
+    }
+  }
+
+  var thisTypeHtml = '<div class="' + typeString + '">' +  
+  '<div class="typeDiv">' + 
+    '<div class = "typeBackground"></div>' +
+    '<p class = "typeTitle">' + typeCollectionList[i].name +'</p>' +
+    '<p class = "typeText typeQuote">' + typeCollectionList[i].quote + '</p>' +
+    '<p class = "typeText typeSource">' + typeCollectionList[i].source +'</p>' +
+  '</div>' +
+  '<img class= "typeImage" src="' + typeCollectionList[i].image + '"/>' +
+'</div>';
+  console.log(thisTypeHtml);
+  newTypeHtml = newTypeHtml + thisTypeHtml;
+}
+
+//console.log(newTypeHtml);
+
+//
+//
 //finding all type elements, check which language family the type belongs to
 var TypeList = document.getElementsByClassName('type');
 var TypeButtonList = document.getElementsByClassName('button-type');
 //console.log(TypeButtonList);
 
+//TEST DANGERIOUS
+typeGridBody.innerHTML = newTypeHtml;
+
+//TYPE IMAGES ADD EVENT LISTENERS
 for(var i = 0; i < TypeList.length; i++)
 {
+  /*
   TypeList[i].typeLanguage = "none";
   TypeList[i].typeLanguageS = "none";
   TypeList[i].typeLanguageT = "none";
@@ -50,8 +93,12 @@ for(var i = 0; i < TypeList.length; i++)
     
   });
 
+  */
+
+//////DELETE
   //if the object has no text, 
     //which means it contains both class "text" and "textimage"
+    /*
     const itemT = TypeList.item(i);
     if(itemT.classList.contains("typeImage") == true){
         itemT.addEventListener('mouseover',
@@ -64,15 +111,10 @@ for(var i = 0; i < TypeList.length; i++)
         });
     }
     else{}
+    */
 
-  ///*
-  //applying text from the library
-  groupList.forEach(function(g){
-    
-    //getting group elements
-    //which means the images that don't have type attached to them
     try{
-
+      /*
       //shaving the long html address to readable address
       var imageSrc = g.image;
       var longImageSrc = TypeList[i].querySelector(".typeImage").src;
@@ -85,7 +127,8 @@ for(var i = 0; i < TypeList.length; i++)
         groupDetailed.push(g.name);
         //console.log(longImageSrc);
       }
-
+      */
+      /*
       //var imageElement = TypeList[i].querySelector("#" + g.name);
       var a = imageElement.previousElementSibling;
       a.querySelector(".typeTitle").textContent = g.name;
@@ -96,27 +139,64 @@ for(var i = 0; i < TypeList.length; i++)
       a.querySelector(".typeSource").style.color = g.colorS;
       a.querySelector(".typeBackground").style.backgroundColor = g.color;
       a.HasText = true;
-
+*/  
+/*
+      var imageSrc = g.image;
+      var longImageSrc = TypeList[i].querySelector(".typeImage").src;
+      var lengthDiff = longImageSrc.length - imageSrc.length;
+      longImageSrc = longImageSrc.slice(lengthDiff);
+      //console.log(longImageSrc);
+      
+      if(imageSrc == longImageSrc){
+        var imageElement = TypeList[i].querySelector(".typeImage");
+        groupDetailed.push(g.name);
+        //console.log(longImageSrc);
+      }
+      */
+     //because the typeCollectionList matches TypeList, i can use this
+     //but this is crappy code, and should change later
+      var matchingType = typeCollectionList[i];
+      const imageElement = TypeList[i].querySelector(".typeImage");
+      const a = imageElement.previousElementSibling;
+      a.querySelector(".typeTitle").style.color = matchingType.colorS;
+      a.querySelector(".typeQuote").style.color = matchingType.colorS;
+      a.querySelector(".typeSource").style.color = matchingType.colorS;
+      a.querySelector(".typeBackground").style.backgroundColor = matchingType.color;
+      a.HasText = true;
+       // groupDetailed.push(g.name);
+      //var imageElement = TypeList[i].querySelector("#" + g.name);
+      //var a = imageElement.previousElementSibling;
       imageElement.addEventListener('mouseover',
       function() {
           imageElement.style.opacity = "0%";
-          imageElement.style.filter = "blur(5px)";
+          //imageElement.style.filter = "blur(5px)";
       });
       imageElement.addEventListener('mouseleave',
       function() {
           imageElement.style.opacity = "100%";
-           imageElement.style.filter = "none";
-
+           //imageElement.style.filter = "none";
         });
       
     }
     catch{}
+  }
+  ///*
+  //////DELETE
+  //applying text from the library
+  //typeCollectionList.forEach(function(g){
     
-  }); 
-}
-console.log("GROUPS: [ " + groupDetailed + " ]");
+    //getting group elements
+    //which means the images that don't have type attached to them
+   
+    
+    
+  //}); 
+
+//console.log("GROUPS: [ " + groupDetailed + " ]");
 
 
+
+//THIS FILTERS type
 function filterType(clickedButton ,language){
 
   //check if filter list already has the target language
@@ -132,6 +212,7 @@ function filterType(clickedButton ,language){
     //console.log(filterLanguages);
   }
 
+
   //check through each element to see if the filter type
   //by default, everything is turned on
   
@@ -139,9 +220,28 @@ function filterType(clickedButton ,language){
   {
     TypeList[i].style.display = "block";
     
-    
+    //filterLanguages are the languages that types should match and display
+    //if typeImages don't match all the filterLanguages, set their display to none
     //checking through each filter language
-    filterLanguages.forEach(function(a){
+    var matchingNum = 0;
+    filterLanguages.forEach(function(filteredLang){
+    //check through class list of the element
+      var elementClassList = TypeList[i].classList;
+      //console.log(elementClassList);
+      
+      //check through each class name of typeImage
+      //if a match takes place, add one to matchingNum
+      for(var j = 0; j < elementClassList.length; j++){
+        if(elementClassList[j] == filteredLang){
+          matchingNum++;
+          //console.log(TypeList[i].className + " chekcing: " + elementClassList[j] + " == " + filteredLang);
+        }
+      }
+      //console.log("matching num is "+ matchingNum + " //  filterlength is" + filterLanguages.length)
+      //if the matchingNum equals number of filterLanguges, 
+      //it means the type meets the requirements
+      
+      /*
       //if has only one language
       if(TypeList[i].typeLanguageS == "none"){
         if(TypeList[i].typeLanguage != a){
@@ -162,11 +262,15 @@ function filterType(clickedButton ,language){
           TypeList[i].style.display = "none";
           //console.log(a);
         }
-      }
+      }*/
       //turn off objects that don't have class names matching
       
     });
+    if(matchingNum == filterLanguages.length){}else{
+      TypeList[i].style.display = "none";
+    }
   }
+  //this is for pure string building, does not perform anything on the web
   var filterList = [];
   filterLanguages.forEach(function(element){
     filterList.push(element);

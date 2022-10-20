@@ -31,11 +31,22 @@
     <main>
       <div class="button-grid">
         <button class="button-type" >漢字</button>
-        <button class="button-type" >Latin</button>
         <button class="button-type" >かな</button>
+        <button class="button-type" >Latin</button>
+        
       </div>
-      <content class="type-grid">
+      <content class="type-grid" id="typeGrid">
         <!-- type groups start here -->
+        <!--
+        <div class= "type hanzi kana">
+          <div class="typeDiv">
+            <div class = "typeBackground"></div>
+            <p class = "typeTitle"> title</p>
+            <p class = "typeText typeQuote"> title</p>
+            <p class = "typeText typeSource"> title</p>
+          </div>
+          <img class= "typeImage" src="type/mononokehime.png"/>
+        </div>
         <img class= "type typeImage latin" src="type/inferno.png">
 
         <img class= "type typeImage hanzi" src="type/wuchengfu.png">
@@ -95,7 +106,7 @@
           <img class= "typeImage" id="國殤" src="type/guoshang.png"/>
         </div>
 
-        
+        -->
       </content>
     </main>
 
@@ -106,8 +117,9 @@
       <p class="copyright">Copyright © Zunyi Wang. All Rights Reserved</p>
     </content>
   </footer>
-
+  <script> var exports = {}; </script>
   <script type="text/javascript" src="plugin/tinycolor.js"></script>
+  <script type="module" src="typeData.js"></script>
   <script type="module" src="homepage.js"></script>
   <script type="module" src="index.js"></script>
   <script type="module" src="index-type.js"></script>
