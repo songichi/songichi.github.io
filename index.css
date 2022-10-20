@@ -98,7 +98,7 @@ li {
 }
 #backgroundDivAbout{
   background: var(--primaryColor);
-  position: absolute;
+  position: fixed;
   height: 100%;
   width: 100%;
   top: 0;
@@ -550,7 +550,7 @@ li {
   text-align: center;
   line-height: 62vh;
   transition: 220ms;
-  filter: blur(3px);
+  filter: none;
   
 }
 
@@ -649,6 +649,7 @@ li {
   width: 9vh;
   border-radius: 3vh;
   border-color: transparent;
+  border-style: solid;
   color: var(--primaryColor);
   background-color: var(--secondaryColor);
   box-shadow: none;
@@ -769,7 +770,7 @@ li {
     display: grid;
     gap: 1.2vw;
     grid-template-columns:
-      repeat(3, 1fr);
+      repeat(2, 1fr);
     margin: 2vh 5% 2rem;
     height: 100%;
   }
