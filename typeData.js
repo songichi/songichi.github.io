@@ -15,7 +15,8 @@ class typeObject {
 var typeGroupList = [];
 //data for types
 typeGroupList = [
-    new typeObject(["hanzi"], "紅豆", "type/hongdou.png", true, "#f9efcc", "#cc3825", "還沒爲你把紅豆、熬成纏綿的傷口", "———『紅豆』林夕", new Date(2022, 10, 20, 0, 0, 0, 0)),
+    new typeObject(["kana"], "こころ", "type/kokoro.png", false, "#033694", "#F7EDF4", "私はその人を常に先生と呼んでいた", "———『こころ』夏目漱石", new Date(2022, 10, 22, 0, 0, 0, 0)),
+    new typeObject(["hanzi"], "紅豆", "type/hongdou.png", true, "#f9efcc", "#cc3825", "還沒爲你把紅豆、熬成纏綿的傷口", "———『紅豆』林夕", new Date(2022, 10, 21, 0, 0, 0, 0)),
     new typeObject(["hanzi", "kana"], "もののけ姫", "type/mononokehime.png", true, "#c9f2c7", "#171f17", "はりつめた弓の、ふるえる弦よ", "———『もののけ姫』宮崎駿", new Date(2022, 10, 20, 0, 0, 0, 0)),
     new typeObject(["latin"], "INFERNO", "type/inferno.png", false, "#f44914", "#000000", "Nel mezzo del cammin di nostra vita mi ritrovai per una selva oscura", "———『La Commedia Divina』Dante Alighieri", new Date(2022, 10, 16, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "蕪城賦", "type/wuchengfu.png", false, "#fcffe0", "#170c06", "觀基扃之固護，將萬祀而一君", "———『蕪城賦』鮑照", new Date(2022, 10, 8, 0, 0, 0, 0)),
