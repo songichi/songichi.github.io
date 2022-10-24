@@ -397,7 +397,7 @@ li {
   display: grid;
   gap: 2vw;
   grid-template-columns:
-    repeat(4, 1fr);
+    repeat(3, 1fr);
   margin: var(--spaceFromTop) 5% 2rem;
 }
 
@@ -670,6 +670,12 @@ li {
 
 /* medium screens */
 @media (max-width: 1040px) {
+  .poster-grid {
+    grid-template-columns:
+      repeat(2, 1fr);
+      margin: 2rem 2rem 2rem;
+      gap: 2vw;
+  }
   .type-grid {
     display: grid;
     gap: 1.2vw;
@@ -683,12 +689,12 @@ li {
 @media (max-width: 708px) {
   .poster-grid {
     grid-template-columns:
-      repeat(2, 1fr);
+      repeat(1, 1fr);
       margin: 2rem 2rem 2rem;
       gap: 2vw;
   }
   .poster {
-    width: 40vw;
+    width: 100%;
   }
 
   .yi {
@@ -826,7 +832,7 @@ li {
   #homepageQuote{
     position: relative;
     text-align: center;
-    font-size: 4vw;
+    font-size: 5.6vw;
     color: black;
     font-family: "Noto Sans SC", PingFang SC, sans-serif;
     font-weight: 700;
@@ -836,7 +842,7 @@ li {
   #homepageSource{
     position: relative;
     text-align: center;
-    font-size: 2vw;
+    font-size: 3vw;
     color: black;
     font-family: "Noto Sans SC", PingFang SC, sans-serif;
     font-weight: 500;
@@ -866,8 +872,8 @@ li {
   #homeBtnText{
     z-index: 30;
     text-decoration: none;
-    
-    padding: 2vw 2vw;
+    font-size: 5vw;
+    padding: 4vw 4vw;
     text-align: center;
     font-family: "Noto Sans SC", PingFang SC, sans-serif;
     font-style: normal;
