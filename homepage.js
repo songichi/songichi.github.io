@@ -7,7 +7,7 @@ loadTexts.push("髣髴兮若輕雲之蔽月飄颻兮若流風之迴雪");
 loadTexts.push("關關雎鳩在河之洲窈窕淑女君子好逑");
 console.log(loadTexts);
 //priting last element in the groupList array
-var recent = groupList[groupList.length - 1];
+var recent;
 //checking if the user is visiting this page the first time
 if (sessionStorage.getItem("recentColor") == null) {
     console.log("WELCOME");
@@ -136,18 +136,42 @@ function LoadHomepage() {
         }, transitionDelay);
     });
 }
+//cloning recent type
+const cloneRecent = Object.assign({}, recent);
+//the list for selecting group items
+var rerollTypeList = [cloneRecent, cloneRecent, cloneRecent];
+//console.log(rerollTypeList.includes(cloneRecent));
+//
+//reroll function
 function Reroll() {
     //document.getElementById('homepageImage').src = "type/blank.png";
     //newRecent = null;
     var rnd = Math.floor(Math.random() * groupList.length);
     var newRecent = groupList[rnd];
     //reroll until get a different value, and if the target can be displayed
-    while (recent == newRecent || newRecent.homeDisplay == false) {
+    while (
+    //recent == newRecent ||
+    newRecent.homeDisplay == false || //check to see the display option is on
+        typeIsDuplicate(newRecent) // check to see if the new reroll was rolled two items before
+    ) {
         rnd = Math.floor(Math.random() * groupList.length);
         newRecent = groupList[rnd];
     }
+    //remove first element
+    //console.log(typeIsDuplicate + "  +  " + recent.name);
     recent = newRecent;
     LoadHomepage();
+    //delete old element
+    rerollTypeList.shift();
+    //add new element to the end
+    rerollTypeList.push(Object.assign({}, recent));
+    // console.log(
+    //   rerollTypeList[0].name +
+    //     ", " +
+    //     rerollTypeList[1].name +
+    //     ", " +
+    //     rerollTypeList[2].name
+    // );
     //save "recent" data
     var primaryColor = recent.color;
     var secondaryColor = recent.colorS;
@@ -156,6 +180,17 @@ function Reroll() {
     sessionStorage.setItem("recentColor", primaryColor);
     sessionStorage.setItem("recentColorS", secondaryColor);
     sessionStorage.setItem("typeName", typeName);
+}
+//check arrary duplicate
+function typeIsDuplicate(type) {
+    var isDuplicate = false;
+    //foreach
+    for (var i = 0; i < rerollTypeList.length; i++) {
+        if (rerollTypeList[i].name == type.name) {
+            isDuplicate = true;
+        }
+    }
+    return isDuplicate;
 }
 //don't know if these actually work
 preloadImages();
