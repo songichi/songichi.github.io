@@ -26,8 +26,8 @@ typeGroupList = [
       "その城壁の頂きに恐る恐る檸檬をすえつけた",
       "———『檸檬』谷崎潤一郎",
       new Date(2022, 10, 28, 0, 0, 0, 0)
-    ),
-    */
+    ),*/
+    new typeObject(["hanzi", "kana"], "春の雪", "type/harunoyuki.png", true, "#E4F4E9", "#27AD70", "二人の顔へ雪はじかに当たり", "———『春の雪』三島由紀夫", new Date(2022, 11, 5, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "雲中君", "type/yunzhongjun.png", true, "#FFE0F2", "#1634B8", "思夫君兮太息、極勞心兮忡忡", "———『雲中君』楚辭·雲中君、屈原", new Date(2022, 10, 28, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "山鬼", "type/shangui.png", true, "#29211D", "#F8FCEA", "若有人兮山之阿、披薜荔兮戴女羅", "———『山鬼』楚辭·九歌、屈原", new Date(2022, 10, 24, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "無衣", "type/wuyi.png", true, "#0A3470", "#FFEF45", "豈曰無衣、與子同袍", "———『無衣』詩經·秦風", new Date(2022, 10, 24, 0, 0, 0, 0)),
