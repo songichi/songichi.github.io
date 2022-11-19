@@ -34,6 +34,29 @@
   border-radius: 3px;
 }
 
+::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+  color: var(--secondaryColor);
+  
+  opacity: 1; /* Firefox */
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  filter: opacity(0.2);
+}
+#searchInput{
+  color: var(--secondaryColor);
+  background-color: var(--primaryColor);
+  border-color: var(--secondaryColor);
+  border-style: solid;
+  border-width: 3px;
+  
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-weight: 500;
+  display: block;
+  font-size: clamp(0.8em, 2.8vh, 4vh);;
+  margin: 2vh 0 3vh;
+}
+
 html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -126,21 +149,6 @@ li {
   padding: 0;
   box-sizing: border-box;
 }
-
-/*
-.side-text {
-  writing-mode: vertical-rl;
-  text-orientation: sideways;
-  position: absolute;
-  font-size: 1.5vw;
-  line-height: 3vw;
-  font-family: "Noto Sans SC", PingFang SC, sans-serif;
-  font-style: normal;
-  font-weight: 400;
-  margin: 2vh 0 1vh 0;
-  pointer-events: none;
-
-}*/
 
 .tt1 {
   color: var(--secondaryColor);
@@ -389,8 +397,6 @@ li {
   text-align: right;
   margin: 5% 8% 0;
 }
-
-
 
 /* POSTER */
 .poster-grid {
