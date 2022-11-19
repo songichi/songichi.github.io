@@ -1,39 +1,32 @@
-"use strict";
-//
+import { hanziGroups } from "./hanziData.js";
+/**
 class zi {
-    constructor(zifu, strokes, base) {
-        this.zifu = zifu;
-        this.strokes = strokes;
-        this.base = base;
-    }
-}
-/*
-var hanziList: zi[] = [
-  new zi("大", 3, "大"),
-  new zi("眔", 10, "大"),
-  new zi("小", 3, "小"),
-  new zi("皛", 15, "小"),
-  new zi("就", 12, "就"),
-  new zi("丩", 2, "就"),
-];* */
+  zifu: string;
+  strokes: number;
+  base: string;
+  constructor(zifu: string, strokes: number, base: string) {
+    this.zifu = zifu;
+    this.strokes = strokes;
+    this.base = base;
+  }
+}*/
+/**
 var hanziGroups = [
-    [new zi("大", 3, "大"), new zi("眔", 10, "大")],
-    [new zi("小", 3, "小"), new zi("皛", 15, "小")],
-    [new zi("心", 3, "心"), new zi("杺", 13, "心")],
-    [new zi("就", 12, "就"), new zi("丩", 2, "就")],
-    [new zi("無", 12, "無"), new zi("无", 4, "無")],
-    [new zi("土", 3, "土"), new zi("嵞", 13, "土")],
-];
-//data structure: 2-3 x zi => Group => dataList
-//var hanziGroups: Array<zi>[] = [];
-//sortZi();
-//console.log(hanziGroups);
-//add new elements
+  [new zi("大", 3, "大"), new zi("眔", 10, "大")],
+  [new zi("小", 3, "小"), new zi("皛", 15, "小")],
+  [new zi("心", 3, "心"), new zi("杺", 13, "心")],
+  [new zi("就", 12, "就"), new zi("丩", 2, "就")],
+  [new zi("無", 12, "無"), new zi("无", 4, "無")],
+  [new zi("土", 3, "土"), new zi("嵞", 13, "土")],
+]; */
 ///
 var hanziPageHtml = "";
+//initilization
+displayHanzi();
+//
 function displayHanzi() {
-    //for each
     var hanziHTML = "";
+    //for each
     for (var i = 0; i < hanziGroups.length; i++) {
         //
         var hanziHTML = '<div class="hanziDisplayGroup">' +
@@ -41,8 +34,7 @@ function displayHanzi() {
             hanziGroups[i][0].zifu +
             '<div class="strokeNum">' +
             hanziGroups[i][0].strokes +
-            "</div></div>" +
-            '<div class="subHanzi">' +
+            '</div></div><div class="subHanzi">' +
             hanziGroups[i][1].zifu +
             '<div class="strokeNum">' +
             hanziGroups[i][1].strokes +
@@ -62,12 +54,11 @@ function displayHanzi() {
             }
         }
         //
-        hanziHTML = hanziHTML + "</div>";
-        hanziPageHtml = hanziPageHtml + hanziHTML;
+        //hanziHTML = hanziHTML + "</div>";
+        hanziPageHtml = hanziPageHtml + hanziHTML + "</div>";
         //console.log(hanziPageHtml);
     }
 }
-displayHanzi();
 //console.log(hanziPageHtml);
 var hanziHtmlBody = document.getElementById("hanziFlex");
 hanziHtmlBody.innerHTML = hanziPageHtml;
