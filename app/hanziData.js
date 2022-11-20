@@ -37,6 +37,7 @@ var hanziGroupList = [
     [new zi("從", 11, "從"), new zi("从", 4, "從")],
     [new zi("們", 10, "們"), new zi("冂", 2, "們")],
     [new zi("和", 8, "和"), new zi("丿", 1, "和")],
+    [new zi("裏", 13, "裏"), new zi("亠", 2, "裏")],
 ];
 export const hanziGroups = hanziGroupList;
 export { zi };
