@@ -15,8 +15,8 @@ var hanziGroupList = [
     [new zi("土", 3, "土"), new zi("嵞", 13, "土")],
     [new zi("會", 3, "會"), new zi("会", 13, "會")],
     [new zi("其", 8, "其"), new zi("丌", 3, "其")],
-    [new zi("着", 11, "着"), new zi("丆", 2, "着"), new zi("著", 12, "着")],
-    [new zi("的", 8, "的"), new zi("彐", 3, "的")],
+    [new zi("着", 11, "着"), new zi("丆", 2, "着")],
+    [new zi("的", 8, "的"), new zi("ㄖ", 3, "的")],
     [new zi("得", 11, "得"), new zi("丷", 2, "得")],
     [new zi("有", 6, "有"), new zi("屮", 3, "有")],
     [new zi("到", 8, "到"), new zi("卄", 3, "到")],
@@ -25,6 +25,12 @@ var hanziGroupList = [
     [new zi("然", 12, "然"), new zi("彡", 3, "然")],
     [new zi("是", 9, "是"), new zi("乥", 4, "是")],
     [new zi("之", 2, "之"), new zi("臸", 12, "之")],
+    [new zi("力", 2, "力"), new zi("攭", 24, "力")],
+    [new zi("最", 12, "最"), new zi("冃", 4, "最")],
+    [new zi("那", 12, "那"), new zi("ㄅ", 1, "那")],
+    [new zi("他", 5, "他"), new zi("亻", 2, "他")],
+    [new zi("在", 6, "在"), new zi("丄", 2, "在")],
+    [new zi("再", 6, "再"), new zi("冄", 4, "再")],
 ];
 export const hanziGroups = hanziGroupList;
 export { zi };

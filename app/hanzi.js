@@ -10,19 +10,20 @@ class zi {
     this.base = base;
   }
 }*/
-/**
-var hanziGroups = [
-  [new zi("大", 3, "大"), new zi("眔", 10, "大")],
-  [new zi("小", 3, "小"), new zi("皛", 15, "小")],
-  [new zi("心", 3, "心"), new zi("杺", 13, "心")],
-  [new zi("就", 12, "就"), new zi("丩", 2, "就")],
-  [new zi("無", 12, "無"), new zi("无", 4, "無")],
-  [new zi("土", 3, "土"), new zi("嵞", 13, "土")],
-]; */
-///
 var hanziPageHtml = "";
 //initilization
 displayHanzi();
+//
+var flatHanziList = [];
+flattenHanziGroupList();
+function flattenHanziGroupList() {
+    for (var i = 0; i < hanziGroups.length; i++) {
+        for (var k = 0; k < hanziGroups[i].length; k++) {
+            flatHanziList.push(hanziGroups[i][k]);
+        }
+    }
+    // console.log(flatHanziList);
+}
 //
 function displayHanzi() {
     var hanziHTML = "";
@@ -61,34 +62,158 @@ function displayHanzi() {
 }
 //console.log(hanziPageHtml);
 var hanziHtmlBody = document.getElementById("hanziFlex");
+var input = "";
+var replacedInput = "";
+//bool to check if is picking hanzi
+var isPicking = false;
+var inputElement;
 hanziHtmlBody.innerHTML = hanziPageHtml;
+addEventListeners();
 //
-/*
-//first combine characters into groups
-function sortZi() {
-  for (var i = 0; i < hanziList.length; i++) {
-    //checking each unique character
-    if (hanziList[i].base == hanziList[i].zifu) {
-      //
-      var emptyArray: zi[] = [];
-      hanziGroups.push(emptyArray);
-
-      for (var j = 0; j < hanziList.length; j++) {
-        //check the substitudes of the unique character
-        if (hanziList[j].base == hanziList[i].zifu) {
-          //getting last element in the hanziGroup
-          hanziGroups[hanziGroups.length - 1].push(hanziList[j]);
-        }
-      }
-    }
-  }
-}
-*/
 //add searchHanzi function to the htmlelement
-document.getElementById("searchInput")?.addEventListener("keyup", function () {
+function addEventListeners() {
+    document
+        .getElementById("searchInput")
+        ?.addEventListener("keyup", function () {
+        //
+        searchHanzi();
+        inputElement = document.getElementById("searchInput");
+        input = inputElement.value;
+    });
+    //add event listeners to btns
+    document.getElementById("btnLight").addEventListener("click", function () {
+        inputElement = document.getElementById("searchInput");
+        input = inputElement.value;
+        replacedInput = input.toString();
+        console.log(input);
+        //replace characters
+        replaceHanzi("light");
+        //console.log(replacedInput);
+        inputElement.value = replacedInput;
+    });
+    document.getElementById("btnHeavy").addEventListener("click", function () {
+        var inputElement = document.getElementById("searchInput");
+        input = inputElement.value;
+        replacedInput = input.toString();
+        console.log(input);
+        //replace characters
+        replaceHanzi("heavy");
+        //console.log(replacedInput);
+        inputElement.value = replacedInput;
+    });
+    //add event listeners to all hanzi
+    //find the hanzi elements
+    var array1 = Array.prototype.slice.call(document.getElementsByClassName("uniqueHanzi"), 0);
+    var array2 = Array.prototype.slice.call(document.getElementsByClassName("subHanzi"), 0);
+    var hanziElementList = array1.concat(array2);
     //
-    searchHanzi();
-});
+    //foreach adding id to the list
+    for (var i = 0; i < hanziElementList.length; i++) {
+        hanziElementList[i].setAttribute("id", hanziElementList[i].innerHTML[0]);
+        //console.log(hanziElementList[i][0]);
+    }
+    //
+    //console.log(hanziElementList);
+    //foreach
+    for (let i = 0; i < hanziElementList.length; i++) {
+        hanziElementList[i].addEventListener("click", function () {
+            //find the chracter in input
+            var inputElement = document.getElementById("searchInput");
+            input = inputElement.value;
+            var hanziId = hanziElementList[i].id;
+            //console.log(hanziId);
+            let replacement = hanziElementList[i].id;
+            var hanziToReplace = "";
+            replacedInput = inputElement.value.toString();
+            //find the hanziGroup linking to the replacement
+            var selectedHanziGroup = [];
+            for (var k = 0; k < hanziGroups.length; k++) {
+                for (var j = 0; j < hanziGroups[k].length; j++) {
+                    var result = hanziGroups[k].filter((obj) => {
+                        return obj.zifu === replacement;
+                    });
+                    if (result.length != 0) {
+                        selectedHanziGroup = hanziGroups[k];
+                    }
+                }
+            }
+            //console.log(selectedHanziGroup);
+            //find if any of the hanzi in the group exists in the input
+            for (var k = 0; k < input.length; k++) {
+                for (var j = 0; j < selectedHanziGroup.length; j++) {
+                    if (input[k] == selectedHanziGroup[j].zifu) {
+                        hanziToReplace = input[k];
+                    }
+                }
+            }
+            //find the character to be replaced
+            //replacing
+            if (input != "") {
+                //console.log(replacement);
+                //console.log(hanziToReplace);
+                replacedInput = replacedInput.replace(hanziToReplace, replacement);
+                inputElement.value = replacedInput;
+                console.log(replacedInput);
+            }
+        });
+        hanziElementList[i].addEventListener("mouseover", function () {
+            //
+            hanziElementList[i].style.backgroundColor = "var(--secondaryColor)";
+            hanziElementList[i].style.color = "var(--primaryColor)";
+        });
+        hanziElementList[i].addEventListener("mouseleave", function () {
+            //
+            hanziElementList[i].style.backgroundColor = "var(--primaryColor)";
+            hanziElementList[i].style.color = "var(--secondaryColor)";
+        });
+    }
+    //add hover eventlistener
+    //console.log("clicked");
+}
+//console.log(hanziElementList);
+function inputHasText() {
+    if (input == "") {
+        return false;
+    }
+    else {
+        return true;
+    }
+}
+function replaceHanzi(inputFilter) {
+    //replace characters
+    for (var k = 0; k < input.length; k++) {
+        //check through each group in the group list, and through each iteration in the group
+        for (var i = 0; i < hanziGroups.length; i++) {
+            for (var j = 0; j < hanziGroups[i].length; j++) {
+                //
+                if (input[k] == hanziGroups[i][j].zifu) {
+                    //check if the entered value equals any of the exisitng characters in database
+                    //if only one iteration
+                    var replacement = "";
+                    if (hanziGroups[i].length < 3) {
+                        if (hanziGroups[i][0].strokes < hanziGroups[i][1].strokes) {
+                            if (inputFilter == "light") {
+                                replacement = hanziGroups[i][0].zifu;
+                            }
+                            else if (inputFilter == "heavy") {
+                                replacement = hanziGroups[i][1].zifu;
+                            }
+                        }
+                        else {
+                            if (inputFilter == "light") {
+                                replacement = hanziGroups[i][1].zifu;
+                            }
+                            else if (inputFilter == "heavy") {
+                                replacement = hanziGroups[i][0].zifu;
+                            }
+                        }
+                    }
+                    replacedInput = replacedInput.replace(input[k], replacement);
+                }
+            }
+        }
+    }
+}
 function searchHanzi() {
     //clear previous search result
     //
