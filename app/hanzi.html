@@ -39,9 +39,21 @@
         <div >
           <div id="aboutText">
               <br>
-              <div id="notesText">漢字改動列表
+              <div id="notesText">
+                <div id="dropdownDiv">
+                  <div>漢字改動列表</div>
+                  <div id="dropdownBtn">#显示全部#
+                    <div id="dropdownSelector">
+                      <div class="dropdownFilters">#基础改动#</div>
+                      <div class="dropdownFilters">#改动中#</div>
+                      <div class="dropdownFilters">#笔划加重#</div>
+                      <div class="dropdownFilters">#笔划减轻#</div>
+                  </div>
+                  
+                  </div>
+                </div>
                 <div id="searchDiv">
-                  <input type="text" id="searchInput" placeholder=" 输入以搜索汉字...">
+                  <textarea id="searchInput" placeholder=" 输入以搜索汉字..."></textarea>
                   <button class="textStyleBtn" id="btnLight">最轻</button>
                   <button class="textStyleBtn" id="btnHeavy">最重</button>
                 </div>

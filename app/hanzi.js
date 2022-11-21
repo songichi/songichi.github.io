@@ -30,7 +30,9 @@ function displayHanzi() {
     //for each
     for (var i = 0; i < hanziGroups.length; i++) {
         //
-        var hanziHTML = '<div class="hanziDisplayGroup">' +
+        var hanziHTML = '<div class="hanziDisplayGroup" id=' +
+            hanziGroups[i][0].code +
+            ">" +
             '<div class="uniqueHanzi">' +
             hanziGroups[i][0].zifu +
             '<div class="strokeNum">' +
@@ -67,11 +69,14 @@ var replacedInput = "";
 //bool to check if is picking hanzi
 var isPicking = false;
 var inputElement;
+var dropdownBtnNewText;
 hanziHtmlBody.innerHTML = hanziPageHtml;
 addEventListeners();
 //
 //add searchHanzi function to the htmlelement
 function addEventListeners() {
+    //add eventlistener to the search bar
+    //
     document
         .getElementById("searchInput")
         ?.addEventListener("keyup", function () {
@@ -80,7 +85,7 @@ function addEventListeners() {
         inputElement = document.getElementById("searchInput");
         input = inputElement.value;
     });
-    //add event listeners to btns
+    //add event listeners to style change btns
     document.getElementById("btnLight").addEventListener("click", function () {
         inputElement = document.getElementById("searchInput");
         input = inputElement.value;
@@ -169,6 +174,58 @@ function addEventListeners() {
     }
     //add hover eventlistener
     //console.log("clicked");
+    //
+    //add eventlistener to the dropdown btns
+    //find the dropdown selector first, which is the element that contains all the filters
+    let dropdownSelector = document.getElementById("dropdownSelector");
+    let dropdownBtn = document.getElementById("dropdownBtn");
+    let dropdownFilters = Array.from(document.getElementsByClassName("dropdownFilters"));
+    //add hover effect on dropdownselector
+    for (let i = 0; i < dropdownFilters.length; i++) {
+        //add click to filter
+        dropdownFilters[i]?.addEventListener("click", function () {
+            //!! FUNCITON
+            //change text displayed on the button
+            dropdownBtnNewText = dropdownFilters[i].innerHTML;
+            //get the text in the dropdownBtn element
+            var firstLine = dropdownBtn.innerText.split("\n")[0];
+            filterHanzi(dropdownBtnNewText);
+            //replace text
+            var text_to_change = dropdownBtn.childNodes[0];
+            text_to_change.nodeValue = dropdownBtnNewText;
+            //
+            dropdownFilters[i].childNodes[0].nodeValue = firstLine;
+            //
+            //end of click event listener
+        });
+        //visual hover effect
+        dropdownFilters[i]?.addEventListener("mouseleave", function () {
+            dropdownFilters[i].style.backgroundColor = "var(--primaryColor)";
+            dropdownFilters[i].style.color = "var(--secondaryColor)";
+        });
+        dropdownFilters[i]?.addEventListener("mouseenter", function () {
+            //
+            dropdownFilters[i].style.backgroundColor = "var(--secondaryColor)";
+            dropdownFilters[i].style.color = "var(--primaryColor)";
+        });
+    }
+    //add eventlistener for click
+    dropdownBtn?.addEventListener("click", function () {
+        //
+        dropdownSelector.style.display = "block";
+    });
+    //add eventlistener for moving mouse in and out
+    dropdownBtn?.addEventListener("mouseleave", function () {
+        //
+        dropdownSelector.style.display = "none";
+        dropdownBtn.style.backgroundColor = "var(--primaryColor)";
+        dropdownBtn.style.color = "var(--secondaryColor)";
+    });
+    dropdownBtn?.addEventListener("mouseenter", function () {
+        //
+        dropdownBtn.style.backgroundColor = "var(--secondaryColor)";
+        dropdownBtn.style.color = "var(--primaryColor)";
+    });
 }
 //console.log(hanziElementList);
 function inputHasText() {
@@ -177,6 +234,54 @@ function inputHasText() {
     }
     else {
         return true;
+    }
+}
+//get all hanziDisplayGroups for filter action
+var hanziFlexChildren = document.getElementsByClassName("hanziDisplayGroup");
+//
+function filterHanzi(filterKeyword) {
+    //
+    console.log(filterKeyword);
+    switch (filterKeyword) {
+        case "#显示全部#":
+            // code block
+            for (let i = 0; i < hanziFlexChildren?.length; i++) {
+                hanziFlexChildren[i].style.display = "flex";
+            }
+            break;
+        case "#基础改动#":
+            displayHanzi();
+            for (let i = 0; i < hanziFlexChildren?.length; i++) {
+                hanziFlexChildren[i].style.display = "flex"; //resetting
+                if (hanziFlexChildren[i].id[1] != "A") {
+                    hanziFlexChildren[i].style.display = "none";
+                }
+            }
+            break;
+        case "#改动中#":
+            // code block
+            for (let i = 0; i < hanziFlexChildren?.length; i++) {
+                hanziFlexChildren[i].style.display = "flex";
+            }
+            break;
+        case "#笔划加重#":
+            // code block
+            for (let i = 0; i < hanziFlexChildren?.length; i++) {
+                hanziFlexChildren[i].style.display = "flex"; //resetting
+                if (hanziFlexChildren[i].id[2] != "H") {
+                    hanziFlexChildren[i].style.display = "none";
+                }
+            }
+            break;
+        case "#笔划减轻#":
+            // code block
+            for (let i = 0; i < hanziFlexChildren?.length; i++) {
+                hanziFlexChildren[i].style.display = "flex"; //resetting
+                if (hanziFlexChildren[i].id[2] != "L") {
+                    hanziFlexChildren[i].style.display = "none";
+                }
+            }
+            break;
     }
 }
 function replaceHanzi(inputFilter) {

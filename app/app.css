@@ -52,8 +52,44 @@ html{
   display: flex;
   flex-wrap: wrap;
 }
-.textStyleBtn{
+
+#dropdownDiv{
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 10;
+}
+#dropdownSelector{
+  position: absolute;
+  display: none;
   
+}
+#dropdownBtn{
+  
+  cursor: pointer;
+  
+  margin-left: 3vw;
+  border: 3px;
+  border-style: solid;
+  border-color: var(--secondaryColor);
+  transition: 300ms;
+  font-size: 3vh;
+}
+
+.dropdownFilters{
+  margin-top: -3px;
+  margin-left: -3px;
+  border: 3px;
+  border-style: solid;
+  border-color: var(--secondaryColor);
+  background-color: var(--primaryColor);
+  color: var(--secondaryColor);
+ 
+  z-index: 40;
+}
+
+.textStyleBtn{
+  cursor: pointer;
   border: 3px;
   border-style: solid;
   border-color: var(--secondaryColor);
@@ -78,7 +114,13 @@ html{
   display: block;
   font-size: 5vh;
   margin: 2vh 0 3vh;
+  overflow-wrap: normal;
+  height: 8vh;
+  line-height: 6vh;
 }
+
+
+
 #hanziFlex{
   display: flex;
   gap: 2vw;
@@ -104,6 +146,7 @@ html{
   border-style: solid;
   position: relative;
   transition: 400ms;
+  z-index: 2;
 }
 .subHanzi{
   width: var(--hanziBoxSize);
@@ -118,6 +161,8 @@ html{
   position: relative;
   margin-left: -3.5px;
   transition: 400ms;
+  z-index: 0;
+
 }
 
 .strokeNum{
