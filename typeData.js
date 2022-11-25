@@ -27,8 +27,9 @@ typeGroupList = [
       "———『檸檬』谷崎潤一郎",
       new Date(2022, 10, 28, 0, 0, 0, 0)
     ),*/
+    new typeObject(["hanzi"], "奔馬", "type/honba.png", true, "#F5DAB8", "#B20C08", "日輪は瞼の裏に赫奕と昇った", "———『奔馬』三島由紀夫", new Date(2022, 11, 23, 0, 0, 0, 0)),
     new typeObject(["hanzi", "kana"], "春の雪", "type/harunoyuki.png", true, "#E4F4E9", "#27AD70", "二人の顔へ雪はじかに当たり", "———『春の雪』三島由紀夫", new Date(2022, 11, 5, 0, 0, 0, 0)),
-    new typeObject(["hanzi"], "雲中君", "type/yunzhongjun.png", true, "#FFE0F2", "#1634B8", "思夫君兮太息、極勞心兮忡忡", "———『雲中君』楚辭·雲中君、屈原", new Date(2022, 10, 28, 0, 0, 0, 0)),
+    new typeObject(["hanzi"], "雲中君", "type/yunzhongjun.png", true, "#FFE0F2", "#1634B8", "思夫君兮太息、極勞心兮忡忡", "———『雲中君』楚辭·九歌、屈原", new Date(2022, 10, 28, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "山鬼", "type/shangui.png", true, "#29211D", "#F8FCEA", "若有人兮山之阿、披薜荔兮戴女羅", "———『山鬼』楚辭·九歌、屈原", new Date(2022, 10, 24, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "無衣", "type/wuyi.png", true, "#0A3470", "#FFEF45", "豈曰無衣、與子同袍", "———『無衣』詩經·秦風", new Date(2022, 10, 24, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "紅豆", "type/hongdou.png", true, "#f9efcc", "#cc3825", "還沒爲你把紅豆、熬成纏綿的傷口", "———『紅豆』林夕", new Date(2022, 10, 21, 0, 0, 0, 0)),
