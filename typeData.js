@@ -37,7 +37,7 @@ typeGroupList = [
     new typeObject(["kana"], "こころ", "type/kokoro.png", false, "#033694", "#F7EDF4", "私はその人を常に先生と呼んでいた", "———『こころ』夏目漱石", new Date(2022, 10, 22, 0, 0, 0, 0)),
     new typeObject(["latin"], "INFERNO", "type/inferno.png", false, "#f44914", "#000000", "Nel mezzo del cammin di nostra vita mi ritrovai per una selva oscura", "———『La Commedia Divina』Dante Alighieri", new Date(2022, 10, 16, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "蕪城賦", "type/wuchengfu.png", false, "#fcffe0", "#170c06", "觀基扃之固護，將萬祀而一君", "———『蕪城賦』鮑照", new Date(2022, 10, 8, 0, 0, 0, 0)),
-    new typeObject(["hanzi", "kana", "latin"], "Ｋの弁天", "type/knobenten.png", true, "#f0ffff", "#3e0b6b", "影ほど不思議なものはない", "———『Kの弁天』谷崎潤一郎", new Date(2022, 10, 7, 0, 0, 0, 0)),
+    new typeObject(["hanzi", "kana", "latin"], "Ｋの弁天", "type/knobenten.png", true, "#f0ffff", "#3e0b6b", "影ほど不思議なものはない", "———『Kの弁天』梶井基次郎", new Date(2022, 10, 7, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "天人五衰", "type/tenningosui.png", true, "#ce1906", "#ffffff", "天人の五衰も目の前に見えてあさましや", "———『天人五衰』三島由紀夫", new Date(2022, 10, 4, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "雷峯塔", "type/leifengta.png", false, "#f9e532", "#000000", "雷峰颓塔紫烟中、潦倒斜曛似醉翁", "", new Date(2022, 10, 4, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "濃妝淡抹", "type/nongzhuangdanmo.png", true, "#f7f5e2", "#f25e2f", "欲把西湖比西子，淡妝濃抹總相宜", "———『飲湖上初晴後雨二首·其二』蘇軾", new Date(2022, 10, 4, 0, 0, 0, 0)),
