@@ -27,7 +27,7 @@ typeGroupList = [
       "———『檸檬』谷崎潤一郎",
       new Date(2022, 10, 28, 0, 0, 0, 0)
     ),*/
-    
+    new typeObject(["hanzi"], "相思", "type/xiangsi.png", true, "#F5E2B3", "#8F2E4C", "紅豆生南國、春來發幾枝", "———『相思』王維", new Date(2023, 1, 27, 21, 25, 0, 0)),
     new typeObject(["hanzi"], "綿綿", "type/mianmian.png", true, "#F5F4E9", "#0C694B", "一次愉快的睡眠、斷多少髮線", "———『綿綿』黃偉文", new Date(2023, 1, 23, 0, 0, 0, 0)),
     new typeObject(["latin"], "Othello", "type/othello.png", false, "#261811", "#E1E2BF", "othello quote", "———『Othello』William Shakespeare", new Date(2023, 1, 26, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "奔馬", "type/honba.png", true, "#F5DAB8", "#B20C08", "日輪は瞼の裏に赫奕と昇った", "———『奔馬』三島由紀夫", new Date(2022, 11, 23, 0, 0, 0, 0)),
