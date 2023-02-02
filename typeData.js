@@ -15,6 +15,7 @@ class typeObject {
 var typeGroupList = [];
 //data for types
 typeGroupList = [
+    new typeObject(["hanzi"], "落花流水", "type/luohualiushui.png", true, "#FBFCDD", "#E05D23", "水點蒸發變做白雲、花瓣飄落下游生根", "———『落花流水』黃偉文", new Date(2023, 1, 2, 1, 0, 0, 0)),
     new typeObject(["hanzi"], "相思", "type/xiangsi.png", true, "#F5E2B3", "#9C1F46", "紅豆生南國、春來發幾枝", "———『相思』王維", new Date(2023, 0, 27, 21, 25, 0, 0)),
     new typeObject(["hanzi"], "綿綿", "type/mianmian.png", true, "#F5F4E9", "#0C694B", "一次愉快的睡眠、斷多少髮線", "———『綿綿』林夕", new Date(2023, 0, 23, 0, 0, 0, 0)),
     new typeObject(["latin"], "Othello", "type/othello.png", false, "#261811", "#E1E2BF", "She loved me for the dangers I had passed, And I loved her that she did pity them.", "———『Othello』William Shakespeare", new Date(2023, 0, 26, 0, 0, 0, 0)),
