@@ -1,21 +1,42 @@
 //declaring class
 class typeObject {
-    constructor(language, name, image, homeDisplay, color, colorS, quote, source, date) {
-        this.language = language;
-        this.name = name;
-        this.image = image;
-        this.homeDisplay = homeDisplay;
-        this.color = color;
-        this.colorS = colorS;
-        this.quote = quote;
-        this.source = source;
-        this.date = date;
-    }
+  language: String[];
+  name: string;
+  image: string;
+  color: string;
+  colorS: string;
+  quote: string;
+  source: string;
+  date: Date;
+  homeDisplay: boolean;
+
+  constructor(
+    language: string[],
+    name: string,
+    image: string,
+    homeDisplay: boolean,
+    color: string,
+    colorS: string,
+    quote: string,
+    source: string,
+    date: Date
+  ) {
+    this.language = language;
+    this.name = name;
+    this.image = image;
+    this.homeDisplay = homeDisplay;
+    this.color = color;
+    this.colorS = colorS;
+    this.quote = quote;
+    this.source = source;
+    this.date = date;
+  }
 }
-var typeGroupList = [];
+var typeGroupList: typeObject[] = [];
+
 //data for types
 typeGroupList = [
-    new typeObject(["hanzi"], "陳勝吳廣", "type/chenshengwuguang.png", true, "#F7F0E6", "#61291C", "王侯將相寧有種乎", "———『史記*陳涉世家』司馬遷", new Date(2023, 1, 4, 14, 15, 0, 0)),
+  new typeObject(["hanzi"], "陳勝吳廣", "type/chenshengwuguang.png", true, "#F7F0E6", "#61291C", "王侯將相寧有種乎", "———『史記*陳涉世家』司馬遷", new Date(2023, 1, 4, 14, 15, 0, 0)),
     new typeObject(["hanzi"], "落花流水", "type/luohualiushui.png", true, "#FBFCDD", "#E05D23", "水點蒸發變做白雲、花瓣飄落下游生根", "———『落花流水』黃偉文", new Date(2023, 1, 2, 1, 0, 0, 0)),
     new typeObject(["hanzi"], "相思", "type/xiangsi.png", true, "#F3E0B1", "#9C1F46", "紅豆生南國、春來發幾枝", "———『相思』王維", new Date(2023, 0, 27, 21, 25, 0, 0)),
     new typeObject(["hanzi"], "綿綿", "type/mianmian.png", true, "#F5F4E9", "#0C694B", "一次愉快的睡眠、斷多少髮線", "———『綿綿』林夕", new Date(2023, 0, 23, 0, 0, 0, 0)),
@@ -40,6 +61,6 @@ typeGroupList = [
 ];
 export const typeCollectionList = typeGroupList;
 export { typeObject };
+
 //test commend
 ////
-//# sourceMappingURL=typeData.js.map

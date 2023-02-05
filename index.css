@@ -93,6 +93,18 @@ li {
   align-content: center;
 }
 
+/* HEADER */
+
+header {
+  position: fixed;
+  width: 100vw;
+  top: 0;
+  z-index: 100; 
+  
+}
+main{
+  margin-top: 15vh;
+}
 
 
 
@@ -118,7 +130,8 @@ li {
   top: 0;
   left: 0;
   z-index: -5;
-  transition: 0ms;
+  transition: all 500ms;
+
 }
 #backgroundDivAbout{
   background: var(--primaryColor);
@@ -246,6 +259,7 @@ li {
   position: fixed;
   display: flex;
   margin: 5vh 27vw 0 ;
+  z-index: 120;
 }
 #aboutText{
   color: var(--secondaryColor);
@@ -536,9 +550,9 @@ li {
   display: block;
   align-items: center;
   justify-content: center;
-  width: 62vh;
-  height: 62vh;
-  margin:12vh auto 0%;
+  width: 60vh;
+  height: 60vh;
+  margin:7vh auto 0%;
   user-select: none;
 }
 #homepageImageLoad{
@@ -674,15 +688,72 @@ li {
   
 }
 
+
+
+#homepageGridImage {
+  display: block;
+  width: 62vh;
+  height: 62vh;
+  margin:0 auto 0%;
+  user-select: none;
+}
+
+#homePlaceHolder{
+  height: 10vh;
+  background-color: var(--primaryColor);
+}
+
+#ScrollGrid{
+  display: grid;
+  align-content: center;
+  min-height: 100vh;
+  margin-top: -15vh;
+  background-color: var(--primaryColor);
+  transition: all 500ms;
+  justify-content: center;
+  align-items: center;
+  gap: 100vh;
+
+}
+.HomepageGridGroup{
+  align-content: center;
+  height: 80vh;
+  justify-content: center;
+  align-items: center;
+}
+
+/* the style show appears last will have a high priority of showing */
+.scrollHidden{
+  opacity: 0;
+  transition: all 300ms;
+}
+.scrollShow{
+  opacity: 1;
+  transition: all 300ms;
+}
+
+.imageHidden{
+  opacity: 0;
+
+}
+.imageShow{
+  opacity: 1;
+  transition: 1200ms;
+  transition-delay: 400ms;
+}
+
+ /* MEDIA */ /* MEDIA */ /* MEDIA */
+ /* MEDIA */ /* MEDIA */ /* MEDIA */
+
 @media only screen and (orientation: portrait) {
   #homepageImage {
     position: relative;
     display: block;
     align-items: center;
     justify-content: center;
-    width: 70vw;
-    height: 70vw;
-    margin:14vh auto 2vh ;
+    width: 40vh;
+    height: 40vh;
+    margin:5vh auto 2vh ;
     user-select: none;
   }
 }
@@ -704,6 +775,11 @@ li {
 }
 /* mobile devices */
 @media (max-width: 708px) {
+
+  main{
+    margin-top: 11vh;
+  }
+
   .poster-grid {
     grid-template-columns:
       repeat(1, 1fr);
@@ -839,8 +915,8 @@ li {
     display: block;
     align-items: center;
     justify-content: center;
-    width: 90vw;
-    height: 90vw;
+    width: 60vh;
+    height: 60vh;
     margin:9vh auto 0vh ;
     user-select: none;
   }
@@ -913,10 +989,6 @@ li {
     position: absolute;
     height: 8vh;
     width: 100%;
-    top: 0;
-    left: 0;
-    z-index: -5;
-    transition: 0ms;
   }
   
 }

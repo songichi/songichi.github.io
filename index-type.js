@@ -167,7 +167,9 @@ for (var i = 0; i < TypeButtonList.length; i++) {
     //!!!!! NEXT LINE WILL BE IGNORED AS OF RIGHT NOW
     // @ts-ignore: Unreachable code error
     var primaryColorTiny = tinycolor(primaryColor);
+    //console.log(primaryColorTiny.isLight());
     //if the color is too light and not readable, switch the colors
+    // !! cannot have two light colors, otherwise tinycolor won't read
     if (primaryColorTiny.isLight() == true) {
         btnPrimaryColor = secondaryColor;
         btnSecondaryColor = primaryColor;
