@@ -104,6 +104,7 @@ header {
 }
 main{
   margin-top: 15vh;
+  background-color: var(--primaryColor);
 }
 
 
@@ -751,8 +752,8 @@ main{
     display: block;
     align-items: center;
     justify-content: center;
-    width: 40vh;
-    height: 40vh;
+    width: 55vh;
+    height: 55vh;
     margin:5vh auto 2vh ;
     user-select: none;
   }
