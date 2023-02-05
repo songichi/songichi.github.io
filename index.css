@@ -713,7 +713,7 @@ main{
   transition: all 500ms;
   justify-content: center;
   align-items: center;
-  gap: 100vh;
+  gap: 90vh;
 
 }
 .HomepageGridGroup{
@@ -748,14 +748,9 @@ main{
 
 @media only screen and (orientation: portrait) {
   #homepageImage {
-    position: relative;
-    display: block;
-    align-items: center;
-    justify-content: center;
-    width: 55vh;
-    height: 55vh;
+    width: 62vh;
+    height: 62vh;
     margin:5vh auto 2vh ;
-    user-select: none;
   }
 }
 
