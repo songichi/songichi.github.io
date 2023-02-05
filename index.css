@@ -794,6 +794,7 @@ li {
       repeat(2, 1fr);
     margin: 2vh 5% 2rem;
     height: 100%;
+    gap: 4vmax;
   }
 
   .typeTitle{
