@@ -748,8 +748,8 @@ main{
 
 @media only screen and (orientation: portrait) {
   #homepageImage {
-    width: 62vh;
-    height: 62vh;
+    width: 54vh;
+    height: 54vh;
     margin:5vh auto 2vh ;
   }
 }
@@ -977,7 +977,6 @@ main{
   }
 
   .backgroundDiv{
-    background: var(--primaryColor);
     /*background: var(--primaryColor);
     background: rgb(255,255,255);
     background: linear-gradient(0deg, rgba(255,255,255,1) 0%, var(--primaryColor) 50%);
