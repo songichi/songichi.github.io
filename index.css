@@ -712,12 +712,12 @@ main{
   transition: all 500ms;
   justify-content: center;
   align-items: center;
-  gap: 96vh;
+  gap: 100vh;
 
 }
 .HomepageGridGroup{
   align-content: center;
-  height: 80vh;
+  height: 70vh;
   justify-content: center;
   align-items: center;
 }
