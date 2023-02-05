@@ -313,7 +313,7 @@ li {
 
 .type-grid {
   display: grid;
-  gap: 8vw;
+  gap: 8vmax;
   grid-template-columns:
     repeat(4, 1fr);
   margin: 5% 5% 0vh;
