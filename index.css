@@ -104,7 +104,6 @@ header {
 }
 main{
   margin-top: 15vh;
-  background-color: var(--primaryColor);
 }
 
 
@@ -752,6 +751,16 @@ main{
     height: 54vh;
     margin:5vh auto 2vh ;
   }
+
+  :root {
+    --imagesize: 250px;
+    --smallimagesize: 120px;
+    --titleMain: 3vh;
+    --titleHalf: 1.5vh;
+    --titleDouble: 8vh;
+    --spaceFromTop: 7vh;
+  }
+  
 }
 
 /* medium screens */
