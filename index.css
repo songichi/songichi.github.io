@@ -550,8 +550,8 @@ main{
   display: block;
   align-items: center;
   justify-content: center;
-  width: 60vh;
-  height: 60vh;
+  width: 95vw;
+  height: 95vw;
   margin:7vh auto 0%;
   user-select: none;
 }
