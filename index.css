@@ -73,7 +73,7 @@ html {
   --titleMain: 4vh;
   --titleHalf: 2vh;
   --titleDouble: 8vh;
-  --spaceFromTop: 7vh;
+  --spaceFromTop: 12vmax;
 }
 
 a:link { text-decoration: none; }
@@ -416,7 +416,7 @@ main{
 /* POSTER */
 .poster-grid {
   display: grid;
-  gap: 2vw;
+  gap: 3vw;
   grid-template-columns:
     repeat(3, 1fr);
   margin: var(--spaceFromTop) 5% 2rem;
