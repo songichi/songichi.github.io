@@ -920,8 +920,8 @@ main{
     display: block;
     align-items: center;
     justify-content: center;
-    width: 52vh;
-    height: 52vh;
+    width: 50vh;
+    height: 50vh;
     margin:9vh auto 0vh ;
     user-select: none;
   }
