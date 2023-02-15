@@ -19,7 +19,6 @@ typeGroupList = [
     new typeObject(["hanzi"], "落花流水", "type/luohualiushui.png", true, "#FBFCDD", "#E05D23", "水點蒸發變做白雲、花瓣飄落下游生根", "———『落花流水』黃偉文", new Date(2023, 1, 2, 1, 0, 0, 0)),
     new typeObject(["hanzi"], "相思", "type/xiangsi.png", true, "#F3E0B1", "#9C1F46", "紅豆生南國、春來發幾枝", "———『相思』王維", new Date(2023, 0, 27, 21, 25, 0, 0)),
     new typeObject(["hanzi"], "綿綿", "type/mianmian.png", true, "#F4F3ED", "#0C694B", "一次愉快的睡眠、斷多少髮線", "———『綿綿』林夕", new Date(2023, 0, 23, 0, 0, 0, 0)),
-    new typeObject(["latin"], "Othello", "type/othello.png", false, "#261811", "#E1E2BF", "She loved me for the dangers I had passed, And I loved her that she did pity them.", "———『Othello』William Shakespeare", new Date(2023, 0, 26, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "奔馬", "type/honba.png", false, "#F5DAB8", "#B20C08", "日輪は瞼の裏に赫奕と昇った", "———『豊饒の海*奔馬』三島由紀夫", new Date(2022, 10, 23, 0, 0, 0, 0)),
     new typeObject(["hanzi", "kana"], "春の雪", "type/harunoyuki.png", true, "#E4F4E9", "#27AD70", "二人の顔へ雪はじかに当たり", "———『豊饒の海*春の雪』三島由紀夫", new Date(2022, 10, 5, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "雲中君", "type/yunzhongjun.png", false, "#FFE0F2", "#1634B8", "思夫君兮太息、極勞心兮忡忡", "———『楚辭*九歌*雲中君』屈原", new Date(2022, 9, 28, 0, 0, 0, 0)),
