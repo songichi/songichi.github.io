@@ -688,6 +688,11 @@ main{
   
 }
 
+#homepageBottomDiv{
+  height: 20vh;
+  background-color: var(--primaryColor);
+}
+
 
 
 #homepageGridImage {
