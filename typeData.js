@@ -38,6 +38,13 @@ typeGroupList = [
     new typeObject(["hanzi"], "觀自在菩薩", "type/guanzizai.png", true, "#153513", "#ffffff", "觀自在菩薩，行深般若波羅蜜多時", "———『心經』", new Date(2022, 9, 4, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "國殤", "type/guoshang.png", true, "#11f7af", "#000000", "操吳戈兮被犀甲，車錯轂兮短兵接", "———『楚辭*九歌*國殤』屈原", new Date(2022, 9, 4, 0, 0, 0, 0)),
 ];
+var homepageTypeCount = 0;
+typeGroupList.forEach(type => {
+    if (type.homeDisplay) {
+        homepageTypeCount++;
+    }
+});
+console.log(homepageTypeCount + " types are on the homepage, \n" + typeGroupList.length + " types in total");
 export const typeCollectionList = typeGroupList;
 export { typeObject };
 //test commend

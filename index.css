@@ -648,27 +648,29 @@ main{
 
 
 #homepageFooter{
-  display: inline;
-  position: relative;
+  display: block;
+  position: block;
   font-size: 0.6em;
   font-size: 1.4vh;
   left:0;
   right:0;
   margin-left:auto;
   margin-right:auto;  
-  bottom: 1.2vh;
+  margin: -20vh 0 0;
   color: var(--secondaryColor);
-  transition: 1200ms;
+  background-color: var(--primaryColor);
+  transition: 500ms;
 }
-#homepageBtn{
-  display: inline;
-  position: relative;
-  font-size: 1.8vh;
-  bottom: 1.2vh;
-  left: 2vw;
-  height: 3.6vh;
-  width: 9vh;
-  border-radius: 3vh;
+.homepageBtn{
+  position: inline;
+  display: block;
+  margin: 0.5em auto 0;
+  font-size: 2.5vh;
+  height: 4.5vh;
+  width: 14vh;
+  border-radius: 2vh;
+  padding: 2px;
+  text-align: center;
   border-color: transparent;
   border-style: solid;
   color: var(--primaryColor);
@@ -676,11 +678,11 @@ main{
   box-shadow: none;
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-style: normal;
-  font-weight: 700;
+  font-weight: 500;
   
   transition: 500ms;
 }
-#homepageBtn:hover {
+.homepageBtn:hover {
   border-color: var(--secondaryColor);
   color: var(--secondaryColor);
   background-color: transparent;
@@ -689,7 +691,7 @@ main{
 }
 
 #homepageBottomDiv{
-  height: 20vh;
+  height: 70vh;
   background-color: var(--primaryColor);
 }
 

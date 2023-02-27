@@ -31,7 +31,7 @@ for (var i = TypeGroupListToDisplay.length - 1; i > 0; i--) {
   TypeGroupListToDisplay[i] = TypeGroupListToDisplay[j];
   TypeGroupListToDisplay[j] = temp;
 }
-TypeGroupListToDisplay.splice(5);
+TypeGroupListToDisplay.splice(4);
 
 
 
@@ -119,6 +119,23 @@ if (sessionStorage.getItem("recentColor") == null) {
 }
 
 
+//HOMEPAGE BTNS
+
+//refresh btn
+const homepageBtnRefresh = document.getElementById('homepageBtnRefresh');
+homepageBtnRefresh?.addEventListener('click', () => {
+  window.location.reload();
+  //window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo(0, 0);
+});
+
+const homepageBtnAbout = document.getElementById('homepageBtnAbout') as HTMLElement;
+homepageBtnAbout?.addEventListener('click', () => {
+  window.location.href = 'index-about.html';
+});
+
+
+
 
 console.log(recentType);
 //for homepage
@@ -129,7 +146,7 @@ try {
   document
     .getElementById("homepageBtn")!
     .addEventListener("click", function () {
-      Reroll();
+      //Reroll();
       //document.getElementById('homepageBtn').style.scale = "1";
     });
 } catch {}
@@ -236,50 +253,57 @@ const cloneRecent = Object.assign({}, recentType);
 var rerollTypeList: typeObject[] = [cloneRecent, cloneRecent, cloneRecent];
 //console.log(rerollTypeList.includes(cloneRecent));
 //
+
+
+
+
+//!!! TO DELETE
 //reroll function
-function Reroll() {
-  //document.getElementById('homepageImage').src = "type/blank.png";
+// function Reroll() {
+//   //document.getElementById('homepageImage').src = "type/blank.png";
 
-  //newRecent = null;
-  var rnd = Math.floor(Math.random() * TypeGroupList.length);
-  var newRecent = TypeGroupList[rnd];
-  //reroll until get a different value, and if the target can be displayed
-  while (
-    //recent == newRecent ||
-    newRecent.homeDisplay == false || //check to see the display option is on
-    typeIsDuplicate(newRecent) // check to see if the new reroll was rolled two items before
-  ) {
-    rnd = Math.floor(Math.random() * TypeGroupList.length);
-    newRecent = TypeGroupList[rnd];
-  }
-  //remove first element
+//   //newRecent = null;
+//   var rnd = Math.floor(Math.random() * TypeGroupList.length);
+//   var newRecent = TypeGroupList[rnd];
+//   //reroll until get a different value, and if the target can be displayed
+//   while (
+//     //recent == newRecent ||
+//     newRecent.homeDisplay == false || //check to see the display option is on
+//     typeIsDuplicate(newRecent) // check to see if the new reroll was rolled two items before
+//   ) {
+//     rnd = Math.floor(Math.random() * TypeGroupList.length);
+//     newRecent = TypeGroupList[rnd];
+//   }
+//   //remove first element
 
-  //console.log(typeIsDuplicate + "  +  " + recent.name);
-  recentType = newRecent;
-  LoadHomepage();
+//   //console.log(typeIsDuplicate + "  +  " + recent.name);
+//   recentType = newRecent;
+//   LoadHomepage();
 
-  //delete old element
-  rerollTypeList.shift();
-  //add new element to the end
-  rerollTypeList.push(Object.assign({}, recentType));
-  // console.log(
-  //   rerollTypeList[0].name +
-  //     ", " +
-  //     rerollTypeList[1].name +
-  //     ", " +
-  //     rerollTypeList[2].name
-  // );
+//   //delete old element
+//   rerollTypeList.shift();
+//   //add new element to the end
+//   rerollTypeList.push(Object.assign({}, recentType));
+//   // console.log(
+//   //   rerollTypeList[0].name +
+//   //     ", " +
+//   //     rerollTypeList[1].name +
+//   //     ", " +
+//   //     rerollTypeList[2].name
+//   // );
 
-  //save "recent" data
-  var primaryColor = recentType.color;
-  var secondaryColor = recentType.colorS;
-  var typeName = recentType.name;
+//   //save "recent" data
+//   var primaryColor = recentType.color;
+//   var secondaryColor = recentType.colorS;
+//   var typeName = recentType.name;
 
-  //storing the variables for revisiting the page
-  sessionStorage.setItem("recentColor", primaryColor);
-  sessionStorage.setItem("recentColorS", secondaryColor);
-  sessionStorage.setItem("typeName", typeName);
-}
+//   //storing the variables for revisiting the page
+//   sessionStorage.setItem("recentColor", primaryColor);
+//   sessionStorage.setItem("recentColorS", secondaryColor);
+//   sessionStorage.setItem("typeName", typeName);
+// }
+
+
 
 //check arrary duplicate
 function typeIsDuplicate(type: typeObject) {
