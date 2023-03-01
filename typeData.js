@@ -15,8 +15,8 @@ class typeObject {
 var typeGroupList = [];
 //data for types
 typeGroupList = [
-    new typeObject(["hanzi", "kana"], "暁の寺", "type/akatukinotera.png", true, "#AFA387", "#FFFFFF", "雲の外周の空は燦爛とかがやいていた", "———『暁の寺』三島由紀夫", new Date(2023, 1, 26, 0, 45, 0, 0)),
-    new typeObject(["hanzi"], "曖昧", "type/aimei.png", true, "#F2E4BB", "#D64D6A", "徘徊在似苦又甜之間、望不穿中曖昧的眼", "———『曖昧』林夕", new Date(2023, 1, 26, 0, 45, 0, 0)),
+    new typeObject(["hanzi", "kana"], "暁の寺", "type/akatukinotera.png", true, "#AFA387", "#FFFFFF", "夔府孤城落日斜、每依北斗望京華", "———『秋興八首*其二』杜甫", new Date(2023, 1, 26, 0, 45, 0, 0)),
+    new typeObject(["hanzi"], "曖昧", "type/aimei.png", true, "#EDDDC3", "#D64D6A", "夔府孤城落日斜、每依北斗望京華", "———『秋興八首*其二』杜甫", new Date(2023, 1, 26, 0, 45, 0, 0)),
     new typeObject(["hanzi"], "秋興八首", "type/qiuxingbashou.png", true, "#E4F0D3", "#1E2E07", "夔府孤城落日斜、每依北斗望京華", "———『秋興八首*其二』杜甫", new Date(2023, 1, 26, 0, 45, 0, 0)),
     new typeObject(["hanzi"], "陳勝吳廣", "type/chenshengwuguang.png", false, "#F7F0E6", "#61291C", "王侯將相寧有種乎", "———『史記*陳涉世家』司馬遷", new Date(2023, 1, 4, 14, 15, 0, 0)),
     new typeObject(["hanzi"], "落花流水", "type/luohualiushui.png", true, "#FBFCDD", "#E05D23", "水點蒸發變做白雲、花瓣飄落下游生根", "———『落花流水』黃偉文", new Date(2023, 1, 2, 1, 0, 0, 0)),
