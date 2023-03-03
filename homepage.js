@@ -37,6 +37,7 @@ try {
     ScrollGrid.innerHTML = HomePageGridHTML;
 }
 catch { }
+//scroll to show function
 const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
         console.log(entry);
@@ -60,11 +61,19 @@ const observer = new IntersectionObserver((entries) => {
 const hiddenElements = document.querySelectorAll('.scrollHidden');
 hiddenElements.forEach((el => observer.observe(el)));
 const HeaderTitles = Array.from(document.querySelectorAll('.tt1'));
+//whenever scroll to a new type, color changes
 function ReApplyHeaderColors(typeColorPrimary, typeColorSecondary) {
     document.documentElement.style.setProperty("--secondaryColor", typeColorPrimary);
     document.documentElement.style.setProperty("--primaryColor", typeColorSecondary);
+    //var primaryColor = recentType.color;
+    //var secondaryColor = recentType.colorS;
+    sessionStorage.setItem("recentColor", typeColorSecondary);
+    sessionStorage.setItem("recentColorS", typeColorPrimary);
+    //setting the text on homeBtn as zi for everything
+    //sessionStorage.setItem("typeName", "字");
 }
 //checking if the user is visiting this page the first time
+//DISABLED TRIED
 if (sessionStorage.getItem("recentColor") == null) {
     console.log("WELCOME");
     var getGroupIndex = 0;
@@ -88,9 +97,10 @@ else {
             selectedGroup = TypeGroupList[i];
         }
     }
-    console.log();
     recentType = selectedGroup;
 }
+var getGroupIndex = 0;
+recentType = TypeGroupList[getGroupIndex];
 //HOMEPAGE BTNS
 //refresh btn
 const homepageBtnRefresh = document.getElementById('homepageBtnRefresh');
@@ -116,10 +126,12 @@ try {
     });
 }
 catch { }
-//on other pages
+//on other pages setting homebtn
 try {
-    document.getElementById("homeBtnText").textContent = recentType.name;
-    //document.getElementById('homeBtnText').textContent = recent.name[0];
+    //new, setting everything as zi
+    document.getElementById("homeBtnText").textContent = "字";
+    //old
+    //document.getElementById("homeBtnText")!.textContent = recentType.name;
     document
         .getElementById("homeBtn")
         .addEventListener("mouseover", function () {
