@@ -256,18 +256,29 @@ main{
 
 }
 #aboutDiv{
-  position: fixed;
-  display: flex;
-  margin: 5vh 27vw 0 ;
-  z-index: 120;
+  position: relative;
+  display: block;
+  margin: 4vh 25vw 0 ;
+  z-index: 100;
 }
-#aboutText{
+.aboutText{
+  color: var(--secondaryColor);
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-weight: 500;
+  font-size: clamp(0.8em, 3.2vh, 4.8vh);
+  text-align: left;
+  margin: 0;
+  line-height: clamp(1.4em, 5vh, 6vw);
+  width: 100%;
+}
+
+.aboutTitle{
   color: var(--secondaryColor);
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 700;
-  font-size: clamp(1.1em, 3.8vh, 5vh);
+  font-size: clamp(1.4em, 5vh, 6vh);
   text-align: left;
-  margin: 0;
+  margin: 0 0 0 -0.6em;
   line-height: clamp(1.4em, 5vh, 6vw);
   width: 100%;
 }
