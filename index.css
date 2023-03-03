@@ -266,6 +266,7 @@ main{
   margin: 4vh 25vw 0 ;
   z-index: 100;
 }
+
 .aboutText{
   color: var(--secondaryColor);
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
@@ -782,6 +783,10 @@ main{
     --titleHalf: 1.5vh;
     --titleDouble: 8vh;
     --spaceFromTop: 7vh;
+  }
+
+  #aboutDiv{
+    margin: 4vh 15vw 0 ;
   }
   
 }
