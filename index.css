@@ -34,6 +34,11 @@
   border-radius: 3px;
 }
 
+::selection{
+  background-color: var(--secondaryColor);
+  color: var(--primaryColor);
+}
+
 ::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
   color: var(--secondaryColor);
   
@@ -99,7 +104,7 @@ header {
   position: fixed;
   width: 100vw;
   top: 0;
-  z-index: 100; 
+  z-index: 150; 
   
 }
 main{
@@ -140,7 +145,7 @@ main{
   width: 100%;
   top: 0;
   left: 0;
-  z-index: -5;
+  z-index: -500;
   transition: 0ms;
 }
 #backgroundQuote{
@@ -279,7 +284,7 @@ main{
   font-size: clamp(1.4em, 5vh, 6vh);
   text-align: left;
   margin: 0 0 0 -0.6em;
-  line-height: clamp(1.4em, 5vh, 6vw);
+  line-height: clamp(1.6em, 6vh, 7.5vw);
   width: 100%;
 }
 
