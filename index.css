@@ -271,10 +271,10 @@ main{
   color: var(--secondaryColor);
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
-  font-size: clamp(0.8em, 3.2vh, 4.8vh);
+  font-size: clamp(0.8em, 2.8vh, 4vh);
   text-align: left;
   margin: 0;
-  line-height: clamp(1.4em, 5vh, 6vw);
+  line-height: clamp(1.2em, 3.6vh, 5vw);
   width: 100%;
 }
 
@@ -282,7 +282,7 @@ main{
   color: var(--secondaryColor);
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 700;
-  font-size: clamp(1.4em, 5vh, 6vh);
+  font-size: clamp(1.1em, 4vh, 5vh);
   text-align: left;
   margin: 0 0 0 -0.6em;
   line-height: clamp(1.6em, 6vh, 7.5vw);
