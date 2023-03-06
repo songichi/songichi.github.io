@@ -27,7 +27,7 @@ typeGroupList = [
     new typeObject(["hanzi"], "山鬼", "type/shangui.png", false, "#29211D", "#F8FCEA", "若有人兮山之阿、披薜荔兮戴女羅", "———『楚辭*九歌*山鬼』屈原", new Date(2022, 9, 24, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "無衣", "type/wuyi.png", true, "#0A3470", "#FFEF45", "豈曰無衣、與子同袍", "———『詩經*秦風*無衣』", new Date(2022, 9, 24, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "紅豆", "type/hongdou.png", true, "#f9efcc", "#cc3825", "還沒爲你把紅豆、熬成纏綿的傷口", "———『紅豆』林夕", new Date(2022, 9, 21, 0, 0, 0, 0)),
-    new typeObject(["kana"], "こころ", "type/kokoro.png", false, "#3CE8C6", "#1F172B", "私はその人を常に先生と呼んでいた", "———『こころ』夏目漱石", new Date(2022, 9, 22, 0, 0, 0, 0)),
+    //new typeObject(["kana"], "こころ", "type/kokoro.png", false, "#3CE8C6", "#1F172B", "私はその人を常に先生と呼んでいた", "———『こころ』夏目漱石", new Date(2022, 9, 22, 0, 0, 0, 0)),
     new typeObject(["latin"], "INFERNO", "type/inferno.png", false, "#f44914", "#000000", "Nel mezzo del cammin di nostra vita mi ritrovai per una selva oscura", "———『La Commedia Divina』Dante Alighieri", new Date(2022, 9, 16, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "蕪城賦", "type/wuchengfu.png", false, "#fcffe0", "#170c06", "觀基扃之固護，將萬祀而一君", "———『蕪城賦』鮑照", new Date(2022, 9, 8, 0, 0, 0, 0)),
     new typeObject(["hanzi", "kana", "latin"], "Ｋの弁天", "type/knobenten.png", true, "#f0ffff", "#3e0b6b", "影ほど不思議なものはない", "———『Kの弁天』梶井基次郎", new Date(2022, 9, 7, 0, 0, 0, 0)),
