@@ -1,7 +1,3 @@
-//import from homepage
-//import { JsxFlags } from 'typescript';
-import { primaryColor } from "./homepage.js";
-import { secondaryColor } from "./homepage.js";
 import { typeCollectionList } from "./typeData.js";
 // @ts-ignore: Unreachable code error
 //import tinycolor from "/plugin/tinycolor.js";
@@ -164,28 +160,45 @@ for (var i = 0; i < TypeButtonList.length; i++) {
         k = "latin";
     }
     const key = k.toString();
+    //getting colors from homepage
+    var primaryColorHomepage = sessionStorage.getItem("recentColor");
+    var secondaryColorHomepage = sessionStorage.getItem("recentColorS");
     //!!!!!! BECAUSE THERE IS AN ISSUE WITH TINYCOLOR IMPORT
     //!!!!! NEXT LINE WILL BE IGNORED AS OF RIGHT NOW
     // @ts-ignore: Unreachable code error
-    var primaryColorTiny = tinycolor(primaryColor);
+    var primaryColorTiny = tinycolor(primaryColorHomepage);
     // @ts-ignore: Unreachable code error
-    var secondaryColorTiny = tinycolor(secondaryColor);
+    var secondaryColorTiny = tinycolor(secondaryColorHomepage);
     //console.log(primaryColorTiny.isLight());
     //if the color is too light and not readable, switch the colors
     // !! cannot have two light colors, otherwise tinycolor won't read
+    //if background is light
     if (primaryColorTiny.isLight() == true) {
         if (secondaryColorTiny.isLight() == true) {
-            btnPrimaryColor = primaryColor;
-            btnSecondaryColor = secondaryColor;
+            //var primaryColorHomepage = sessionStorage.getItem("recentColor");
+            //if both colors are light
+            //check bnrightness
+            var primaryBrightness = primaryColorTiny.getBrightness();
+            var secondaryBrightness = secondaryColorTiny.getBrightness();
+            //if primary is brighter than secondary
+            if (primaryBrightness > secondaryBrightness) {
+                btnPrimaryColor = secondaryColorTiny;
+                btnSecondaryColor = primaryColorTiny;
+            }
+            else {
+                btnPrimaryColor = primaryColorTiny;
+                btnSecondaryColor = secondaryColorTiny;
+            }
         }
         else {
-            btnPrimaryColor = secondaryColor;
-            btnSecondaryColor = primaryColor;
+            btnPrimaryColor = secondaryColorTiny;
+            btnSecondaryColor = primaryColorTiny;
         }
     }
+    //if background is dark
     else {
-        btnPrimaryColor = primaryColor;
-        btnSecondaryColor = secondaryColor;
+        btnPrimaryColor = primaryColorTiny;
+        btnSecondaryColor = secondaryColorTiny;
     }
     //set initial button style
     btn.style.border = "2px solid " + btnPrimaryColor.toString();
