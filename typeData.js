@@ -14,7 +14,7 @@ class typeObject {
 }
 var typeGroupList = [];
 //data for types
-typeGroupList = [
+typeGroupList = [ 
     //new typeObject(["hanzi", "kana"], "海よりもまだ深く", "type/umiyorimomadafukaku.png", false, "#B8CDDE", "#FFFFFF", "", "———『海よりもまだ深く』是枝裕和", new Date(2023, 2, 5, 16, 30, 0, 0)),
     new typeObject(["hanzi"], "秋興八首", "type/qiuxingbashou.png", true, "#E4F0D3", "#1E2E07", "夔府孤城落日斜、每依北斗望京華", "———『秋興八首*其二』杜甫", new Date(2023, 1, 26, 0, 45, 0, 0)),
     new typeObject(["hanzi"], "陳勝吳廣", "type/chenshengwuguang.png", false, "#F7F0E6", "#61291C", "王侯將相寧有種乎", "———『史記*陳涉世家』司馬遷", new Date(2023, 1, 4, 14, 15, 0, 0)),
