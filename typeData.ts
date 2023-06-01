@@ -36,7 +36,7 @@ var typeGroupList: typeObject[] = [];
 
 //data for types
 typeGroupList = [
-    //new typeObject(["hanzi","kana"], "暁の寺", "type/akatukinotera.png", true, "#AFA387", "#FFFFFF", "雲の外周の空は燦爛とかがやいていた", "———『暁の寺』三島由紀夫", new Date(2023, 2, 1, 20, 19, 0, 0)),
+    new typeObject(["hanzi","kana"], "暁の寺", "type/akatukinotera.png", true, "#AFA387", "#FFFFFF", "雲の外周の空は燦爛とかがやいていた", "———『暁の寺』三島由紀夫", new Date(2023, 2, 1, 20, 19, 0, 0)),
     //new typeObject(["hanzi"], "曖昧", "type/aimei.png", true, "#EDDDC3", "#D64D6A", "徘徊在似苦又甜之间、望不穿这暖昧的眼", "———『曖昧』林夕", new Date(2023, 2, 1, 20, 19, 0, 0)),
     new typeObject(["hanzi"], "秋興八首", "type/qiuxingbashou.png", true, "#E4F0D3", "#1E2E07", "夔府孤城落日斜、每依北斗望京華", "———『秋興八首*其二』杜甫", new Date(2023, 1, 26, 0, 45, 0, 0)),
     new typeObject(["hanzi"], "陳勝吳廣", "type/chenshengwuguang.png", false, "#F7F0E6", "#61291C", "王侯將相寧有種乎", "———『史記*陳涉世家』司馬遷", new Date(2023, 1, 4, 14, 15, 0, 0)),
@@ -49,7 +49,7 @@ typeGroupList = [
     new typeObject(["hanzi"], "山鬼", "type/shangui.png", false, "#29211D", "#F8FCEA", "若有人兮山之阿、披薜荔兮戴女羅", "———『楚辭*九歌*山鬼』屈原", new Date(2022, 9, 24, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "無衣", "type/wuyi.png", true, "#0A3470", "#FFEF45", "豈曰無衣、與子同袍", "———『詩經*秦風*無衣』", new Date(2022, 9, 24, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "紅豆", "type/hongdou.png", true, "#f9efcc", "#cc3825", "還沒爲你把紅豆、熬成纏綿的傷口", "———『紅豆』林夕", new Date(2022, 9, 21, 0, 0, 0, 0)),
-    new typeObject(["kana"], "こころ", "type/kokoro.png", false, "#3CE8C6", "#1F172B", "私はその人を常に先生と呼んでいた", "———『こころ』夏目漱石", new Date(2022, 9, 22, 0, 0, 0, 0)),
+   
     new typeObject(["latin"], "INFERNO", "type/inferno.png", false, "#f44914", "#000000", "Nel mezzo del cammin di nostra vita mi ritrovai per una selva oscura", "———『La Commedia Divina』Dante Alighieri", new Date(2022, 9, 16, 0, 0, 0, 0)),
     new typeObject(["hanzi"], "蕪城賦", "type/wuchengfu.png", false, "#fcffe0", "#170c06", "觀基扃之固護，將萬祀而一君", "———『蕪城賦』鮑照", new Date(2022, 9, 8, 0, 0, 0, 0)),
     new typeObject(["hanzi", "kana", "latin"], "Ｋの弁天", "type/knobenten.png", true, "#f0ffff", "#3e0b6b", "影ほど不思議なものはない", "———『Kの弁天』梶井基次郎", new Date(2022, 9, 7, 0, 0, 0, 0)),

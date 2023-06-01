@@ -79,6 +79,8 @@ html {
   --titleHalf: 2vh;
   --titleDouble: 8vh;
   --spaceFromTop: 12vmax;
+  --worksGridSize: 30vw;
+  --worksGridRow: 1%;
 }
 
 a:link { text-decoration: none; }
@@ -138,6 +140,21 @@ main{
   transition: all 500ms;
 
 }
+
+#grayBackdrop{
+  background: black;
+  position: fixed;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  z-index: 500;
+  user-select: none;
+  pointer-events: none;
+  opacity: 0%;
+  
+}
+
 #backgroundDivAbout{
   background: var(--primaryColor);
   position: fixed;
@@ -430,16 +447,96 @@ main{
   margin: 5% 8% 0;
 }
 
-/* POSTER */
-.poster-grid {
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+/* works */
+
+.masonry-container {
+  column-gap: 20px; /* Adjust as per your preference */
+}
+
+.grid-item {
+  display: inline-block;
+  width: 100%; /* Adjust as per your preference */
+  margin-bottom: 20px; /* Adjust as per your preference */
+}
+
+.works-container{
+  
+  width: 90%;
+  
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  
+  margin: var(--spaceFromTop) 5% 2rem;
+  /* grid-auto-rows: var(--worksGridRow); */
+}
+
+.works-box{
+  width: 100%;
+  padding: 1vw;
+
+}
+
+.works-img{
+  width: 92%;
+  opacity: 1;
+  transition: 300ms;
+  object-fit: contain;
+}
+
+
+
+
+.works-grid {
   display: grid;
   gap: 3vw;
   grid-template-columns:
     repeat(3, 1fr);
   margin: var(--spaceFromTop) 5% 2rem;
+  column-gap: 3vw;
 }
 
-.poster {
+#expandableVerticalGrid{
+  position: fixed;
+  display: grid;
+  gap: 1vw;
+  grid-template-columns:
+    repeat(1, 1fr);
+
+  z-index: 550;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  height: 90%;
+  overflow: scroll;
+  pointer-events: none;
+  user-select: none;
+}
+
+.expandableGridChild{
+  width: 100%;
+}
+
+.expandable{
+  cursor: pointer
+}
+
+.works {
   width: 100%;
   filter: grayscale(0);
   opacity: 1;
@@ -449,7 +546,7 @@ main{
 }
 
 #tiaodao-gif:hover {
-  content: url('mis/tiaodao poster gif.gif');
+  content: url('mis/tiaodao works gif.gif');
 }
 
 #diaolan-gif:hover {
@@ -788,17 +885,31 @@ main{
   #aboutDiv{
     margin: 4vh 15vw 0 ;
   }
+
+  /* works */
   
 }
 
 /* medium screens */
 @media (max-width: 1040px) {
-  .poster-grid {
+  .works-grid {
     grid-template-columns:
       repeat(2, 1fr);
       margin: 2rem 2rem 2rem;
       gap: 2vw;
   }
+
+  .works-container{
+  
+    width: 90%;
+    
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    
+    margin: var(--spaceFromTop) 5% 2rem;
+    /* grid-auto-rows: var(--worksGridRow); */
+  }
+
   .type-grid {
     grid-template-columns:
       repeat(3, 1fr);
@@ -813,13 +924,24 @@ main{
     margin-top: 11vh;
   }
 
-  .poster-grid {
+  .works-container{
+  
+    width: 90%;
+    
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    
+    margin: var(--spaceFromTop) 5% 2rem;
+    /* grid-auto-rows: var(--worksGridRow); */
+  }
+
+  .works-grid {
     grid-template-columns:
       repeat(1, 1fr);
       margin: 2rem 2rem 2rem;
       gap: 2vw;
   }
-  .poster {
+  .works {
     width: 100%;
   }
 

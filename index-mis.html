@@ -18,40 +18,45 @@
 
 
   <body class="bodystyle">
+    <div id="grayBackdrop"></div>
+    <div id="expandableVerticalGrid"></div>
 
     <header>
-      <div class="backgroundDiv"></div>
       <a id="homeBtn" href="index.html">
         <p id="homeBtnText">A</p>
       </a>
       <div class="cd">
         <div style="user-select: none";>
           <li><a class="tt1" href="index-type.html">字形</a></li>
-          <li><a class="tt1-on" href="index-mis.html">海報</a></li>
-          <li><a class="tt1" href="index-about.html">關於</a></li>
+          <li><a class="tt1-on" href="index-mis.html">作品</a></li>
+          <li><a class="tt1" href="index-about.html">关于</a></li>
         </div>
       </div>
     </header>
     <main>
       <content>
-        <div class="poster-grid" >
-          <img class="poster" src="mis/1922.png"/>
-          
-          <img class="poster" src="mis/quhaishangba.png"/>
+        <div class="works-grid" >
 
-          <img class="poster" src="mis/jianjia.webp"/>
-          <img class="poster" src="mis/pianruo.webp"/>
-          <img class="poster" src="mis/huigui.webp"/>
-          <img class="poster" src="mis/pifuyouze.webp"/>
-          <img class="poster" src="mis/accent toutu.webp"/>
-          <img class="poster" id="santi1-gif" src="mis/santi1.webp"/>
-          <img class="poster" id="tiaodao-gif" src="mis/tiaodao poster.webp"/>
+          <img class="works expandable" src="mis/kamennokokuhaku_book.png"/>
+          <img class="works" src="mis/1922.png"/>
+          <img class="works" src="mis/quhaishangba.png"/>
+
+          <img class="works" src="mis/jianjia.webp"/>
+          <img class="works" src="mis/pianruo.webp"/>
+          <img class="works" src="mis/huigui.webp"/>
+          
+          <img class="works" src="mis/pifuyouze.webp"/>
+          <img class="works" src="mis/accent toutu.webp"/>
+          <img class="works" id="santi1-gif" src="mis/santi1.webp"/>
+          <img class="works" src="mis/tiaodao poster.webp"/>
         </div>
       </content>
+      <div class="backgroundDiv"></div>
+
     </main>
 
   <!--
-    data-masonry='{ "itemSelector": ".poster", "columnWidth": ".poster", "percentPosition": true }'
+    data-masonry='{ "itemSelector": ".works", "columnWidth": ".works", "percentPosition": true }'
   //-->
   </body>
   <footer>
@@ -62,6 +67,8 @@
   <script> var exports = {}; </script>
   <script type="module" src="homepage.js"></script>
   <script type="module" src="index.js"></script>
+  <script type="module" src="index-mis.js"></script>
+
   <script src="plugin/vanilla.js"></script>
   <script src="plugin/masonry.pkgd.min.js"></script>
 
