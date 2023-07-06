@@ -13,7 +13,7 @@ class worksObject {
 var worksGroupList = [];
 worksGroupList = [
     new worksObject("仮面の告白", true, "", "works/kamennokokuhaku_book.png", 15, new Date(2023, 2, 1, 20, 19, 0, 0), "封面设计，内书为新潮社『仮面の告白』"),
-    new worksObject("yukiguni", true, "", "works/yukiguni_book.png", 15, new Date(2023, 2, 1, 20, 19, 0, 0), ""),
+    //new worksObject("yukiguni", true, "", "works/yukiguni_book.png", 15, new Date(2023, 2, 1, 20, 19, 0, 0), ""),
     new worksObject("1912：文学奇迹之年", false, "中信大方", "works/1922.png", 21, new Date(2023, 2, 1, 20, 19, 0, 0), ""),
     new worksObject("去海上吧————2022西葡语文学节", false, "中信大方", "works/quhaishangba.png", 22, new Date(2023, 2, 1, 20, 19, 0, 0), ""),
     new worksObject("", false, "中信大方", "works/jianjia.webp", 14, new Date(2023, 2, 1, 20, 19, 0, 0), ""),
