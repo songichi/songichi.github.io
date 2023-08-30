@@ -896,7 +896,7 @@ main{
     grid-template-columns:
       repeat(2, 1fr);
       margin: 2rem 2rem 2rem;
-      gap: 2vw;
+      gap: 4vw;
   }
 
   .works-container{
