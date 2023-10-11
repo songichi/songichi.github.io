@@ -118,6 +118,7 @@
     "index-works.ts",
     "index-mis.ts",
     
+    "app/contract.ts",
     "app/hanzi.ts",
     //"index-type.js",
   ]

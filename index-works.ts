@@ -42,7 +42,7 @@ const worksContainer = document.querySelector(".works-container");
 //     });
 //   }
 
-
+//appending works to the page
 worksCollectionList.forEach(element => {
     var parentDiv = document.createElement('div');
     parentDiv.classList.add("works-box");
@@ -54,16 +54,28 @@ worksCollectionList.forEach(element => {
     //console.log("span " + (10 * element.ratio).toString());
     console.log(parentDiv.style.gridRowEnd);
 
-    // Create the child element (e.g., a <span> element)
+    // Create the child element for image (e.g., a <span> element)
     var childElement = document.createElement('img') as HTMLImageElement;
     childElement.src = element.source;
     childElement.classList.add("works-img");
-    //check if work is expandable
+
+    //create the child element for texts
+    var childTextName = document.createElement('txt') as HTMLDivElement;
+    childTextName.innerHTML = "『" + element.name + "』";
+    childTextName.classList.add("worksText");
+
+    var childTextMedia = document.createElement('txt') as HTMLDivElement;
+    childTextMedia.innerHTML = "&nbsp&nbsp&nbsp&nbsp" + element.media;
+    childTextMedia.classList.add("worksText");
+
+    //check if work is expandable, add the expandable element to it
     if(element.expandable){
         childElement.classList.add("expandable");
     }
 
     parentDiv.appendChild(childElement);
+    parentDiv.appendChild(childTextName);
+    parentDiv.appendChild(childTextMedia);
     worksContainer?.appendChild(parentDiv);
 
 });
