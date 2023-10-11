@@ -534,6 +534,10 @@ main{
 
 .expandable{
   cursor: pointer
+
+}
+.expandable:hover{
+  opacity: 50%;
 }
 
 .works {
