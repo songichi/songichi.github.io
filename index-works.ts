@@ -82,7 +82,6 @@ worksCollectionList.forEach(element => {
 
 
 
-
 //turn on detail panel
 //turn on detail panel
 //turn on detail panel
@@ -96,9 +95,21 @@ const expandableVerticalGrid = document.querySelector('#expandableVerticalGrid')
 //add evenetlistener to graybackdrop so it can be turned off when clicked
 const grayBackdrop = document.querySelector('#grayBackdrop') as HTMLElement;
 grayBackdrop.addEventListener('click', function(){
+    //remove mouseover and mouleave eventlistener
+    
     TurnGrayBackdropOff();
     enablePageScroll();
 })
+
+//eventlistener functions
+function grayBackdropMouseOver(){
+    grayBackdrop.style.opacity="78%";
+}
+function grayBackdropMouseLeave(){
+    grayBackdrop.style.opacity="98%";
+
+}
+
 
 
 // Check if the worksContainer exists
@@ -160,16 +171,28 @@ function extractFilenameFromSrc(src: string): string {
   }
 
 function TurnGrayBackdropOn(){
-    grayBackdrop.style.opacity = '98%';     
-        grayBackdrop.style.pointerEvents = "all"; 
+    grayBackdrop.style.opacity = '97.5%';     
+    grayBackdrop.style.pointerEvents = "all"; 
+    grayBackdrop.style.cursor = "crosshair";
+
+    grayBackdrop.addEventListener('mouseover', grayBackdropMouseOver)
+    grayBackdrop.addEventListener('mouseleave', grayBackdropMouseLeave)
+    
 }
 
 function TurnGrayBackdropOff(){
+    grayBackdrop.removeEventListener('mouseover', grayBackdropMouseOver);
+    grayBackdrop.removeEventListener('mouseleave', grayBackdropMouseLeave);
+
     grayBackdrop.style.opacity = '0%';
     grayBackdrop.style.pointerEvents = 'none';
+    //grayBackdrop.style.cursor = "crosshair";
 
     enablePageScroll();
     disenableGrid(expandableVerticalGrid);
+
+    grayBackdrop.style.opacity = '0%';
+    grayBackdrop.style.pointerEvents = 'none';
 }
 
 function TurnGridOn(folderName: string){

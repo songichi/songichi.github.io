@@ -19,7 +19,7 @@
        url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.woff2') format('woff2'), /* Super Modern Browsers */
 }
 
-
+/* scrollBar settings */
 /* width */
 ::-webkit-scrollbar {
   width: 6px;
@@ -33,6 +33,10 @@
   background: #888888;
   border-radius: 3px;
 }
+::-webkit-scrollbar-corner{
+  opacity: 0;
+}
+
 
 ::selection{
   background-color: var(--secondaryColor);
@@ -152,8 +156,10 @@ main{
   user-select: none;
   pointer-events: none;
   opacity: 0%;
-  
+  transition: 500ms;
 }
+
+
 
 #backgroundDivAbout{
   background: var(--primaryColor);
@@ -533,11 +539,12 @@ main{
 }
 
 .expandable{
-  cursor: pointer
+  cursor: crosshair;
 
 }
 .expandable:hover{
   opacity: 50%;
+  scale: 102%;
 }
 
 .works {
