@@ -126,7 +126,7 @@ function extractFilenameFromSrc(src) {
     return filename;
 }
 function TurnGrayBackdropOn() {
-    grayBackdrop.style.opacity = '97.5%';
+    grayBackdrop.style.opacity = '98%';
     grayBackdrop.style.pointerEvents = "all";
     grayBackdrop.style.cursor = "crosshair";
     grayBackdrop.addEventListener('mouseover', grayBackdropMouseOver);

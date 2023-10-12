@@ -70,6 +70,7 @@ worksCollectionList.forEach(element => {
 
     //check if work is expandable, add the expandable element to it
     if(element.expandable){
+
         childElement.classList.add("expandable");
     }
 
@@ -171,7 +172,7 @@ function extractFilenameFromSrc(src: string): string {
   }
 
 function TurnGrayBackdropOn(){
-    grayBackdrop.style.opacity = '97.5%';     
+    grayBackdrop.style.opacity = '98%';     
     grayBackdrop.style.pointerEvents = "all"; 
     grayBackdrop.style.cursor = "crosshair";
 
