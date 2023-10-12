@@ -65,7 +65,7 @@ worksCollectionList.forEach(element => {
     childTextName.classList.add("worksText");
 
     var childTextMedia = document.createElement('txt') as HTMLDivElement;
-    childTextMedia.innerHTML = "&nbsp&nbsp&nbsp&nbsp" + element.media;
+    childTextMedia.innerHTML = " " + element.media;
     childTextMedia.classList.add("worksText");
 
     //check if work is expandable, add the expandable element to it
