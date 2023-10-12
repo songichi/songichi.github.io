@@ -554,10 +554,10 @@ main{
   display: block;
   font-family: "Noto Sans SC", PingFang SC, sans-serif;
   font-weight: 500;
-  font-size: clamp(0.8em, 2vh, 3vh);
+  font-size: clamp(0.6em, 2.2vh, 2vh);
   text-align: left;
   margin: 0;
-  line-height: clamp(1.2em, 2vh, 4vw);
+  line-height: clamp(1em, 2.4vh, 2.4vh);
   width: 100%;
 }
 
@@ -915,6 +915,11 @@ main{
       gap: 4vw;
   }
 
+  .worksText {
+    font-size: clamp(0.6em, 1.6vh, 2vh);
+    line-height: clamp(1em, 1.8vh, 2vh);
+  }
+
   .works-container{
   
     width: 90%;
@@ -1160,5 +1165,11 @@ main{
     height: 8vh;
     width: 100%;
   }
+
+  .worksText {
+    font-size: clamp(0.6em, 1.4vh, 2vh);
+    line-height: clamp(1em, 1.5vh, 2vh);
+  }
+
   
 }
