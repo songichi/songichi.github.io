@@ -14,9 +14,11 @@ class worksObject {
 var worksGroupList = [];
 worksGroupList = [
     //new worksObject("Carraway", "西文字体 | Latin Typeface", false, "中信大方", "works/Carraway_typeface.png", 10, new Date(2024, 5, 28, 16, 20, 0, 0), "封面设计"),
+    new worksObject("Carraway", "西文字形 | Latin Typeface", true, "", "works/font_carraway.jpg", 6, new Date(2024, 6, 27, 16, 20, 0, 0), "西文字体"),
     new worksObject("肖邦夜曲", "唱片封面 | Key Visual", true, "", "works/chopin_nocturnes.webp", 10, new Date(2024, 5, 28, 16, 20, 0, 0), "封面设计"),
     new worksObject("青年，以肉身进入世界", "主视觉海报 | Key Visual", false, "中信大方", "works/nvxingchengshiweilai.png", 21.6, new Date(2023, 12, 1, 20, 19, 0, 0), ""),
     new worksObject("拒绝所有的岸", "主视觉海报 | Key Visual", false, "中信大方", "works/jujuesuoyoudean.png", 21.6, new Date(2023, 2, 1, 20, 19, 0, 0), "封面设计，内书为新潮社『仮面の告白』"),
+    //new worksObject("方体可变(DEMO)", "中文字形 | Chinese Typeface", true, "", "works/font_fangti.png", 6, new Date(2024, 6, 27, 16, 20, 0, 0), "西文字体"),
     new worksObject("仮面の告白", "书籍封面 | Book Cover", true, "", "works/kamennokokuhaku_book.png", 15, new Date(2023, 2, 1, 20, 19, 0, 0), "封面设计，内书为新潮社『仮面の告白』"),
     new worksObject("1922：文学奇迹之年", "主视觉海报 | Key Visual", false, "中信大方", "works/1922.png", 21, new Date(2023, 2, 1, 20, 19, 0, 0), ""),
     new worksObject("去海上吧！2022西葡语文学节", "主视觉海报 | Key Visual", false, "中信大方", "works/quhaishangba.png", 22, new Date(2023, 2, 1, 20, 19, 0, 0), ""),
