@@ -92,8 +92,8 @@ let currentDrawPointTime = 0; // Time variable
   // var point3 = new movingPoint(450, 300, false, true, 3, 0, 50);
 
   var point0a = new movingPoint(150, 300, false, true, 3, 0, 100);
-  var point1a = new movingPoint(660, 180, true,false,  4, 0, -90);
-  var point2a = new movingPoint(550, 100, true, false,  2, 0, -200);
+  var point1a = new movingPoint(660, 180, true,false,  8, 0, -90);
+  var point2a = new movingPoint(550, 100, true, false,  6, 0, -200);
   var point3a = new movingPoint(220, 100, false, true, 3, 0, 150);
   
   var point0b = new movingPoint(220, 100, false, true, 3, 0, 150);
@@ -133,7 +133,7 @@ let params = {
 };
 let gui;
 // Create GUI
-gui = new dat.GUI();
+gui = new dat.GUI({ closed: true });
 
 gui.add(params, 'no', 0, 5).step(1).name('NO.');
 var guiIndicator = gui.add(params, 'indicator');
@@ -185,7 +185,7 @@ function setup() {
   updateParameters();
   
  // Play the song
- song.play();
+//  song.play();
 
 
   
@@ -193,6 +193,7 @@ function setup() {
   // point1 = createVector(200, 100);
   // point2 = createVector(300, 100);
   // point3 = createVector(400, 400);
+
   
 }
 
@@ -200,7 +201,7 @@ function setup() {
 function draw() {
   
   if (!audioStarted) {
-    fill('black');
+    fill('white');
     textAlign('center');
     text("Click to start audio", width / 2, height / 2);
     return; // Don't run the rest of draw until audio has started
@@ -240,7 +241,6 @@ function draw() {
   
 
   currentDrawPointTime = currentDrawPointTime + 0.01;
-  background(backgroundColor());
   drawLog();
 
  
@@ -255,6 +255,7 @@ function draw() {
     
     if(song.currentTime() > breaks[i]){
       sectionIndex++;
+      // shiftBackgroundColor();
     }
     
   }
@@ -267,6 +268,8 @@ function draw() {
 
   }
   // console.log(sectionIndex);
+
+  background(backgroundColor());
 
 
   var drawingLine1 = false;
@@ -490,21 +493,24 @@ function draw() {
 
   console.log(currentSectionTime());
 
-  function currentSectionTime(){
-    var currentSecTime = song.currentTime();
-    for (i = 0; i < breaks.length; i++) {
-      if(currentSecTime < breaks[i]){
-        if(i == 0){
-          return song.currentTime();
-        }
-        else{
-          currentSecTime = currentSecTime - breaks[i - 1];
-        return currentSecTime;
-        }
-        
-      }
-    }
   
+
+}
+
+function currentSectionTime(){
+  var currentSecTime = song.currentTime();
+  console.log("current time: " + currentSecTime);
+  for (i = 0; i < breaks.length; i++) {
+    if(currentSecTime < breaks[i]){
+      if(i == 0){
+        return song.currentTime();
+      }
+      else{
+        currentSecTime = currentSecTime - breaks[i - 1];
+      return currentSecTime;
+      }
+      
+    }
   }
 
 }
@@ -929,13 +935,18 @@ function backgroundColor(){
   var g = 40;
   var b = 40;
   
-
+  //for major
   if(params.indicator){
-    r = 160 + remap(params.time, 60, 360, 0, 60);
+   
+    r = 160 + remap(params.tempo, 96, 200, 0, 60);
+    // r = 160 + remap(params.tempo, 96, 200, 0, 60) + (currentSectionTime() % 12);
     g = 20 +remap(params.tempo, 96, 200, 0, 40);
     b = remap(params.tempo, 96, 200, 0, 20);
   }
+
+  //for minor
   else{
+    
     r = 200
     g = remap(params.tempo, 96, 200, 0, 20);
     b = 50 + remap(params.tempo, 96, 200, 0, 40);
@@ -966,6 +977,10 @@ function ShearValueY(value){
   //   value = value + 20
   // }
   return value
+}
+
+function shiftBackgroundColor(){
+
 }
 
 testLog();
