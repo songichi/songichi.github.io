@@ -196,4 +196,3 @@ var hanziGroupList = [
 ];
 export const hanziGroups = hanziGroupList;
 export { zi };
-//# sourceMappingURL=hanziData.js.map

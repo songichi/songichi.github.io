@@ -206,4 +206,3 @@ function appendElementToGrid(fileName, isVertical, folderName) {
         }
     });
 }
-//# sourceMappingURL=index-works.js.map

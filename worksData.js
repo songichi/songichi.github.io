@@ -31,4 +31,3 @@ worksGroupList = [
 console.log(worksGroupList.length + " works");
 export const worksCollectionList = worksGroupList;
 export { worksObject };
-//# sourceMappingURL=worksData.js.map

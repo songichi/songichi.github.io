@@ -1,5 +1,4 @@
 import { typeCollectionList } from "./typeData.js";
-// @ts-ignore: Unreachable code error
 //import tinycolor from "/plugin/tinycolor.js";
 ///// FOR TYPE PAGE
 var filterLanguages = [];
@@ -165,9 +164,7 @@ for (var i = 0; i < TypeButtonList.length; i++) {
     var secondaryColorHomepage = sessionStorage.getItem("recentColorS");
     //!!!!!! BECAUSE THERE IS AN ISSUE WITH TINYCOLOR IMPORT
     //!!!!! NEXT LINE WILL BE IGNORED AS OF RIGHT NOW
-    // @ts-ignore: Unreachable code error
     var primaryColorTiny = tinycolor(primaryColorHomepage);
-    // @ts-ignore: Unreachable code error
     var secondaryColorTiny = tinycolor(secondaryColorHomepage);
     //console.log(primaryColorTiny.isLight());
     //if the color is too light and not readable, switch the colors
@@ -263,4 +260,3 @@ function btnStyleIsClicked(btn, isClicked) {
         btn.style.color = btnSecondaryColor;
     }
 }
-//# sourceMappingURL=index-type.js.map

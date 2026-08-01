@@ -126,4 +126,3 @@ function appendElementToGrid(fileName, isVertical, folderName) {
         }
     });
 }
-//# sourceMappingURL=index-mis.js.map

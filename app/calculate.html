@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="author" content="Zunyi Wang">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Price Calculator - Zunyi Wang">
+    <title>价格计算 | PRICE</title>
+    <link rel="stylesheet" href="calculate.css">
+  </head>
+
+  <body class="bodystyle">
+    <header>
+      <div id="backgroundDivPrice"></div>
+      <div class="line1"></div>
+    </header>
+
+    <main>
+      <content>
+        <div class="mainText">
+          <h2>计算</h2>
+
+          <!-- Input field -->
+          <div class="mainText">
+            <label for="inputNumber">汉字数：</label>
+            <input type="number" id="inputNumber" value= 0 min = 0> 
+          </div>
+          <div class="mainText">
+            <label for="inputLetterNumber">字母数：</label>
+            <input type="number" id="inputLetterNumber" value= 0 min = 0> 
+          </div>
+          
+          <!-- Checkbox -->
+          <div class="mainText">
+            <label for="multiplyCheck">全修改服务:</label>
+            
+          <input type="checkbox" id="multiplyCheck">
+          
+          </div>
+          <!-- Checkbox -->
+          <!-- <div class="form-group">
+            <label for="multiplyCheck">价格减免（需原价6000以上）:</label>
+          <input type="checkbox" id="priceCheck">
+          </div> -->
+            
+          </div>
+          <!-- Checkbox -->
+          <div class="mainText">
+            <label for="multiplyCheck">季节减免（项目日期为11月-3月）:</label>
+          <input type="checkbox" id="dateCheck">
+            <hr>
+          </div>
+
+
+          <!-- Output field -->
+          <div class="mainText">
+            <label>价格：</label>
+            <span id="resultDisplay">0</span>
+          </div>
+          <div class="mainText">
+            <label>项目时长：</label>
+            <span id="timeDisplay">0</span>
+          </div>
+          
+        </div>
+      </content>
+    </main>
+
+    <footer>
+      <content></content>
+    </footer>
+
+    <!-- Scripts -->
+    <script type="module" src="calculate.js"></script>
+  </body>
+</html>

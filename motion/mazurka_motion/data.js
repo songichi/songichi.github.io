@@ -43,4 +43,3 @@ window.mazurka = mazurka;
 // export { mazurka };
 //test commen,
 ////
-//# sourceMappingURL=typeData.js.map

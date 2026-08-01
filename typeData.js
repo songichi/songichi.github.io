@@ -50,4 +50,3 @@ export const typeCollectionList = typeGroupList;
 export { typeObject };
 //test commend
 ////
-//# sourceMappingURL=typeData.js.map

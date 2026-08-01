@@ -354,4 +354,3 @@ function searchHanzi() {
         }
     }
 }
-//# sourceMappingURL=hanzi.js.map

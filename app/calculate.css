@@ -1,0 +1,69 @@
+
+/* noto-sans-sc-700 - latin_chinese-simplified */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-700.eot'); /* IE9 Compat Modes */
+  src: local(''),
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-700.woff2') format('woff2'), /* Super Modern Browsers */
+}
+
+/* noto-sans-sc-500 - latin_chinese-simplified */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 500;
+  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.eot'); /* IE9 Compat Modes */
+  src: local(''),
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.woff2') format('woff2'), /* Super Modern Browsers */
+}
+
+:root {
+  --hanziDisplaySize: 15vh;
+  --hanziBoxSize: 20vh;
+  --iterationMargin: 3.5px;
+}
+
+html{
+    overflow: scroll;
+    background-color: rgb(213, 250, 213); /* or any hex, rgb, hsl */
+    margin: 2%;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid black;
+  margin: 20px 0; /* space above and below */
+}
+
+.mainText {
+  color: black;
+  font-size: 22px;
+  line-height: 1.6;
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-style: normal;
+ /* display: flex; */
+ /* display:flexbox ; */
+ 
+ 
+}
+
+
+input,
+textarea {
+  padding: 0.2rem;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+button {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+#pdfLink {
+  margin-top: 1rem;
+  display: none;
+}

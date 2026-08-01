@@ -177,10 +177,6 @@ function LoadHomepage() {
     document.getElementById("homepageSource").style.color = recentType.colorS;
     document.getElementById("homepageFooter").textContent =
         recentType.name + " 更新于 " + recentType.date.toDateString();
-    //for javascriopt
-    //r!.style.setProperty('--primaryColor', recent.color);
-    //r!.style.setProperty('--secondaryColor', recent.colorS);
-    //for typescript
     document.documentElement.style.setProperty("--primaryColor", recentType.color);
     document.documentElement.style.setProperty("--secondaryColor", recentType.colorS);
     //add a load text animation when the image is loading
@@ -287,4 +283,3 @@ export var secondaryColor = recentType.colorS;
 export var exportGroupList = TypeGroupList;
 export var exportRecent = recentType;
 //copy this part:
-//# sourceMappingURL=homepage.js.map

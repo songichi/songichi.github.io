@@ -1,15 +1,94 @@
 
+/* noto-sans-sc-700 - latin_chinese-simplified */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-700.eot'); /* IE9 Compat Modes */
+  src: local(''),
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-700.woff2') format('woff2'), /* Super Modern Browsers */
+}
+
+/* noto-sans-sc-500 - latin_chinese-simplified */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 500;
+  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.eot'); /* IE9 Compat Modes */
+  src: local(''),
+       url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.woff2') format('woff2'), /* Super Modern Browsers */
+}
+
 :root {
   --hanziDisplaySize: 15vh;
   --hanziBoxSize: 20vh;
   --iterationMargin: 3.5px;
 }
 
-
-
 html{
     overflow: scroll;
 }
+
+hr {
+  border: none;
+  border-top: 1px solid black;
+  margin: 20px 0; /* space above and below */
+}
+
+.mainText {
+  color: black;
+  font-size: 30;
+  font-family: "Noto Sans SC", PingFang SC, sans-serif;
+  font-style: normal;
+ /* display: flex; */
+ /* display:flexbox ; */
+ 
+ 
+}
+
+
+/* contract APP */
+body {
+  font-family: sans-serif;
+  margin: 2rem;
+}
+
+.contract-form {
+  max-width: 600px;
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: bold;
+}
+
+input,
+textarea {
+  width: 10%;
+  padding: 0.5rem;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+button {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+#pdfLink {
+  margin-top: 1rem;
+  display: none;
+}
+
+
+
 
 /* NOTES APP */
 #notesGrid {
