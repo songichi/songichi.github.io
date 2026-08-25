@@ -73,6 +73,12 @@ git pull origin main
 
 备份个人数据请自行拷贝 `user-yi.json` 或整个 `local` 目录，不要依赖 GitHub。
 
+
+
+
+
+
+！！！关于用户数据
 ## 最简单用法（推荐）
 
 1. 网页右上角点 **复制本轮快照**
