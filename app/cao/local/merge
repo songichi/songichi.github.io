@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+/** 一键合并入口：支持 ./merge 或 node merge */
+require('./merge-snapshot.js');

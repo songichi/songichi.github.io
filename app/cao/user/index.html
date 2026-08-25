@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户练习数据</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <a class="back-link" href="../">练字</a>
+    <h1 class="title">用户数据</h1>
+    <div class="view-switch" role="group" aria-label="界面">
+      <button type="button" class="view-switch-btn" id="view-stats" data-view="stats">统计</button>
+      <button type="button" class="view-switch-btn is-active" id="view-level" data-view="level">等级</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="container" id="drop-root">
+      <div class="toolbar" id="toolbar">
+        <p class="hint" id="status-hint">首次请连接 <code>local</code>，自动列出 <code>user*.json</code></p>
+        <ul class="file-list hidden" id="file-list" role="list" aria-label="可选用户文件"></ul>
+        <div class="load-bar">
+          <button type="button" class="btn-load" id="btn-connect">连接 local</button>
+          <button type="button" class="btn-load btn-ghost" id="btn-refresh" hidden>刷新</button>
+          <button type="button" class="btn-load btn-ghost" id="btn-disconnect" hidden>断开</button>
+          <input type="file" id="file-input" accept="application/json,.json" multiple hidden>
+          <button type="button" class="btn-load btn-ghost" id="btn-fallback" hidden>手动选文件</button>
+        </div>
+      </div>
+
+      <section class="user-panel hidden" id="user-panel">
+        <div class="user-meta-row">
+          <div class="user-meta" id="user-meta"></div>
+          <button
+            type="button"
+            class="filter-toggle is-week"
+            id="btn-history-filter"
+            aria-pressed="true"
+            title="切换历史范围"
+          >最近一周</button>
+        </div>
+        <div class="char-board" id="char-board"></div>
+      </section>
+
+      <section class="level-panel hidden" id="level-panel">
+        <div class="level-summary" id="level-summary"></div>
+        <div class="level-list" id="level-list"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../js/database.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
