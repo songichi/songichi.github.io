@@ -1,19 +1,137 @@
 /**
- * 练习会话快照
- * versioned JSON，便于日后扩展字段而不破坏旧数据
+ * 练习会话 — 逐字记录 + 快照导出
+ *
+ * PracticeStroke：单次停留（id + durationMs，可扩展）
+ * PracticeSession：一轮练习（strokes 序列 + 元数据）
+ * 快照 version 3 含 strokes；items 聚合保留供 merge 更新 chars 总账
  */
 
-const SNAPSHOT_VERSION = 1;
+const SNAPSHOT_VERSION = 3;
 const SNAPSHOT_TYPE = 'practice-session-snapshot';
+const PRACTICE_SESSION_TYPE = 'practice-session';
+
+/** 单次字停留记录 */
+class PracticeStroke {
+  constructor({ id, durationMs = 0, ...extras } = {}) {
+    this.id = id || '';
+    this.durationMs = Math.max(0, Number(durationMs) || 0);
+    Object.assign(this, extras);
+  }
+
+  toJSON() {
+    if (typeof serializeStrokeForSnapshot === 'function') {
+      return serializeStrokeForSnapshot(this);
+    }
+    const out = {
+      id: this.id,
+      durationMs: this.durationMs,
+    };
+    if (this.isUnique && this.cardStyle) {
+      out.isUnique = true;
+      out.ciHao = resolveCiHao(this);
+      out.cardStyle = typeof normalizeCardStyleRecord === 'function'
+        ? normalizeCardStyleRecord(this.cardStyle)
+        : {
+          colorSchemeId: this.cardStyle.colorSchemeId || null,
+          decorationId: this.cardStyle.decorationId || null,
+          cardBase: this.cardStyle.cardBase || null,
+          cardModifier: this.cardStyle.cardModifier || null,
+          tags: Array.isArray(this.cardStyle.tags) ? [...this.cardStyle.tags] : [],
+        };
+    }
+    const inkDrop = Math.floor(Number(this.inkDrop) || 0);
+    if (inkDrop > 0) out.inkDrop = inkDrop;
+    return out;
+  }
+
+  static fromJSON(data) {
+    if (!data || typeof data !== 'object') return null;
+    return new PracticeStroke(data);
+  }
+}
+
+/** 一轮完整练习（合并进 user JSON 的 sessions 条目） */
+class PracticeSession {
+  constructor({
+    type = PRACTICE_SESSION_TYPE,
+    version = 1,
+    startedAt = null,
+    endedAt = null,
+    filter = null,
+    mode = null,
+    librarySize = null,
+    strokes = [],
+    summary = null,
+    ...extras
+  } = {}) {
+    this.type = type;
+    this.version = version;
+    this.startedAt = startedAt;
+    this.endedAt = endedAt;
+    this.filter = filter;
+    this.mode = mode;
+    this.librarySize = librarySize;
+    this.strokes = Array.isArray(strokes)
+      ? strokes.map((s) => (s instanceof PracticeStroke ? s : PracticeStroke.fromJSON(s))).filter(Boolean)
+      : [];
+    this.summary = summary;
+    Object.assign(this, extras);
+  }
+
+  computeSummary() {
+    const ids = new Set();
+    let totalDurationMs = 0;
+    for (const stroke of this.strokes) {
+      ids.add(stroke.id);
+      totalDurationMs += stroke.durationMs || 0;
+    }
+    return {
+      uniqueChars: ids.size,
+      totalAppearances: this.strokes.length,
+      totalDurationMs,
+    };
+  }
+
+  toJSON() {
+    return {
+      type: this.type,
+      version: this.version,
+      startedAt: this.startedAt,
+      endedAt: this.endedAt,
+      filter: this.filter,
+      mode: this.mode,
+      librarySize: this.librarySize,
+      strokes: this.strokes.map((s) => s.toJSON()),
+      summary: this.summary || this.computeSummary(),
+    };
+  }
+
+  static fromSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    const strokes = normalizeSnapshotStrokes(snapshot);
+    const meta = snapshot.meta || {};
+    return new PracticeSession({
+      startedAt: snapshot.startedAt || null,
+      endedAt: snapshot.endedAt || snapshot.createdAt || null,
+      filter: meta.filter ?? null,
+      mode: meta.mode ?? null,
+      librarySize: meta.librarySize ?? null,
+      strokes,
+      summary: snapshot.summary || null,
+    });
+  }
+}
 
 /**
- * 创建空会话状态
- * @returns {{ startedAt: string, items: Map<string, object> }}
+ * 运行时本轮状态
+ * @returns {{ startedAt: string, items: Map, strokes: object[], activeStroke: object|null }}
  */
 function createSessionState() {
   return {
     startedAt: new Date().toISOString(),
     items: new Map(),
+    strokes: [],
+    activeStroke: null,
   };
 }
 
@@ -21,18 +139,120 @@ function createSessionState() {
 function resetSessionState(state) {
   state.startedAt = new Date().toISOString();
   state.items.clear();
+  state.strokes = [];
+  state.activeStroke = null;
 }
 
 /**
- * 记录一次出现
- * @param {{ startedAt: string, items: Map }} state
- * @param {{ char: string, script: string }} entry
+ * 将掉落判定结果写到 stroke（unique 与/或 inkDrop）
+ * @param {object} stroke
+ * @param {{ isUnique?: boolean, cardStyle?: object|null, inkDrop?: number }|null} drop
  */
-function recordSessionItem(state, entry) {
-  if (!entry || !entry.char) return;
+function applyDropJudgmentToStroke(stroke, drop) {
+  if (!stroke || !drop || typeof drop !== 'object') return stroke;
+  const hasUniqueStyle = Boolean(
+    drop.isUnique
+    && drop.cardStyle
+    && (drop.cardStyle.colorSchemeId
+      || drop.cardStyle.decorationId
+      || drop.cardStyle.cardBase
+      || drop.cardStyle.cardModifier),
+  );
+  if (hasUniqueStyle) {
+    stroke.isUnique = true;
+    stroke.cardStyle = typeof normalizeCardStyleRecord === 'function'
+      ? normalizeCardStyleRecord(drop.cardStyle)
+      : {
+        colorSchemeId: drop.cardStyle.colorSchemeId || null,
+        decorationId: drop.cardStyle.decorationId || null,
+        cardBase: drop.cardStyle.cardBase || null,
+        cardModifier: drop.cardStyle.cardModifier || null,
+        tags: Array.isArray(drop.cardStyle.tags) ? [...drop.cardStyle.tags] : [],
+      };
+  }
+  const inkDrop = Math.floor(Number(drop.inkDrop) || 0);
+  if (inkDrop > 0) stroke.inkDrop = inkDrop;
+  return stroke;
+}
 
-  const script = normalizeScript(entry.script);
-  const key = entryKey({ char: entry.char, script });
+/**
+ * 结束当前字的计时并写入 strokes。
+ * 掉落判定在此时进行（完成该字时），勿在 beginStroke 时判定。
+ * @param {object} state
+ * @param {number} [endAt]
+ * @param {{ drop?: object|null, rng?: function, skipDrop?: boolean }} [options]
+ *   - drop: 显式传入判定结果（优先）
+ *   - rng: 未传 drop 且未 skipDrop 时用于 rollDropJudgment
+ *   - skipDrop: true 时不做掉落判定（极少用）
+ */
+function finalizeActiveStroke(state, endAt = Date.now(), options = {}) {
+  if (!state?.activeStroke?.id) return;
+
+  const durationMs = Math.max(0, endAt - state.activeStroke.startedAt);
+  const stroke = {
+    id: state.activeStroke.id,
+    durationMs,
+  };
+
+  let drop = options?.drop;
+  if (drop === undefined && !options?.skipDrop) {
+    if (typeof rollDropJudgment === 'function') {
+      drop = rollDropJudgment(options?.rng);
+    } else if (typeof rollCardStyleForAppearance === 'function') {
+      drop = { ...rollCardStyleForAppearance(options?.rng), inkDrop: 0 };
+    }
+  }
+  applyDropJudgmentToStroke(stroke, drop || null);
+
+  if (stroke.isUnique && stroke.cardStyle) {
+    stroke.ciHao = (Array.isArray(state.strokes) ? state.strokes.length : 0) + 1;
+  }
+
+  state.strokes.push(stroke);
+  state.activeStroke = null;
+}
+
+/** 开始新字的计时（会先结束上一字；上一字在 finalize 时做掉落判定） */
+function beginStroke(state, entry, startedAt = Date.now(), options = {}) {
+  finalizeActiveStroke(state, startedAt, options);
+  if (!entry?.id) return;
+  // 新字只开始计时，不做掉落判定
+  state.activeStroke = { id: entry.id, startedAt };
+}
+
+/** 从 catalog 解析 id 对应的主字（展示用） */
+function resolveSessionItemChar(item) {
+  if (!item) return '—';
+  if (item.char) return item.char;
+  if (item.id && typeof findZiEntry === 'function') {
+    return findZiEntry(item.id)?.char || item.id;
+  }
+  return item.id || '—';
+}
+
+/** 从 catalog 解析书体（展示用） */
+function resolveSessionItemScript(item) {
+  if (!item) return SCRIPT.cao;
+  if (item.script) return normalizeScript(item.script);
+  if (item.id && typeof findZiEntry === 'function') {
+    const hit = findZiEntry(item.id);
+    if (hit?.script) return normalizeScript(hit.script);
+  }
+  return SCRIPT.cao;
+}
+
+/**
+ * 记录一次出现（开始在该字上的停留计时，并更新聚合 items）
+ * 上一字若存在，会在 beginStroke → finalize 时做掉落判定。
+ * @param {object} [options] 传给 finalizeActiveStroke（如 { rng }）
+ */
+function recordSessionItem(state, entry, options = null) {
+  if (!entry?.id || !state?.items) return;
+
+  const finalizeOpts = options && typeof options === 'object' ? options : {};
+  beginStroke(state, entry, Date.now(), finalizeOpts);
+
+  const key = entry.id;
   const now = new Date().toISOString();
   const existing = state.items.get(key);
 
@@ -43,28 +263,44 @@ function recordSessionItem(state, entry) {
   }
 
   state.items.set(key, {
-    char: entry.char,
-    script,
+    id: entry.id,
     count: 1,
     firstSeenAt: now,
     lastSeenAt: now,
   });
 }
 
-/**
- * 撤销一次出现（用于「跳过」）
- * count 减到 0 时从会话中移除该条目
- */
-function unrecordSessionItem(state, entry) {
-  if (!entry || !entry.char || !state?.items) return false;
+/** 按当前已完成 strokes 顺序重算 unique 次号（跳过撤销后调用） */
+function refreshUniqueStrokeCiHao(state) {
+  const strokes = state?.strokes;
+  if (!Array.isArray(strokes)) return;
+  for (let i = 0; i < strokes.length; i += 1) {
+    const stroke = strokes[i];
+    if (stroke?.isUnique) stroke.ciHao = i + 1;
+  }
+}
 
-  const script = normalizeScript(entry.script);
-  const key = entryKey({ char: entry.char, script });
-  const existing = state.items.get(key);
+/** 撤销一次出现（跳过）；同步去掉最后一次同 id 的 stroke 或取消进行中的 stroke */
+function unrecordSessionItem(state, entry) {
+  if (!entry?.id || !state?.items) return false;
+
+  if (state.activeStroke?.id === entry.id) {
+    state.activeStroke = null;
+  } else {
+    for (let i = state.strokes.length - 1; i >= 0; i -= 1) {
+      if (state.strokes[i].id === entry.id) {
+        state.strokes.splice(i, 1);
+        break;
+      }
+    }
+    refreshUniqueStrokeCiHao(state);
+  }
+
+  const existing = state.items.get(entry.id);
   if (!existing) return false;
 
   if (existing.count <= 1) {
-    state.items.delete(key);
+    state.items.delete(entry.id);
   } else {
     existing.count -= 1;
     existing.lastSeenAt = new Date().toISOString();
@@ -72,42 +308,166 @@ function unrecordSessionItem(state, entry) {
   return true;
 }
 
+/** strokes → 聚合 items（兼容无 items 的旧快照） */
+function aggregateStrokesToItems(strokes) {
+  const byId = new Map();
+  for (const stroke of strokes || []) {
+    if (!stroke?.id) continue;
+    const existing = byId.get(stroke.id);
+    if (!existing) {
+      byId.set(stroke.id, {
+        id: stroke.id,
+        count: 1,
+        firstSeenAt: null,
+        lastSeenAt: null,
+      });
+    } else {
+      existing.count += 1;
+    }
+  }
+  return [...byId.values()].sort(
+    (a, b) => b.count - a.count || String(a.id).localeCompare(String(b.id)),
+  );
+}
+
+/** 规范化快照中的 strokes（v3 或从 v2 items 展开，durationMs=0） */
+function normalizeSnapshotStrokes(snapshot) {
+  if (Array.isArray(snapshot?.strokes) && snapshot.strokes.length > 0) {
+    return snapshot.strokes
+      .filter((s) => s?.id)
+      .map((s) => {
+        const extras = {};
+        if (s.isUnique && s.cardStyle) {
+          extras.isUnique = true;
+          extras.ciHao = resolveCiHao(s);
+          extras.cardStyle = typeof normalizeCardStyleRecord === 'function'
+            ? normalizeCardStyleRecord(s.cardStyle)
+            : {
+              colorSchemeId: s.cardStyle.colorSchemeId || null,
+              decorationId: s.cardStyle.decorationId || null,
+              cardBase: s.cardStyle.cardBase || null,
+              cardModifier: s.cardStyle.cardModifier || null,
+              tags: Array.isArray(s.cardStyle.tags) ? [...s.cardStyle.tags] : [],
+            };
+        }
+        const inkDrop = Math.floor(Number(s.inkDrop) || 0);
+        if (inkDrop > 0) extras.inkDrop = inkDrop;
+        return new PracticeStroke({
+          id: s.id,
+          durationMs: s.durationMs,
+          ...extras,
+        });
+      });
+  }
+
+  if (!Array.isArray(snapshot?.items)) return [];
+
+  const strokes = [];
+  for (const item of snapshot.items) {
+    const id = item?.id;
+    if (!id) continue;
+    const count = Math.max(0, Number(item.count) || 0);
+    for (let i = 0; i < count; i += 1) {
+      strokes.push(new PracticeStroke({ id, durationMs: 0 }));
+    }
+  }
+  return strokes;
+}
+
+function computeStrokesSummary(strokes) {
+  const ids = new Set();
+  let totalDurationMs = 0;
+  for (const stroke of strokes || []) {
+    const id = stroke?.id;
+    if (!id) continue;
+    ids.add(id);
+    totalDurationMs += Number(stroke.durationMs) || 0;
+  }
+  return {
+    uniqueChars: ids.size,
+    totalAppearances: (strokes || []).length,
+    totalDurationMs,
+  };
+}
+
 /** 条目展示标签（草体仅汉字，其他附短标签） */
 function formatSessionItemLabel(item) {
   if (!item) return '';
-  const tag = SCRIPT_LABEL[item.script] || '';
-  return tag ? `${item.char}${tag}` : item.char;
+  const char = resolveSessionItemChar(item);
+  const script = resolveSessionItemScript(item);
+  const tag = SCRIPT_LABEL[script] || '';
+  return tag ? `${char}${tag}` : char;
+}
+
+function formatStrokeDuration(ms) {
+  const n = Math.max(0, Number(ms) || 0);
+  if (n < 1000) return `${n}ms`;
+  const sec = Math.round(n / 100) / 10;
+  return `${sec}s`;
 }
 
 /**
- * 构建可扩展会话快照
- * @param {{ startedAt: string, items: Map }} state
- * @param {object} meta 可扩展元数据（filter / mode / librarySize 及未来字段）
+ * 构建可扩展会话快照（export 时结束最后一字的计时）
  */
 function buildSessionSnapshot(state, meta = {}) {
+  const exportAt = Date.now();
+  const { dropRng, ...restMetaIn } = meta;
+  finalizeActiveStroke(state, exportAt, { rng: dropRng });
+
+  const endedAt = new Date(exportAt).toISOString();
+  const strokes = state.strokes.map((s) => (
+    typeof serializeStrokeForSnapshot === 'function'
+      ? serializeStrokeForSnapshot(s)
+      : {
+        id: s.id,
+        durationMs: s.durationMs,
+        ...(s.isUnique && s.cardStyle
+          ? {
+            isUnique: true,
+            ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(s) : (Number(s.ciHao) || 1),
+            cardStyle: typeof normalizeCardStyleRecord === 'function'
+              ? normalizeCardStyleRecord(s.cardStyle)
+              : {
+                colorSchemeId: s.cardStyle.colorSchemeId || null,
+                decorationId: s.cardStyle.decorationId || null,
+                cardBase: s.cardStyle.cardBase || null,
+                cardModifier: s.cardStyle.cardModifier || null,
+                tags: Array.isArray(s.cardStyle.tags) ? [...s.cardStyle.tags] : [],
+              },
+          }
+          : {}),
+        ...(Math.floor(Number(s.inkDrop) || 0) > 0
+          ? { inkDrop: Math.floor(Number(s.inkDrop)) }
+          : {}),
+      }
+  ));
+
+  const strokeSummary = computeStrokesSummary(strokes);
   const items = [...state.items.values()].sort(
     (a, b) => b.count - a.count
-      || a.script.localeCompare(b.script)
-      || a.char.localeCompare(b.char, 'zh'),
+      || String(a.id || '').localeCompare(String(b.id || '')),
   );
 
-  const totalAppearances = items.reduce((sum, item) => sum + item.count, 0);
-  const { filter = null, mode = null, librarySize = null, ...restMeta } = meta;
+  const { filter = null, mode = null, librarySize = null, ...restMeta } = restMetaIn;
 
   return {
     version: SNAPSHOT_VERSION,
     type: SNAPSHOT_TYPE,
-    createdAt: new Date().toISOString(),
+    createdAt: endedAt,
     startedAt: state.startedAt,
+    endedAt,
     meta: {
       filter,
       mode,
       librarySize,
       ...restMeta,
     },
+    strokes,
     summary: {
-      uniqueChars: items.length,
-      totalAppearances,
+      uniqueChars: strokeSummary.uniqueChars,
+      totalAppearances: strokeSummary.totalAppearances,
+      totalDurationMs: strokeSummary.totalDurationMs,
+      inkDrop: strokes.reduce((sum, s) => sum + Math.max(0, Math.floor(Number(s.inkDrop) || 0)), 0),
     },
     items,
   };
@@ -120,29 +480,32 @@ function snapshotToJSON(snapshot) {
 
 /**
  * 生成可读摘要文本（面板展示用）
- * 不替代 JSON，仅便于浏览
  */
 function snapshotToReadable(snapshot) {
   const filterLabel = SCRIPT_FILTER_LABEL[snapshot.meta?.filter] || snapshot.meta?.filter || '—';
   const modeLabel = snapshot.meta?.mode === 'time' ? '时间' : '默认';
+  const strokes = normalizeSnapshotStrokes(snapshot);
+  const summary = snapshot.summary || computeStrokesSummary(strokes);
+
   const lines = [
     `本轮快照  v${snapshot.version}`,
     `开始：${formatSnapshotTime(snapshot.startedAt)}`,
-    `导出：${formatSnapshotTime(snapshot.createdAt)}`,
+    `结束：${formatSnapshotTime(snapshot.endedAt || snapshot.createdAt)}`,
     `书体：${filterLabel}　模式：${modeLabel}　字库：${snapshot.meta?.librarySize ?? '—'}`,
-    `合计：${snapshot.summary.uniqueChars} 字 / ${snapshot.summary.totalAppearances} 次`,
+    `合计：${summary.uniqueChars} 字 / ${summary.totalAppearances} 次 / ${formatStrokeDuration(summary.totalDurationMs)}`,
     '',
   ];
 
-  if (snapshot.items.length === 0) {
+  if (strokes.length === 0) {
     lines.push('（本轮尚未记录任何字）');
     return lines.join('\n');
   }
 
-  for (const item of snapshot.items) {
-    const scriptName = SCRIPT_NAME[item.script] || item.script;
-    lines.push(`${item.char}　${scriptName}　×${item.count}`);
-  }
+  lines.push('顺序：');
+  strokes.forEach((stroke, index) => {
+    const char = resolveSessionItemChar({ id: stroke.id });
+    lines.push(`${index + 1}. ${char}　${formatStrokeDuration(stroke.durationMs)}`);
+  });
 
   return lines.join('\n');
 }

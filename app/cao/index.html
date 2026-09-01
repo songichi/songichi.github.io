@@ -7,6 +7,11 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div class="top-left-bar" id="top-left-bar">
+    <span class="practice-user-id is-empty" id="practice-user-id" title="" hidden></span>
+    <a class="btn-user-page" id="btn-user-page" href="user/index.html?view=level" title="打开用户界面">用户</a>
+  </div>
+
   <header class="header">
     <div class="script-switch" id="script-switch">
       <button
@@ -31,6 +36,7 @@
       <button class="mode-switch-btn is-active" id="mode-default" data-mode="default">默认</button>
       <button class="mode-switch-btn" id="mode-time" data-mode="time">时间</button>
     </div>
+    <button type="button" class="btn-session-action" id="btn-session-action" aria-label="结算">结算</button>
     <button class="btn-icon" id="btn-snapshot-copy" aria-label="复制本轮快照" title="复制本轮快照">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <rect x="9" y="9" width="13" height="13" rx="2"/>
@@ -77,6 +83,11 @@
           <img class="glyph-image hidden" id="glyph-image" src="" alt="字形">
           <p class="glyph-placeholder hidden" id="glyph-placeholder">字形图片尚未添加</p>
         </div>
+        <div class="settlement-panel hidden" id="settlement-panel" aria-live="polite">
+          <h2 class="settlement-title">本轮小结</h2>
+          <p class="settlement-meta" id="settlement-meta"></p>
+          <div class="settlement-chars" id="settlement-chars"></div>
+        </div>
         <button class="btn-icon btn-eye" id="btn-show" aria-label="显示字形" title="显示字形">
           <svg class="icon-eye-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -88,16 +99,25 @@
             <line x1="1" y1="1" x2="23" y2="23"/>
           </svg>
         </button>
+        <div class="practice-footer" id="practice-footer">
+          <div class="practice-footer-main">
+            <button class="btn btn-primary" id="btn-refresh" title="完成当前字并进入下一个" aria-label="完成">完成</button>
+            <button class="btn btn-skip" id="btn-skip" title="跳过当前字" aria-label="跳过">跳过</button>
+          </div>
+          <button
+            type="button"
+            class="btn btn-ghost settlement-copy-btn hidden"
+            id="btn-settlement-copy"
+            title="复制本轮结果 JSON，可粘贴进 local/inbox.json 后 node merge"
+            aria-label="复制结果"
+          >复制结果</button>
+        </div>
       </section>
-
-      <footer class="footer">
-        <button class="btn btn-primary" id="btn-refresh">刷新</button>
-        <button class="btn btn-skip" id="btn-skip">跳过</button>
-      </footer>
     </div>
   </main>
 
   <aside class="stats-panel">
+    <p class="stats-ink-gain hidden" id="stats-ink-gain" aria-live="polite" aria-hidden="true"></p>
     <div class="stats-list" id="stats-body">
       <div class="stats-row is-empty"></div>
       <div class="stats-row is-empty"></div>
@@ -113,6 +133,8 @@
       <div class="stats-row is-empty"></div>
     </div>
   </aside>
+
+  <p class="no-repeat-hint hidden" id="no-repeat-hint" aria-live="polite">禁止重复</p>
 
   <!-- 浏览字库面板（只读） -->
   <dialog class="dialog dialog-browse" id="browse-dialog">
@@ -146,7 +168,7 @@
           </svg>
         </button>
       </div>
-      <p class="dialog-hint">本轮见过的字（含书体与次数）。下方 JSON 可扩展归档。</p>
+      <p class="dialog-hint">本轮见过的字（含书体与次数）。点 <strong>结算</strong> 后可用下方 <strong>复制结果</strong> 得到 JSON，粘贴进 <code>local/inbox.json</code> 再 <code>node merge</code>；有 local 授权时也可点 <strong>结束</strong> 直接写盘。</p>
       <pre class="snapshot-readable" id="snapshot-readable"></pre>
       <details class="snapshot-json-details">
         <summary>JSON</summary>
@@ -186,7 +208,7 @@
   <dialog class="dialog" id="settings-dialog">
     <div class="dialog-content">
       <h2 class="dialog-title">字库设置</h2>
-      <p class="dialog-hint">编辑草体/自定义字库，可用空格分隔，也可连续输入。楷 / 明 / 黑等请在 <code>js/database.js</code> 的 <code>DEFAULT_CHARACTERS_kai</code> 等常量中维护。</p>
+      <p class="dialog-hint">编辑草体/自定义字库，可用空格分隔，也可连续输入。完整字信息（异体、书法家、出处）请在 <code>js/zi-catalog-cao.js</code> 维护；楷 / 明 / 黑见各 <code>zi-catalog-*.js</code>。</p>
       <textarea
         class="dialog-textarea"
         id="characters-input"
@@ -203,8 +225,17 @@
     </div>
   </dialog>
 
+  <script src="js/card-style.js"></script>
+  <script src="js/card-color-schemes.js"></script>
+  <script src="js/card-bases.js"></script>
+  <script src="js/card-modifiers.js"></script>
+  <script src="js/zi.js"></script>
+  <script src="js/zi-catalog-cao.js"></script>
+  <script src="js/zi-catalog-kai.js"></script>
   <script src="js/database.js"></script>
   <script src="js/session.js"></script>
+  <script src="js/user-merge.js"></script>
+  <script src="js/local-fs.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

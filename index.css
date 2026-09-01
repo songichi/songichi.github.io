@@ -4,9 +4,9 @@
   font-family: 'Noto Sans SC';
   font-style: normal;
   font-weight: 700;
-  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-700.eot'); /* IE9 Compat Modes */
+  src: url('/font/noto-sans-sc-v26-latin_chinese-simplified-700.eot'); /* IE9 Compat Modes */
   src: local(''),
-       url('../font/noto-sans-sc-v26-latin_chinese-simplified-700.woff2') format('woff2'), /* Super Modern Browsers */
+       url('/font/noto-sans-sc-v26-latin_chinese-simplified-700.woff2') format('woff2'), /* Super Modern Browsers */
 }
 
 /* noto-sans-sc-500 - latin_chinese-simplified */
@@ -14,9 +14,9 @@
   font-family: 'Noto Sans SC';
   font-style: normal;
   font-weight: 500;
-  src: url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.eot'); /* IE9 Compat Modes */
+  src: url('/font/noto-sans-sc-v26-latin_chinese-simplified-500.eot'); /* IE9 Compat Modes */
   src: local(''),
-       url('../font/noto-sans-sc-v26-latin_chinese-simplified-500.woff2') format('woff2'), /* Super Modern Browsers */
+       url('/font/noto-sans-sc-v26-latin_chinese-simplified-500.woff2') format('woff2'), /* Super Modern Browsers */
 }
 
 /* scrollBar settings */

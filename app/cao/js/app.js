@@ -46,6 +46,11 @@ let characters = filterLibrary(fullLibrary, scriptFilter);
 /** 当前条目 { char, script } */
 let currentEntry = null;
 let glyphVisible = false;
+/** 当前字是否有答案字形图 */
+let glyphImageAvailable = false;
+let glyphAvailabilityToken = 0;
+/** 字形图是否存在缓存（键：id 或 char） */
+const glyphImageExistsCache = new Map();
 let learningMode = loadLearningMode();
 /** 最近显示过的条目键，最新在前，最多保留 2 个 */
 let recentHistory = [];
@@ -91,6 +96,13 @@ const el = {
   btnShow: document.getElementById('btn-show'),
   btnRefresh: document.getElementById('btn-refresh'),
   btnSkip: document.getElementById('btn-skip'),
+  btnSettlementCopy: document.getElementById('btn-settlement-copy'),
+  btnSessionAction: document.getElementById('btn-session-action'),
+  characterStage: document.getElementById('character-stage'),
+  settlementPanel: document.getElementById('settlement-panel'),
+  settlementMeta: document.getElementById('settlement-meta'),
+  settlementChars: document.getElementById('settlement-chars'),
+  noRepeatHint: document.getElementById('no-repeat-hint'),
   btnScript: document.getElementById('btn-script'),
   scriptLabel: document.getElementById('script-label'),
   scriptMenu: document.getElementById('script-menu'),
@@ -124,7 +136,31 @@ const el = {
   modeDefault: document.getElementById('mode-default'),
   modeTime: document.getElementById('mode-time'),
   statsRows: [...document.querySelectorAll('.stats-row')],
+  statsInkGain: document.getElementById('stats-ink-gain'),
+  practiceUserId: document.getElementById('practice-user-id'),
 };
+
+/** 当前 local 用户 id（保存时用；null 表示未找到） */
+let practiceUserId = null;
+
+async function refreshPracticeUserBadge() {
+  const result = await resolveLocalPracticeUser();
+  practiceUserId = result.userId;
+  if (!el.practiceUserId) return;
+  if (!result.userId) {
+    el.practiceUserId.textContent = '';
+    el.practiceUserId.title = '';
+    el.practiceUserId.hidden = true;
+    el.practiceUserId.classList.add('is-empty');
+    el.practiceUserId.classList.remove('is-resolved');
+    return;
+  }
+  el.practiceUserId.hidden = false;
+  el.practiceUserId.classList.remove('is-empty');
+  el.practiceUserId.textContent = result.display;
+  el.practiceUserId.classList.add('is-resolved');
+  el.practiceUserId.title = `local 用户：user-${result.userId}.json`;
+}
 
 /** 重建当前练习库 */
 function rebuildCharacters() {
@@ -138,18 +174,154 @@ function getCurrentSnapshot() {
     filter: scriptFilter,
     mode: learningMode,
     librarySize: characters.length,
+    dropRng: random,
   });
+}
+
+/** 导出/复制用：已完成则用冻结快照 */
+function getSnapshotForExport() {
+  if (sessionCompleted && completedSnapshot) return completedSnapshot;
+  return getCurrentSnapshot();
+}
+
+/** 本轮是否已点「结算」（等待「结束」写入） */
+let sessionCompleted = false;
+/** 点「结算」时冻结的快照 */
+let completedSnapshot = null;
+
+function updateSessionActionButton() {
+  const btn = el.btnSessionAction;
+  if (!btn) return;
+  btn.textContent = '结算';
+  btn.setAttribute('aria-label', '结算');
+  if (sessionCompleted) {
+    btn.title = '当前处于结算模式';
+    btn.classList.add('is-settling');
+  } else {
+    btn.title = '结算本轮练习（不写入数据）';
+    btn.classList.remove('is-settling');
+  }
+}
+
+function updateFooterForPhase() {
+  if (!el.btnRefresh || !el.btnSkip) return;
+  if (sessionCompleted) {
+    el.btnRefresh.textContent = '结束';
+    el.btnRefresh.title = '写入本轮练习到 local JSON 并打开等级页';
+    el.btnRefresh.setAttribute('aria-label', '结束');
+    el.btnSkip.textContent = '返回';
+    el.btnSkip.title = '取消结算，继续练字';
+    el.btnSkip.setAttribute('aria-label', '返回');
+    if (el.btnSettlementCopy) {
+      el.btnSettlementCopy.classList.remove('hidden');
+      el.btnSettlementCopy.textContent = '复制结果';
+      el.btnSettlementCopy.disabled = false;
+    }
+  } else {
+    el.btnRefresh.textContent = '完成';
+    el.btnRefresh.title = '完成当前字并进入下一个';
+    el.btnRefresh.setAttribute('aria-label', '完成');
+    el.btnSkip.textContent = '跳过';
+    el.btnSkip.title = '跳过当前字';
+    el.btnSkip.setAttribute('aria-label', '跳过');
+    if (el.btnSettlementCopy) {
+      el.btnSettlementCopy.classList.add('hidden');
+      el.btnSettlementCopy.textContent = '复制结果';
+      el.btnSettlementCopy.disabled = false;
+    }
+  }
+}
+
+function renderSettlementPanel(snapshot) {
+  if (!el.settlementPanel || !el.settlementMeta || !el.settlementChars) return;
+
+  const summary = snapshot?.summary || {};
+  const filterLabel = (typeof SCRIPT_FILTER_LABEL !== 'undefined'
+    && SCRIPT_FILTER_LABEL[snapshot?.meta?.filter])
+    || snapshot?.meta?.filter
+    || '—';
+  const modeLabel = snapshot?.meta?.mode === 'time' ? '时间' : '默认';
+  const durationLabel = typeof formatStrokeDuration === 'function'
+    ? formatStrokeDuration(summary.totalDurationMs)
+    : `${summary.totalDurationMs || 0}ms`;
+  const inkDrop = Math.max(0, Math.floor(Number(summary.inkDrop) || 0));
+
+  el.settlementMeta.textContent = [
+    `${summary.uniqueChars ?? 0} 字 / ${summary.totalAppearances ?? 0} 次 / ${durationLabel}`,
+    `书体 ${filterLabel} · 模式 ${modeLabel}`,
+    inkDrop > 0 ? `墨 +${inkDrop}` : null,
+  ].filter(Boolean).join('　');
+
+  el.settlementChars.replaceChildren();
+  const items = Array.isArray(snapshot?.items) ? [...snapshot.items] : [];
+  items.sort(
+    (a, b) => (b.count || 0) - (a.count || 0)
+      || String(a.id || '').localeCompare(String(b.id || '')),
+  );
+
+  if (items.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'settlement-empty';
+    empty.textContent = '本轮还没有练过字';
+    el.settlementChars.appendChild(empty);
+    return;
+  }
+
+  const uniqueIds = new Set();
+  for (const stroke of snapshot?.strokes || []) {
+    if (stroke?.isUnique && stroke.id) uniqueIds.add(String(stroke.id));
+  }
+
+  for (const item of items) {
+    const wrap = document.createElement('span');
+    wrap.className = 'settlement-char';
+    if (item?.id && uniqueIds.has(String(item.id))) wrap.classList.add('is-unique');
+
+    const label = document.createElement('span');
+    label.className = 'settlement-char-label';
+    label.textContent = typeof formatSessionItemLabel === 'function'
+      ? formatSessionItemLabel(item)
+      : (item.char || item.id || '—');
+
+    wrap.appendChild(label);
+    if ((item.count || 0) > 1) {
+      const countEl = document.createElement('span');
+      countEl.className = 'settlement-char-count';
+      countEl.textContent = `×${item.count}`;
+      wrap.appendChild(countEl);
+    }
+    el.settlementChars.appendChild(wrap);
+  }
+}
+
+function setSettlementView(active) {
+  document.body.classList.toggle('is-session-completed', active);
+  el.characterStage?.classList.toggle('hidden', active);
+  el.settlementPanel?.classList.toggle('hidden', !active);
+  updateSessionActionButton();
+  updateFooterForPhase();
+  updateNoRepeatHint();
+}
+
+function resetSessionPhase() {
+  sessionCompleted = false;
+  completedSnapshot = null;
+  setSettlementView(false);
+  if (el.btnSessionAction) el.btnSessionAction.disabled = false;
+  if (el.btnRefresh) el.btnRefresh.disabled = false;
+  if (el.btnSkip) el.btnSkip.disabled = false;
 }
 
 /** 重置本轮会话统计 */
 function resetSession() {
   resetSessionState(session);
+  resetSessionPhase();
   updateStatsTable();
 }
 
 /** 记录条目出现 */
-function recordAppearance(entry) {
-  recordSessionItem(session, entry);
+function recordAppearance(entry, options = null) {
+  recordSessionItem(session, entry, options);
   updateStatsTable();
 }
 
@@ -161,7 +333,7 @@ function unrecordAppearance(entry) {
 }
 
 /** 将统计结果编排为行：≥2 次独占一行；仅 1 次每行最多 4 字 */
-function buildStatsRows(items) {
+function buildStatsRows(items, uniqueIds = new Set()) {
   const multi = [];
   const singles = [];
 
@@ -172,25 +344,65 @@ function buildStatsRows(items) {
 
   const rows = [];
   for (const item of multi) {
-    rows.push({ type: 'counted', label: formatSessionItemLabel(item), count: item.count });
+    rows.push({
+      type: 'counted',
+      id: item.id,
+      label: formatSessionItemLabel(item),
+      count: item.count,
+      isUnique: uniqueIds.has(String(item.id)),
+    });
   }
   for (let i = 0; i < singles.length; i += STATS_PACK_SIZE) {
     rows.push({
       type: 'pack',
-      labels: singles.slice(i, i + STATS_PACK_SIZE).map(formatSessionItemLabel),
+      entries: singles.slice(i, i + STATS_PACK_SIZE).map((item) => ({
+        id: item.id,
+        label: formatSessionItemLabel(item),
+        isUnique: uniqueIds.has(String(item.id)),
+      })),
     });
   }
   return rows.slice(0, STATS_ROW_COUNT);
 }
 
-/** 更新右侧统计列表 */
+/** 已定稿 strokes 中的 unique id（进行中的 activeStroke 不算） */
+function collectRevealedUniqueIds(state) {
+  const ids = new Set();
+  for (const stroke of state?.strokes || []) {
+    if (stroke?.isUnique && stroke.id) ids.add(String(stroke.id));
+  }
+  return ids;
+}
+
+/** 已定稿 strokes 中的墨掉落：字 id 集合 + 合计 */
+function collectRevealedInkDrops(state) {
+  const ids = new Set();
+  let total = 0;
+  for (const stroke of state?.strokes || []) {
+    const n = Math.floor(Number(stroke?.inkDrop) || 0);
+    if (n <= 0 || !stroke?.id) continue;
+    ids.add(String(stroke.id));
+    total += n;
+  }
+  return { ids, total };
+}
+
+/** 更新右侧统计列表（unique / 墨：定稿进 strokes 后才显示；账户仍待结算写入） */
 function updateStatsTable() {
   const items = [...session.items.values()].sort(
     (a, b) => b.count - a.count
-      || a.script.localeCompare(b.script)
-      || a.char.localeCompare(b.char, 'zh'),
+      || String(a.id || '').localeCompare(String(b.id || '')),
   );
-  const rows = buildStatsRows(items);
+  const uniqueIds = collectRevealedUniqueIds(session);
+  const inkDrops = collectRevealedInkDrops(session);
+  const rows = buildStatsRows(items, uniqueIds);
+
+  if (el.statsInkGain) {
+    const show = inkDrops.total > 0;
+    el.statsInkGain.classList.toggle('hidden', !show);
+    el.statsInkGain.textContent = show ? `${inkDrops.total}墨` : '';
+    el.statsInkGain.setAttribute('aria-hidden', show ? 'false' : 'true');
+  }
 
   el.statsRows.forEach((row, index) => {
     const data = rows[index];
@@ -206,6 +418,8 @@ function updateStatsTable() {
       row.classList.add('stats-row-counted');
       const charEl = document.createElement('span');
       charEl.className = 'stats-char';
+      if (data.isUnique) charEl.classList.add('is-unique');
+      if (data.id && inkDrops.ids.has(String(data.id))) charEl.classList.add('has-ink-drop');
       charEl.textContent = data.label;
       const countEl = document.createElement('span');
       countEl.className = 'stats-count';
@@ -215,13 +429,17 @@ function updateStatsTable() {
     }
 
     row.classList.add('stats-row-pack');
-    for (const label of data.labels) {
+    for (const entry of data.entries) {
       const charEl = document.createElement('span');
       charEl.className = 'stats-char';
-      charEl.textContent = label;
+      if (entry.isUnique) charEl.classList.add('is-unique');
+      if (entry.id && inkDrops.ids.has(String(entry.id))) charEl.classList.add('has-ink-drop');
+      charEl.textContent = entry.label;
       row.appendChild(charEl);
     }
   });
+
+  updateNoRepeatHint();
 }
 
 /** 均匀随机选取 */
@@ -253,11 +471,52 @@ function pickWeighted(pool, weights) {
   return items[items.length - 1].entry;
 }
 
-/** 构建候选池，排除最近两次已显示的条目 */
+/** 字库大于此值时启用「禁止重复」选字 */
+const NO_REPEAT_LIBRARY_MIN = 50;
+/** 本轮已完成（含当前字）达到此数后允许重复 */
+const NO_REPEAT_UNTIL_COMPLETED = 50;
+
+/** 本轮已完成字数：已定稿 strokes + 当前进行中的字 */
+function getSessionCompletedCount() {
+  const strokes = session?.strokes?.length || 0;
+  return strokes + (session?.activeStroke?.id ? 1 : 0);
+}
+
+/** 本轮已出现过的条目键（strokes + 当前字） */
+function getSessionSeenKeys() {
+  const seen = new Set();
+  for (const stroke of session?.strokes || []) {
+    if (stroke?.id) seen.add(String(stroke.id));
+  }
+  if (session?.activeStroke?.id) seen.add(String(session.activeStroke.id));
+  return seen;
+}
+
+/** 是否处于禁止重复选字状态 */
+function isNoRepeatMode() {
+  return characters.length > NO_REPEAT_LIBRARY_MIN
+    && getSessionCompletedCount() < NO_REPEAT_UNTIL_COMPLETED;
+}
+
+function updateNoRepeatHint() {
+  const active = isNoRepeatMode() && !sessionCompleted;
+  el.noRepeatHint?.classList.toggle('hidden', !active);
+}
+
+/** 构建候选池：排除最近两次；禁止重复模式下再排除本轮已出现的字 */
 function getCandidatePool() {
   const excluded = new Set(recentHistory);
+  if (isNoRepeatMode()) {
+    for (const key of getSessionSeenKeys()) excluded.add(key);
+  }
   const candidates = characters.filter((entry) => !excluded.has(entryKey(entry)));
-  return candidates.length > 0 ? candidates : characters;
+  if (candidates.length > 0) return candidates;
+  // 禁止重复把池抽空时回退到仅排除 recentHistory
+  if (isNoRepeatMode()) {
+    const soft = characters.filter((entry) => !recentHistory.includes(entryKey(entry)));
+    return soft.length > 0 ? soft : characters;
+  }
+  return characters;
 }
 
 /** 从字库中随机选取一个条目 */
@@ -346,6 +605,9 @@ function recordHistory(entry) {
 
 /** 在练习区显示指定条目 */
 function showCharacter(entry) {
+  if (sessionCompleted && entry) return;
+
+  glyphImageAvailable = false;
   hideGlyph();
 
   if (showCharacterTimer) {
@@ -355,23 +617,30 @@ function showCharacter(entry) {
 
   if (!entry) {
     currentEntry = null;
+    // 清空展示时结束上一字：仍做掉落判定
+    finalizeActiveStroke(session, Date.now(), { rng: random });
     el.display.textContent = '—';
+    refreshGlyphAvailability(null);
+    updateStatsTable();
     return;
   }
 
+  // 掉落判定在完成上一字（finalize）时进行，不在切换到新字时判定
   el.display.classList.add('fade');
   showCharacterTimer = setTimeout(() => {
     showCharacterTimer = null;
     currentEntry = entry;
     recordHistory(currentEntry);
-    recordAppearance(currentEntry);
+    recordAppearance(currentEntry, { rng: random });
     el.display.textContent = currentEntry.char;
     el.display.classList.remove('fade');
+    refreshGlyphAvailability(currentEntry);
   }, 150);
 }
 
 /** 刷新显示一个新字 */
 function refreshCharacter() {
+  if (sessionCompleted) return;
   if (characters.length === 0) {
     recentHistory = [];
     resetSession();
@@ -384,6 +653,7 @@ function refreshCharacter() {
 
 /** 跳过当前字：撤销本轮对它的一次记录，再刷新 */
 function skipCharacter() {
+  if (sessionCompleted) return;
   const toUndo = currentEntry;
   if (showCharacterTimer) {
     clearTimeout(showCharacterTimer);
@@ -442,11 +712,26 @@ function selectCharacterFromBrowse(entry) {
   showCharacter(entry);
 }
 
-/** 获取字形图片候选路径（按书体分目录；优先 png，兼容 jpg / jpeg / webp） */
+/** 获取字形图片候选路径（主字优先，再 alternatives；按书体分目录） */
 function getGlyphImageCandidates(entry) {
   const script = normalizeScript(entry.script);
   const dir = SCRIPT_IMAGE_DIR[script] || SCRIPT_IMAGE_DIR[SCRIPT.cao];
-  return IMAGE_EXTENSIONS.map((ext) => `${dir}/${entry.char}.${ext}`);
+  const forms = typeof glyphImageCharForms === 'function'
+    ? glyphImageCharForms(entry.char, entry)
+    : [entry.char, ...(entry.alternatives || [])].filter(Boolean);
+  const paths = [];
+  const seen = new Set();
+  for (const form of forms) {
+    const ch = String(form || '').trim();
+    if (!ch) continue;
+    for (const ext of IMAGE_EXTENSIONS) {
+      const path = `${dir}/${ch}.${ext}`;
+      if (seen.has(path)) continue;
+      seen.add(path);
+      paths.push(path);
+    }
+  }
+  return paths;
 }
 
 /** 按扩展名顺序尝试加载字形图片 */
@@ -479,7 +764,7 @@ function loadGlyphImage(entry) {
 
 /** 显示字形图片：直接替代中间文字 */
 function showGlyph() {
-  if (!currentEntry) return;
+  if (!currentEntry || !glyphImageAvailable) return;
 
   glyphVisible = true;
   el.display.classList.add('hidden');
@@ -489,9 +774,81 @@ function showGlyph() {
   updateShowButton();
 }
 
+function glyphAvailabilityCacheKey(entry) {
+  if (!entry) return '';
+  return entry.id || `${normalizeScript(entry.script)}:${entry.char}`;
+}
+
+/** 探测当前字是否有答案字形图（主字 + alternatives） */
+function probeGlyphImageExists(entry) {
+  const key = glyphAvailabilityCacheKey(entry);
+  if (!key) return Promise.resolve(false);
+  if (glyphImageExistsCache.has(key)) {
+    return Promise.resolve(glyphImageExistsCache.get(key));
+  }
+
+  const candidates = getGlyphImageCandidates(entry);
+  if (candidates.length === 0) {
+    glyphImageExistsCache.set(key, false);
+    return Promise.resolve(false);
+  }
+
+  return new Promise((resolve) => {
+    let index = 0;
+    const tryNext = () => {
+      if (index >= candidates.length) {
+        glyphImageExistsCache.set(key, false);
+        resolve(false);
+        return;
+      }
+      const probe = new Image();
+      probe.onload = () => {
+        glyphImageExistsCache.set(key, true);
+        resolve(true);
+      };
+      probe.onerror = () => {
+        index += 1;
+        tryNext();
+      };
+      probe.src = candidates[index];
+      index += 1;
+    };
+    tryNext();
+  });
+}
+
+function refreshGlyphAvailability(entry) {
+  const token = ++glyphAvailabilityToken;
+  if (!entry) {
+    glyphImageAvailable = false;
+    updateShowButton();
+    return;
+  }
+
+  // 探测完成前先置灰，避免沿用上一字的状态
+  glyphImageAvailable = false;
+  updateShowButton();
+
+  probeGlyphImageExists(entry).then((hasImage) => {
+    if (token !== glyphAvailabilityToken) return;
+    if (currentEntry !== entry) return;
+    glyphImageAvailable = hasImage;
+    updateShowButton();
+  });
+}
+
 /** 更新显示按钮状态 */
 function updateShowButton() {
-  el.btnShow.classList.toggle('is-active', glyphVisible);
+  const available = Boolean(currentEntry && glyphImageAvailable);
+  el.btnShow.classList.toggle('is-active', glyphVisible && available);
+  el.btnShow.classList.toggle('is-unavailable', !available);
+  el.btnShow.disabled = !available;
+  el.btnShow.setAttribute('aria-disabled', available ? 'false' : 'true');
+  if (!available) {
+    el.btnShow.setAttribute('aria-label', '暂无字形图片');
+    el.btnShow.title = '暂无字形图片';
+    return;
+  }
   el.btnShow.setAttribute('aria-label', glyphVisible ? '隐藏字形' : '显示字形');
   el.btnShow.title = glyphVisible ? '隐藏字形' : '显示字形';
 }
@@ -510,6 +867,7 @@ function hideGlyph() {
 
 /** 切换字形显示 */
 function toggleGlyph() {
+  if (!glyphImageAvailable) return;
   if (glyphVisible) {
     hideGlyph();
   } else {
@@ -559,7 +917,7 @@ function flashButtonTitle(button, message, restoreMs = 1500) {
 
 /** 复制本轮快照 JSON 到剪贴板 */
 async function copySessionSnapshot(button) {
-  const text = snapshotToJSON(getCurrentSnapshot());
+  const text = snapshotToJSON(getSnapshotForExport());
   try {
     await navigator.clipboard.writeText(text);
     if (button) flashButtonTitle(button, '已复制快照');
@@ -568,9 +926,167 @@ async function copySessionSnapshot(button) {
   }
 }
 
+/**
+ * 结算「复制结果」：生成可粘贴进 local/inbox.json 的练习快照
+ * （含 strokes 时长、unique 卡面、inkDrop；本机 node merge 入账）
+ */
+function buildInboxMergeSnapshot() {
+  let snapshot = completedSnapshot;
+  if (!snapshot || !sessionHasPracticeData(snapshot)) {
+    snapshot = getSnapshotForExport();
+  }
+  if (!snapshot || !sessionHasPracticeData(snapshot)) return null;
+
+  if (typeof annotateSnapshotCommit === 'function') {
+    return annotateSnapshotCommit(snapshot, {
+      committedToLevels: false,
+      commitSource: 'clipboard-copy',
+    });
+  }
+  const meta = { ...(snapshot.meta || {}), commitSource: 'clipboard-copy' };
+  delete meta.committedToLevels;
+  return { ...snapshot, meta };
+}
+
+async function copySettlementResult(button) {
+  const snapshot = buildInboxMergeSnapshot();
+  if (!snapshot) {
+    alert('本轮还没有可复制的练习结果');
+    return;
+  }
+  const text = typeof snapshotToJSON === 'function'
+    ? snapshotToJSON(snapshot)
+    : JSON.stringify(snapshot, null, 2);
+
+  const markCopied = () => {
+    if (!button) return;
+    const prev = button.textContent;
+    button.textContent = '已复制';
+    button.disabled = true;
+    window.setTimeout(() => {
+      button.textContent = prev || '复制结果';
+      button.disabled = false;
+    }, 1600);
+  };
+
+  try {
+    await navigator.clipboard.writeText(text);
+    markCopied();
+  } catch {
+    window.prompt('复制以下 JSON，粘贴进 local/inbox.json 后执行 node merge：', text);
+  }
+}
+
+function sessionHasPracticeData(snapshot) {
+  const strokes = snapshot?.strokes;
+  if (Array.isArray(strokes) && strokes.length > 0) return true;
+  const items = snapshot?.items;
+  return Array.isArray(items) && items.length > 0;
+}
+
+/** 结算：冻结快照并显示小结（不写入数据） */
+function enterSettlement() {
+  if (sessionCompleted) return;
+  const snapshot = getCurrentSnapshot();
+  if (!sessionHasPracticeData(snapshot)) {
+    alert('本轮还没有练过字');
+    return;
+  }
+
+  sessionCompleted = true;
+  completedSnapshot = snapshot;
+  renderSettlementPanel(snapshot);
+  updateStatsTable();
+  setSettlementView(true);
+}
+
+/** 返回：取消结算，继续练字 */
+function exitSettlement() {
+  if (!sessionCompleted) return;
+  sessionCompleted = false;
+  completedSnapshot = null;
+  setSettlementView(false);
+  updateStatsTable();
+}
+
+/** 结束：写入 local 并跳转等级页 */
+async function finishSettlementAndGoToLevel() {
+  const snapshot = completedSnapshot;
+  if (!snapshot || !sessionHasPracticeData(snapshot)) {
+    alert('请先结算本轮练习');
+    return;
+  }
+
+  if (!supportsLocalDirectoryPicker()) {
+    alert('当前浏览器不支持文件夹访问。请用结算页「复制结果」→ 粘贴进 local/inbox.json → node merge');
+    return;
+  }
+
+  if (el.btnRefresh) el.btnRefresh.disabled = true;
+  if (el.btnSkip) el.btnSkip.disabled = true;
+  if (el.btnSettlementCopy) el.btnSettlementCopy.disabled = true;
+  let navigated = false;
+
+  try {
+    let handle = await loadLocalDirHandle();
+    if (handle) {
+      const allowed = await ensureDirPermission(handle, 'readwrite');
+      if (!allowed) handle = null;
+    }
+    if (!handle) {
+      handle = await pickLocalDirectory('readwrite');
+    }
+
+    const uid = practiceUserId || loadActiveUserId() || USER_MERGE_DEFAULT_USER_ID;
+    await savePracticeSessionToLocal(handle, snapshot, uid);
+    void refreshPracticeUserBadge();
+    navigateToUserLevelPage();
+    navigated = true;
+  } catch (error) {
+    if (error && error.name === 'AbortError') return;
+    alert(`保存失败：${error.message || error}`);
+  } finally {
+    if (!navigated) {
+      if (el.btnRefresh) el.btnRefresh.disabled = false;
+      if (el.btnSkip) el.btnSkip.disabled = false;
+      if (el.btnSettlementCopy) el.btnSettlementCopy.disabled = false;
+    }
+  }
+}
+
+function getUserLevelPageUrlRelative() {
+  return `user/index.html?view=level`;
+}
+
+function navigateToUserLevelPage() {
+  // 异步保存后用户手势已失效，合成 <a>.click() 常被拦截；用 location 跳转更稳
+  window.location.href = getUserLevelPageUrlRelative();
+  return getUserLevelPageUrlRelative();
+}
+
+function onSessionActionClick() {
+  enterSettlement();
+}
+
+function onPrimaryFooterClick() {
+  if (sessionCompleted) {
+    finishSettlementAndGoToLevel();
+  } else {
+    refreshCharacter();
+  }
+}
+
+function onSecondaryFooterClick() {
+  if (sessionCompleted) {
+    exitSettlement();
+  } else {
+    skipCharacter();
+  }
+}
+
 /** 打开快照查看面板 */
 function openSnapshotView() {
-  const snapshot = getCurrentSnapshot();
+  const snapshot = getSnapshotForExport();
   el.snapshotReadable.textContent = snapshotToReadable(snapshot);
   el.snapshotJson.textContent = snapshotToJSON(snapshot);
   el.snapshotDialog.showModal();
@@ -593,8 +1109,12 @@ function applySeedFromDialog() {
 }
 
 // 事件绑定
-el.btnRefresh.addEventListener('click', refreshCharacter);
-el.btnSkip.addEventListener('click', skipCharacter);
+el.btnRefresh.addEventListener('click', onPrimaryFooterClick);
+el.btnSkip.addEventListener('click', onSecondaryFooterClick);
+el.btnSettlementCopy?.addEventListener('click', () => {
+  void copySettlementResult(el.btnSettlementCopy);
+});
+el.btnSessionAction?.addEventListener('click', onSessionActionClick);
 el.btnShow.addEventListener('click', toggleGlyph);
 el.btnScript.addEventListener('click', (event) => {
   event.stopPropagation();
@@ -666,7 +1186,10 @@ if (!el.scriptMenu.querySelector('[data-filter]')) {
 }
 
 // 初始化
+updateSessionActionButton();
+updateFooterForPhase();
 updateModeUI();
 updateScriptFilterUI();
 updateStatsTable();
 refreshCharacter();
+void refreshPracticeUserBadge();

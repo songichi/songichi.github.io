@@ -1,9 +1,8 @@
 /**
  * 字库管理模块
- * 支持有空格 / 无空格两种输入方式
  *
- * 书体分表：在下方各 DEFAULT_CHARACTERS_* 中直接粘贴汉字即可，
- * 运行时会合并为带 script 的条目。设置面板仅编辑草体/自定义池。
+ * 字库源数据见 js/zi.js + js/zi-catalog-*.js（Zi 结构）。
+ * 设置面板仍可编辑草体汉字列表（localStorage）；运行时从 catalog 补全 metadata。
  */
 
 const STORAGE_KEY = 'caoshu-characters';
@@ -64,45 +63,10 @@ const SCRIPT_IMAGE_DIR = {
  * 时间模式概率
  * - 倒数 8 字以外（头）：合计 1/10，平分
  * - 倒数 8 字以内（尾）：合计 9/10，越近越高
- *   倒数第八 8%、倒数第一 14%；当中按近期程度线性铺开
- *   倒数第八 → 第一：8.0% 9.1% 10.0% 10.9% 11.8% 12.7% 13.5% 14.0%
  */
 const TIME_HEAD_PROB = 1 / 10;
 const TIME_TAIL_PROBS = [80, 91, 100, 109, 118, 127, 135, 140].map((n) => n / 1000);
 const TIME_TAIL_COUNT = TIME_TAIL_PROBS.length;
-
-/**
- * 默认字库 · 草体（可直接修改此数组）
- * 每个元素可以是单个汉字，也可以是多个汉字组成的字符串
- */
-const DEFAULT_CHARACTERS_cao = [
-  '是 地 明 有 示',
-
-  '心 長 分 令 專 風 相 須 与 使 即 所 解 節 等 問 包 五 交 此',
-  '聞 猶 服 器 章 甚 鳥 永 成 既 記 欲 乖 具 劳 属 巨 高 温 前',
-  '謂 去 還 常 則 莫 衆 单 逢 卒 斷 設 流 盡 孤 望 術 色 直 斯',
-  '或 顯 老 疑 說 揔 酸 識 湌 務 異 處 然 對 州',
-];
-
-/**
- * 默认字库 · 楷书
- * 写法与 DEFAULT_CHARACTERS_cao 相同，粘贴汉字即可
- */
-const DEFAULT_CHARACTERS_kai = [
-  // 例如：'永 和 九 年',
-];
-
-/**
- * 默认字库 · 明体（预留）
- */
-const DEFAULT_CHARACTERS_ming = [
-];
-
-/**
- * 默认字库 · 黑体（预留）
- */
-const DEFAULT_CHARACTERS_hei = [
-];
 
 /**
  * 解析输入文本为汉字数组
@@ -121,14 +85,18 @@ function parseCharacters(input) {
 }
 
 /**
- * 将字库源数组编译为单字数组
- * 先把所有元素拼成一段无空格的文本，再逐字拆分为汉字列表
+ * 将字库源数组编译为单字数组（兼容旧 string[] 格式）
  */
 function compileCharacters(sources) {
   if (!Array.isArray(sources)) return [];
 
   const paragraph = sources
-    .map((item) => String(item).replace(/\s+/g, ''))
+    .map((item) => {
+      if (typeof item === 'string') return item.replace(/\s+/g, '');
+      if (item instanceof Zi) return item.char;
+      if (item && typeof item === 'object' && item.char) return String(item.char);
+      return String(item).replace(/\s+/g, '');
+    })
     .join('');
 
   return parseCharacters(paragraph);
@@ -141,17 +109,46 @@ function normalizeScript(script) {
   return script;
 }
 
-/** 条目唯一键：草体用汉字本身，其他书体为「字@script」 */
+/** 条目唯一键：优先 Zi id，兼容无 id 的旧条目 */
 function entryKey(entry) {
   if (!entry) return '';
+  if (entry.id) return entry.id;
   const script = normalizeScript(entry.script);
   if (script === SCRIPT.cao) return entry.char;
   return `${entry.char}@${script}`;
 }
 
-/** 将汉字列表转为指定书体的条目 */
+/** 将汉字列表转为指定书体的最小条目（无 catalog 时） */
 function toEntries(chars, script) {
-  return chars.map((ch) => ({ char: ch, script }));
+  const normalized = normalizeScript(script);
+  return chars.map((ch) => ({
+    id: '',
+    char: ch,
+    script: normalized,
+    alternatives: [],
+    calligrapher: '',
+    work: '',
+  }));
+}
+
+/** 读取各书体 Zi catalog 条目 */
+function getCatalogEntries(script) {
+  const normalized = normalizeScript(script);
+  if (normalized === SCRIPT.cao && typeof getDefaultZiCaoEntries === 'function') {
+    return getDefaultZiCaoEntries();
+  }
+  if (normalized === SCRIPT.kai && typeof getDefaultZiKaiEntries === 'function') {
+    return getDefaultZiKaiEntries();
+  }
+  return [];
+}
+
+/** 默认草体主字列表（Zi catalog） */
+function getDefaultCaoCharacters() {
+  if (typeof getDefaultCaoCharList === 'function') {
+    return getDefaultCaoCharList();
+  }
+  return compileCharacters([]);
 }
 
 /**
@@ -159,11 +156,23 @@ function toEntries(chars, script) {
  * @param {string[]} caoChars 草体/自定义池（可被设置面板覆盖）
  */
 function buildLibrary(caoChars) {
+  const caoCatalog = getCatalogEntries(SCRIPT.cao);
+  const caoEntries = typeof enrichEntriesFromCatalog === 'function'
+    ? enrichEntriesFromCatalog(caoChars, caoCatalog.map((entry) => ({
+      ...entry,
+      script: normalizeScript(entry.script),
+    })), SCRIPT.cao)
+    : toEntries(caoChars, SCRIPT.cao);
+
+  for (const entry of caoEntries) {
+    entry.script = SCRIPT.cao;
+  }
+
   return [
-    ...toEntries(caoChars, SCRIPT.cao),
-    ...toEntries(compileCharacters(DEFAULT_CHARACTERS_kai), SCRIPT.kai),
-    ...toEntries(compileCharacters(DEFAULT_CHARACTERS_ming), SCRIPT.ming),
-    ...toEntries(compileCharacters(DEFAULT_CHARACTERS_hei), SCRIPT.hei),
+    ...caoEntries,
+    ...getCatalogEntries(SCRIPT.kai),
+    ...getCatalogEntries(SCRIPT.ming),
+    ...getCatalogEntries(SCRIPT.hei),
   ];
 }
 
@@ -173,7 +182,7 @@ function filterLibrary(entries, filter) {
   return entries.filter((entry) => normalizeScript(entry.script) === filter);
 }
 
-/** 从 localStorage 读取可编辑草体池；若无则使用默认草体 */
+/** 从 localStorage 读取可编辑草体池；若无则使用 Zi catalog */
 function loadEditableCharacters() {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored) {
@@ -184,7 +193,7 @@ function loadEditableCharacters() {
         return parsed
           .filter((item) => {
             if (!item || !item.char) return false;
-            const script = normalizeScript(item.script);
+            const script = normalizeScript(item.script || item.style);
             return script === SCRIPT.cao;
           })
           .map((item) => item.char);
@@ -193,10 +202,10 @@ function loadEditableCharacters() {
       // 降级到默认字库
     }
   }
-  return compileCharacters(DEFAULT_CHARACTERS_cao);
+  return getDefaultCaoCharacters();
 }
 
-/** 加载完整练习字库（草体池 + 各 DEFAULT_* 书体表） */
+/** 加载完整练习字库（草体池 + 各书体 catalog） */
 function loadCharacters() {
   return buildLibrary(loadEditableCharacters());
 }
@@ -220,13 +229,12 @@ function saveScriptFilter(filter) {
 
 /** 获取默认顺序的条目键列表（时间模式权重用） */
 function getDefaultOrder() {
-  return buildLibrary(compileCharacters(DEFAULT_CHARACTERS_cao)).map(entryKey);
+  return buildLibrary(getDefaultCaoCharacters()).map(entryKey);
 }
 
 /**
  * 构建时间模式的权重表
  * 头合计 1/10 平分；尾（最多 8 字）合计 9/10，按 TIME_TAIL_PROBS 分配
- * 字库短于 8 时，取最靠近的若干尾权并按有无「头」缩放到 9/10 或 1
  */
 function buildTimeWeights(order) {
   const weights = new Map();
@@ -272,3 +280,36 @@ function formatForInput(characters) {
   }
   return lines.join('\n');
 }
+
+/** 按主字或 id 查找 Zi entry */
+function findZiEntry(charOrId, script = SCRIPT.cao) {
+  const normalized = normalizeScript(script);
+  const catalogs = [
+    ...getCatalogEntries(SCRIPT.cao),
+    ...getCatalogEntries(SCRIPT.kai),
+    ...getCatalogEntries(SCRIPT.ming),
+    ...getCatalogEntries(SCRIPT.hei),
+  ];
+
+  for (const entry of catalogs) {
+    if (entry.id && entry.id === charOrId) return entry;
+  }
+
+  for (const entry of catalogs) {
+    if (normalizeScript(entry.script) !== normalized) continue;
+    if (entry.char === charOrId) return entry;
+    if ((entry.alternatives || []).includes(charOrId)) return entry;
+  }
+  return null;
+}
+
+/** 加载各 catalog 后为未手写 id 的条目生成稳定 id */
+function initZiCatalogIds() {
+  if (typeof finalizeZiCatalog !== 'function') return;
+  const groups = [];
+  if (typeof DEFAULT_ZI_CAO !== 'undefined') groups.push(DEFAULT_ZI_CAO);
+  if (typeof DEFAULT_ZI_KAI !== 'undefined') groups.push(DEFAULT_ZI_KAI);
+  finalizeZiCatalog(groups);
+}
+
+initZiCatalogIds();

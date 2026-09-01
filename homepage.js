@@ -111,7 +111,7 @@ homepageBtnRefresh?.addEventListener('click', () => {
 });
 const homepageBtnAbout = document.getElementById('homepageBtnAbout');
 homepageBtnAbout?.addEventListener('click', () => {
-    window.location.href = 'index-about.html';
+    window.location.href = '/about';
 });
 console.log(recentType);
 //for homepage

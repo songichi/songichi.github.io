@@ -121,7 +121,7 @@ function ExpandWorks(element) {
     ;
 }
 function extractFilenameFromSrc(src) {
-    const filename = src.substring(src.lastIndexOf('works/') + 6, src.lastIndexOf('.'));
+    const filename = src.substring(src.lastIndexOf('/works/') + '/works/'.length, src.lastIndexOf('.'));
     console.log(filename);
     return filename;
 }
@@ -145,7 +145,7 @@ function TurnGrayBackdropOff() {
 }
 function TurnGridOn(folderName) {
     //check if grid is vertical or horizontal
-    const filePath = "works/" + folderName + "/v1.jpg"; // Replace 'path/to/folder/v1' with the actual file path
+    const filePath = "/works/" + folderName + "/v1.jpg"; // Replace 'path/to/folder/v1' with the actual file path
     console.log(filePath);
     fetch(filePath)
         .then(response => {
@@ -186,7 +186,7 @@ function disenableGrid(grid) {
 function appendElementToGrid(fileName, isVertical, folderName) {
     var gridElement = expandableVerticalGrid;
     //all images need to be jpg
-    var elementPath = 'works/' + folderName + "/" + fileName + ".jpg";
+    var elementPath = '/works/' + folderName + "/" + fileName + ".jpg";
     fetch(elementPath)
         .then(response => {
         if (response.ok) {

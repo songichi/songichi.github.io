@@ -1,11 +1,28 @@
 {
-  "version": 1,
+  "version": 2,
   "user": "yi",
   "updatedAt": null,
+  "isTestUser": false,
+  "policy": {
+    "chars": "legacy-frozen-base",
+    "sessions": "append-only-history",
+    "displayCount": "chars-plus-sessions-live",
+    "note": "新练习只追加 sessions，禁止写入 chars。界面次数 = chars 基数 + sessions 现场合计。chars 仅兼容旧数据。"
+  },
   "summary": {
     "uniqueChars": 0,
     "totalAppearances": 0,
     "sessionCount": 0
   },
-  "chars": {}
+  "ink": 0,
+  "inkHistory": [],
+  "chars": {
+    "c.0662F.01": {
+      "char": "是",
+      "count": 0,
+      "firstSeenAt": null,
+      "lastSeenAt": null
+    }
+  },
+  "sessions": []
 }

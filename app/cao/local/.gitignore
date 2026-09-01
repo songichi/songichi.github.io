@@ -1,6 +1,8 @@
 # 个人练习数据（不上传）
 user-*.json
 !user.example.json
+!user-test.json
 users-index.json
 sessions.ndjson
+shop-sessions.json
 *.snapshot.json

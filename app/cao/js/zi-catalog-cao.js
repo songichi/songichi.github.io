@@ -1,0 +1,135 @@
+/**
+ * 默认字库 · 草体（Zi 结构）
+ * 编辑本文件维护字、异体、书法家与出处。
+ * 每条须含 unicode（U+XXXX）；id 由 dup 在加载时自动生成（默认 dup=1）。
+ */
+
+const CAO_ZI_DEFAULTS = {
+  style: 'cao',
+  calligrapher: '未录入',
+  work: '未录入',
+};
+
+/** 简写：创建一条草体 Zi（unicode 未写时由 char 自动补全） */
+function caoZi(char, extras = {}) {
+  const cp = char.codePointAt(0) || 0;
+  const unicode = extras.unicode || `U+${cp.toString(16).toUpperCase()}`;
+  const codePoint = extras.codePoint || cp;
+  return createZi({ char, codePoint, unicode, ...CAO_ZI_DEFAULTS, ...extras });
+}
+
+/**
+ * 默认草体字库（顺序即练习默认顺序）
+ * alternatives：常见简繁 / 异体；未列则仅主字
+ */
+const DEFAULT_ZI_CAO = createZiList([
+  caoZi('是', { unicode: 'U+662F', calligrapher: '孙过庭', work: '书谱' }),
+  caoZi('地', { unicode: 'U+5730' }),
+  caoZi('明', { unicode: 'U+660E' }),
+  caoZi('有', { unicode: 'U+6709' }),
+  caoZi('示', { unicode: 'U+793A' }),
+
+  caoZi('心', { unicode: 'U+5FC3' }),
+  caoZi('長', { unicode: 'U+9577', alternatives: ['长'] }),
+  caoZi('分', { unicode: 'U+5206' }),
+  caoZi('令', { unicode: 'U+4EE4' }),
+  caoZi('專', { unicode: 'U+5C08', alternatives: ['专'] }),
+  caoZi('風', { unicode: 'U+98A8', alternatives: ['风'] }),
+  caoZi('相', { unicode: 'U+76F8' }),
+  caoZi('須', { unicode: 'U+9808', alternatives: ['须'] }),
+  caoZi('与', { unicode: 'U+4E0E', alternatives: ['與'] }),
+  caoZi('使', { unicode: 'U+4F7F' }),
+  caoZi('即', { unicode: 'U+5373' }),
+  caoZi('所', { unicode: 'U+6240' }),
+  caoZi('解', { unicode: 'U+89E3' }),
+  caoZi('節', { unicode: 'U+7BC0', alternatives: ['节'] }),
+  caoZi('等', { unicode: 'U+7B49' }),
+  caoZi('問', { unicode: 'U+554F', alternatives: ['问'] }),
+  caoZi('包', { unicode: 'U+5305' }),
+  caoZi('五', { unicode: 'U+4E94' }),
+  caoZi('交', { unicode: 'U+4EA4' }),
+  caoZi('此', { unicode: 'U+6B64' }),
+
+  caoZi('聞', { unicode: 'U+805E', alternatives: ['闻'] }),
+  caoZi('猶', { unicode: 'U+7336', alternatives: ['犹'] }),
+  caoZi('服', { unicode: 'U+670D' }),
+  caoZi('器', { unicode: 'U+5668' }),
+  caoZi('章', { unicode: 'U+7AE0' }),
+  caoZi('甚', { unicode: 'U+751A' }),
+  caoZi('鳥', { unicode: 'U+9CE5', alternatives: ['鸟'] }),
+  caoZi('永', { unicode: 'U+6C38' }),
+  caoZi('成', { unicode: 'U+6210' }),
+  caoZi('既', { unicode: 'U+65E2' }),
+  caoZi('記', { unicode: 'U+8A18', alternatives: ['记'] }),
+  caoZi('欲', { unicode: 'U+6B32' }),
+  caoZi('乖', { unicode: 'U+4E56' }),
+  caoZi('具', { unicode: 'U+5177' }),
+  caoZi('劳', { unicode: 'U+52B3', alternatives: ['勞'] }),
+  caoZi('属', { unicode: 'U+5C5E', alternatives: ['屬'] }),
+  caoZi('巨', { unicode: 'U+5DE8' }),
+  caoZi('高', { unicode: 'U+9AD8' }),
+  caoZi('温', { unicode: 'U+6E29', alternatives: ['溫'] }),
+  caoZi('前', { unicode: 'U+524D' }),
+
+  caoZi('謂', { unicode: 'U+8B02', alternatives: ['谓'] }),
+  caoZi('去', { unicode: 'U+53BB' }),
+  caoZi('還', { unicode: 'U+9084', alternatives: ['还'] }),
+  caoZi('常', { unicode: 'U+5E38' }),
+  caoZi('則', { unicode: 'U+5247', alternatives: ['则'] }),
+  caoZi('莫', { unicode: 'U+83AB' }),
+  caoZi('衆', { unicode: 'U+8846', alternatives: ['众'] }),
+  caoZi('单', { unicode: 'U+5355', alternatives: ['單'] }),
+  caoZi('逢', { unicode: 'U+9022' }),
+  caoZi('卒', { unicode: 'U+5352' }),
+  caoZi('斷', { unicode: 'U+65B7', alternatives: ['断'] }),
+  caoZi('設', { unicode: 'U+8A2D', alternatives: ['设'] }),
+  caoZi('流', { unicode: 'U+6D41' }),
+  caoZi('盡', { unicode: 'U+76E1', alternatives: ['尽'] }),
+  caoZi('孤', { unicode: 'U+5B64' }),
+  caoZi('望', { unicode: 'U+671B' }),
+  caoZi('術', { unicode: 'U+8853', alternatives: ['术'] }),
+  caoZi('色', { unicode: 'U+8272' }),
+  caoZi('直', { unicode: 'U+76F4' }),
+  caoZi('斯', { unicode: 'U+65AF' }),
+
+  caoZi('或', { unicode: 'U+6216' }),
+  caoZi('顯', { unicode: 'U+986F', alternatives: ['显'] }),
+  caoZi('老', { unicode: 'U+8001' }),
+  caoZi('疑', { unicode: 'U+7591' }),
+  caoZi('說', { unicode: 'U+8AAA', alternatives: ['说'] }),
+  caoZi('揔', { unicode: 'U+63D4' }),
+  caoZi('酸', { unicode: 'U+9178' }),
+  caoZi('識', { unicode: 'U+8B58', alternatives: ['识'] }),
+  caoZi('湌', { unicode: 'U+6E4C' }),
+  caoZi('務', { unicode: 'U+52D9', alternatives: ['务'] }),
+  caoZi('異', { unicode: 'U+7570', alternatives: ['异'] }),
+  caoZi('處', { unicode: 'U+8655', alternatives: ['处'] }),
+  caoZi('然', { unicode: 'U+7136' }),
+  caoZi('對', { unicode: 'U+5BF9', alternatives: ['对'] }),
+  caoZi('州', { unicode: 'U+5DDE' }),
+  caoZi('區', { unicode: 'U+5340', alternatives: ['区'] }),
+  caoZi('外', { unicode: 'U+5916' }),
+  caoZi('創', { unicode: 'U+5275', alternatives: ['创'] }),
+  caoZi('嚴', { unicode: 'U+56B4', alternatives: ['严'] }),
+  caoZi('歸', { unicode: 'U+6B78', alternatives: ['归'] }),
+
+
+  /** 以上有些unicode不对，以下都是对的 */
+  caoZi('在', { unicode: 'U+5728' }),
+  caoZi('遊', { unicode: 'U+904A' }),
+  caoZi('當', { unicode: 'U+7576', alternatives: ['当'] }),
+
+
+]);
+
+/** id 在 database.js 加载 catalog 时由 unicode + dup 自动生成 */
+
+/** 草体 catalog → practice entries */
+function getDefaultZiCaoEntries() {
+  return DEFAULT_ZI_CAO.map((zi) => zi.toEntry());
+}
+
+/** 草体主字顺序（设置面板 / localStorage 用） */
+function getDefaultCaoCharList() {
+  return DEFAULT_ZI_CAO.map((zi) => zi.char);
+}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="/index.css">
+    <meta charset="UTF-8">
+    <meta name="author" content="Zunyi Wang">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Graphic Designer Zunyi Wang">
+    <title>王尊一 WANG ZUNYI | DESIGNER</title>
+  </head>
+
+  <body class="bodystyle">
+    <header>
+      <div class="backgroundDiv"></div>
+      <a id="homeBtn" href="/">
+        <p id="homeBtnText">A</p>
+      </a>
+      <div class="cd">
+        <div style="user-select: none">
+          <li><a class="tt1-on" href="/type">字形</a></li>
+          <li><a class="tt1" href="/works">作品</a></li>
+          <li><a class="tt1" href="/about">关于</a></li>
+        </div>
+      </div>
+    </header>
+    <main>
+      <div class="button-grid">
+        <button class="button-type">漢字</button>
+        <button class="button-type">かな</button>
+        <button class="button-type">Latin</button>
+      </div>
+      <content class="type-grid" id="typeGrid"></content>
+    </main>
+  </body>
+  <footer>
+    <content>
+      <p class="copyright">Copyright © Zunyi Wang. All Rights Reserved</p>
+    </content>
+  </footer>
+  <script type="text/javascript" src="/plugin/tinycolor.js"></script>
+  <script type="module" src="/typeData.js"></script>
+  <script type="module" src="/homepage.js"></script>
+  <script type="module" src="/index.js"></script>
+  <script type="module" src="/index-type.js"></script>
+</html>

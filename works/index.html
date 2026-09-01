@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="/index.css">
+    <meta charset="UTF-8">
+    <meta name="author" content="Zunyi Wang">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Graphic Designer Zunyi Wang">
+    <title>王尊一 WANG ZUNYI | DESIGNER</title>
+    <link rel="preload" as="font" href="/font/noto-sans-sc-v26-latin_chinese-simplified-500.woff2">
+  </head>
+
+  <body class="bodystyle">
+    <div id="grayBackdrop"></div>
+    <div id="expandableVerticalGrid"></div>
+
+    <header>
+      <div class="backgroundDiv"></div>
+      <a id="homeBtn" href="/">
+        <p id="homeBtnText">A</p>
+      </a>
+      <div class="cd">
+        <div style="user-select: none">
+          <li><a class="tt1" href="/type">字形</a></li>
+          <li><a class="tt1-on" href="/works">作品</a></li>
+          <li><a class="tt1" href="/about">关于</a></li>
+        </div>
+      </div>
+    </header>
+    <main>
+      <content>
+        <div class="works-container"></div>
+      </content>
+      <div class="backgroundDiv"></div>
+    </main>
+  </body>
+  <footer>
+    <content>
+      <p class="copyright">Copyright © Zunyi Wang. All Rights Reserved</p>
+    </content>
+  </footer>
+  <script type="module" src="/homepage.js"></script>
+  <script type="module" src="/index.js"></script>
+  <script type="module" src="/worksData.js"></script>
+  <script type="module" src="/index-works.js"></script>
+  <script src="/plugin/vanilla.js"></script>
+  <script src="/plugin/masonry.pkgd.min.js"></script>
+</html>

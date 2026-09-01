@@ -48,10 +48,204 @@
         <div class="level-summary" id="level-summary"></div>
         <div class="level-list" id="level-list"></div>
       </section>
+
+      <section class="settings-panel hidden" id="settings-panel">
+        <h2 class="settings-title">设置</h2>
+        <div class="settings-list">
+          <label class="settings-row" for="sfx-volume">
+            <span class="settings-row-label">音效音量</span>
+            <span class="settings-row-control">
+              <input
+                type="range"
+                id="sfx-volume"
+                min="0"
+                max="100"
+                step="1"
+                value="70"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+              <span class="settings-volume-value" id="sfx-volume-value">70</span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="ink-history-panel hidden" id="ink-history-panel" aria-label="墨历史">
+        <header class="ink-history-head">
+          <div class="ink-history-head-row">
+            <h2 class="ink-history-title">墨历史</h2>
+            <label class="ink-history-filter-toggle" title="开启后不显示练字掉落的墨">
+              <input
+                type="checkbox"
+                id="ink-history-hide-practice"
+                checked
+              />
+              <span>隐藏练字掉落</span>
+            </label>
+          </div>
+          <p class="ink-history-balance" id="ink-history-balance"></p>
+        </header>
+        <div class="ink-history-list" id="ink-history-list" role="list"></div>
+      </section>
+
+      <section class="shop-panel hidden" id="shop-panel" aria-label="每日商店">
+        <header class="shop-head">
+          <h2 class="shop-title">今日售卖</h2>
+          <p class="shop-day" id="shop-day-label" aria-live="polite"></p>
+        </header>
+        <div class="shop-row" id="shop-row" role="list"></div>
+        <div class="shop-toast hidden" id="shop-toast" role="status" aria-live="polite"></div>
+      </section>
     </div>
   </main>
 
+  <aside class="level-nav-slot hidden" id="level-nav-slot" aria-label="等级导航">
+    <nav class="level-nav" role="tablist">
+      <button type="button" class="level-nav-btn is-active" id="level-nav-overview" data-level-mode="overview" role="tab" aria-selected="true">总览</button>
+      <button type="button" class="level-nav-btn" id="level-nav-unique" data-level-mode="unique" role="tab" aria-selected="false">独特</button>
+      <button type="button" class="level-nav-btn" id="level-nav-levels" data-level-mode="levels" role="tab" aria-selected="false">等级</button>
+      <button type="button" class="level-nav-btn" id="level-nav-last" data-level-mode="lastSession" role="tab" aria-selected="false">记录历史</button>
+      <button type="button" class="level-nav-btn" id="level-nav-ink" data-level-mode="inkHistory" role="tab" aria-selected="false">墨历史</button>
+      <button type="button" class="level-nav-btn" id="level-nav-card" data-level-mode="cardFace" role="tab" aria-selected="false">卡面</button>
+      <button type="button" class="level-nav-btn" id="level-nav-glyph" data-level-mode="glyphImage" role="tab" aria-selected="false">字形</button>
+      <button type="button" class="level-nav-btn" id="level-nav-shop" data-level-mode="shop" role="tab" aria-selected="false">商店</button>
+      <button type="button" class="level-nav-btn" id="level-nav-settings" data-level-mode="settings" role="tab" aria-selected="false">设置</button>
+    </nav>
+  </aside>
+
+  <aside class="card-preview-slot hidden" id="card-preview-slot" aria-hidden="true">
+    <div class="card-preview" id="card-preview">
+      <div class="card-preview-base hidden" id="card-preview-base" aria-hidden="true"></div>
+      <div class="card-preview-mask hidden" id="card-preview-mask" aria-hidden="true"></div>
+      <span class="card-preview-fallback" id="card-preview-fallback">?</span>
+      <img class="card-preview-modifier hidden" id="card-preview-modifier" alt="" aria-hidden="true" />
+    </div>
+    <div class="card-preview-meta hidden" id="card-preview-meta" aria-hidden="true"></div>
+  </aside>
+
+  <aside class="card-style-tools hidden" id="card-style-tools" aria-label="卡面样式（仅测试用户）">
+    <div class="card-style-picker" id="card-override-picker">
+      <button
+        type="button"
+        class="card-style-switch"
+        id="btn-card-override-all"
+        aria-pressed="false"
+        title="关闭：各卡显示原样；开启：用下方所选装饰覆盖全部卡"
+      >覆盖</button>
+    </div>
+    <div class="card-style-picker" id="card-inject-picker">
+      <button
+        type="button"
+        class="card-style-switch"
+        id="btn-card-inject"
+        title="自选 unique 卡面加入卡库"
+      >加卡</button>
+    </div>
+    <div class="card-style-picker" id="card-scheme-picker">
+      <button
+        type="button"
+        class="card-style-switch"
+        id="btn-card-scheme"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+        title="选择卡面配色"
+      >配色</button>
+      <div class="card-style-menu hidden" id="card-scheme-menu" role="listbox" aria-label="配色库"></div>
+    </div>
+    <div class="card-style-picker" id="card-base-picker">
+      <button
+        type="button"
+        class="card-style-switch"
+        id="btn-card-base"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+        title="选择卡背底纹"
+      >底纹</button>
+      <div class="card-style-menu hidden" id="card-base-menu" role="listbox" aria-label="底纹库"></div>
+    </div>
+    <div class="card-style-picker" id="card-modifier-picker">
+      <button
+        type="button"
+        class="card-style-switch"
+        id="btn-card-modifier"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+        title="选择卡面修饰"
+      >修饰</button>
+      <div class="card-style-menu hidden" id="card-modifier-menu" role="listbox" aria-label="修饰库"></div>
+    </div>
+  </aside>
+
+  <aside class="dismantle-tools hidden" id="dismantle-tools" aria-label="分解 unique 卡">
+    <button
+      type="button"
+      class="card-style-switch dismantle-switch"
+      id="btn-dismantle-mode"
+      aria-pressed="false"
+      title="进入 / 退出分解模式"
+    ><span class="dismantle-switch-label">分解</span></button>
+  </aside>
+
+  <div class="dismantle-overlay hidden" id="dismantle-overlay" aria-hidden="true">
+    <div class="dismantle-circle" role="dialog" aria-labelledby="dismantle-ink-value">
+      <p class="dismantle-circle-label">分解获得</p>
+      <p class="dismantle-ink-value" id="dismantle-ink-value">0</p>
+      <p class="dismantle-circle-unit">墨</p>
+      <button type="button" class="dismantle-confirm-btn" id="btn-dismantle-confirm">分解此卡</button>
+    </div>
+  </div>
+
+  <dialog class="unique-inject-dialog" id="unique-inject-dialog" aria-labelledby="unique-inject-title">
+    <form method="dialog" class="unique-inject-form" id="unique-inject-form">
+      <header class="unique-inject-head">
+        <h2 class="unique-inject-title" id="unique-inject-title">注入 UNIQUE</h2>
+        <p class="unique-inject-hint">任选字与卡面词条（至少一项样式），写入当前用户卡库</p>
+      </header>
+      <div class="unique-inject-fields">
+        <label class="unique-inject-field">
+          <span class="unique-inject-label">字</span>
+          <input
+            type="search"
+            class="unique-inject-input"
+            id="unique-inject-char-filter"
+            placeholder="筛选字形 / id"
+            autocomplete="off"
+          />
+          <select class="unique-inject-select" id="unique-inject-char" size="8" required></select>
+        </label>
+        <label class="unique-inject-field">
+          <span class="unique-inject-label">配色</span>
+          <select class="unique-inject-select" id="unique-inject-scheme"></select>
+        </label>
+        <label class="unique-inject-field">
+          <span class="unique-inject-label">底纹</span>
+          <select class="unique-inject-select" id="unique-inject-base"></select>
+        </label>
+        <label class="unique-inject-field">
+          <span class="unique-inject-label">修饰</span>
+          <select class="unique-inject-select" id="unique-inject-modifier"></select>
+        </label>
+      </div>
+      <p class="unique-inject-status" id="unique-inject-status" aria-live="polite"></p>
+      <footer class="unique-inject-actions">
+        <button type="submit" class="unique-inject-btn" value="cancel" formmethod="dialog">取消</button>
+        <button type="button" class="unique-inject-btn is-primary" id="unique-inject-submit">加入卡库</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="../js/card-style.js"></script>
+  <script src="../js/card-color-schemes.js"></script>
+  <script src="../js/card-bases.js"></script>
+  <script src="../js/card-modifiers.js"></script>
+  <script src="../js/zi.js"></script>
+  <script src="../js/zi-catalog-cao.js"></script>
+  <script src="../js/zi-catalog-kai.js"></script>
   <script src="../js/database.js"></script>
+  <script src="../js/user-merge.js"></script>
+  <script src="../js/shop.js"></script>
+  <script src="../js/local-fs.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
