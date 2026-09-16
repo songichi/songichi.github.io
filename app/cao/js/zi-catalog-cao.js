@@ -21,6 +21,7 @@ function caoZi(char, extras = {}) {
 /**
  * 默认草体字库（顺序即练习默认顺序）
  * alternatives：常见简繁 / 异体；未列则仅主字
+ * 所有unicode必须为正确unicode！！！
  */
 const DEFAULT_ZI_CAO = createZiList([
   caoZi('是', { unicode: 'U+662F', calligrapher: '孙过庭', work: '书谱' }),
@@ -118,6 +119,26 @@ const DEFAULT_ZI_CAO = createZiList([
   caoZi('在', { unicode: 'U+5728' }),
   caoZi('遊', { unicode: 'U+904A' }),
   caoZi('當', { unicode: 'U+7576', alternatives: ['当'] }),
+  caoZi('頭', { unicode: 'U+982D', alternatives: ['头'] }),
+  caoZi('尋', { unicode: 'U+5C0B',  alternatives: ['寻'], calligrapher: '孙过庭', work: '书谱' }),
+  caoZi('動', { unicode: 'U+52A8',  alternatives: ['动'], calligrapher: '孙过庭', work: '书谱' }),
+  caoZi('非', { unicode: 'U+975E', calligrapher: '孙过庭', work: '书谱' }),
+  caoZi('继', { unicode: 'U+7EE7', calligrapher: '孙过庭', work: '书谱' }),
+  caoZi('虚', { unicode: 'U+865A', alternatives: ['虛'], calligrapher: '孙过庭', work: '书谱' }),
+  caoZi('果', { unicode: 'U+679C',  calligrapher: '孙过庭', work: '书谱' }),
+  caoZi('段', { unicode: 'U+6BB5',  calligrapher: '王羲之', work: '淳化阁帖' }),
+  caoZi('差', { unicode: 'U+5DEE',  calligrapher: '孙过庭', work: '书谱'}),
+  caoZi('宜', { unicode: 'U+5B9C',  calligrapher: '孙过庭', work: '书谱'}),
+  caoZi('質', { unicode: 'U+8CEA',  alternatives: ['质'], calligrapher: '孙过庭', work: '书谱'}),
+  caoZi('適', { unicode: 'U+9069',  alternatives: ['适'], calligrapher: '孙过庭', work: '书谱'}),
+  caoZi('寫', { unicode: 'U+5BEB',  alternatives: ['写'], calligrapher: '孙过庭', work: '书谱'}),
+  caoZi('勝', { unicode: 'U+52DD',  alternatives: ['胜'], calligrapher: '孙过庭', work: '书谱'}),
+  caoZi('改', { unicode: 'U+6539',  calligrapher: '孙过庭', work: '书谱'}),
+  caoZi('綵', { unicode: 'U+7DB5',  alternatives: ['綵'], calligrapher: '懷素', work: '停云馆帖'}),
+  caoZi('遠', { unicode: 'U+9060',  alternatives: ['远'], calligrapher: '孙过庭', work: '书谱'}),
+  
+  caoZi('皆', { unicode: 'U+7686', calligrapher: '懷素', work: '真草千字文'}),
+  caoZi('合', { unicode: 'U+5408', calligrapher: '孙过庭', work: '书谱'}),
 
 
 ]);

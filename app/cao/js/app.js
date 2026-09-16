@@ -306,6 +306,7 @@ function setSettlementView(active) {
 function resetSessionPhase() {
   sessionCompleted = false;
   completedSnapshot = null;
+  allowPracticeUnload = false;
   setSettlementView(false);
   if (el.btnSessionAction) el.btnSessionAction.disabled = false;
   if (el.btnRefresh) el.btnRefresh.disabled = false;
@@ -475,6 +476,30 @@ function pickWeighted(pool, weights) {
 const NO_REPEAT_LIBRARY_MIN = 50;
 /** 本轮已完成（含当前字）达到此数后允许重复 */
 const NO_REPEAT_UNTIL_COMPLETED = 50;
+
+/** 本轮已定稿字数超过此值时，刷新/关闭页面前确认 */
+const PRACTICE_UNLOAD_WARN_AFTER = 3;
+/** 允许离开（例如结算写入成功后跳转） */
+let allowPracticeUnload = false;
+
+/** 本轮已定稿（完成并进入下一字）的字数 */
+function getFinalizedStrokeCount() {
+  if (sessionCompleted && completedSnapshot) {
+    return Array.isArray(completedSnapshot.strokes) ? completedSnapshot.strokes.length : 0;
+  }
+  return Array.isArray(session?.strokes) ? session.strokes.length : 0;
+}
+
+function shouldWarnPracticeUnload() {
+  if (allowPracticeUnload) return false;
+  return getFinalizedStrokeCount() > PRACTICE_UNLOAD_WARN_AFTER;
+}
+
+function onPracticeBeforeUnload(event) {
+  if (!shouldWarnPracticeUnload()) return;
+  event.preventDefault();
+  event.returnValue = '';
+}
 
 /** 本轮已完成字数：已定稿 strokes + 当前进行中的字 */
 function getSessionCompletedCount() {
@@ -1040,6 +1065,7 @@ async function finishSettlementAndGoToLevel() {
     const uid = practiceUserId || loadActiveUserId() || USER_MERGE_DEFAULT_USER_ID;
     await savePracticeSessionToLocal(handle, snapshot, uid);
     void refreshPracticeUserBadge();
+    allowPracticeUnload = true;
     navigateToUserLevelPage();
     navigated = true;
   } catch (error) {
@@ -1084,6 +1110,39 @@ function onSecondaryFooterClick() {
   }
 }
 
+/** 输入框 / 对话框打开时不响应练字快捷键 */
+function isPracticeHotkeyBlocked() {
+  if (document.querySelector('dialog[open]')) return true;
+  const active = document.activeElement;
+  if (!active) return false;
+  const tag = active.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (active.isContentEditable) return true;
+  return false;
+}
+
+function onPracticeHotkey(event) {
+  if (isPracticeHotkeyBlocked()) return;
+  // 结算态：快捷键仅用于练字进行中
+  if (sessionCompleted) return;
+
+  const key = event.key;
+  if (key === ' ') {
+    event.preventDefault();
+    onPrimaryFooterClick();
+    return;
+  }
+  if (key === 'j' || key === 'J' || key === 'k' || key === 'K') {
+    event.preventDefault();
+    onSecondaryFooterClick();
+    return;
+  }
+  if (key === 'Enter') {
+    event.preventDefault();
+    onSessionActionClick();
+  }
+}
+
 /** 打开快照查看面板 */
 function openSnapshotView() {
   const snapshot = getSnapshotForExport();
@@ -1115,6 +1174,8 @@ el.btnSettlementCopy?.addEventListener('click', () => {
   void copySettlementResult(el.btnSettlementCopy);
 });
 el.btnSessionAction?.addEventListener('click', onSessionActionClick);
+document.addEventListener('keydown', onPracticeHotkey);
+window.addEventListener('beforeunload', onPracticeBeforeUnload);
 el.btnShow.addEventListener('click', toggleGlyph);
 el.btnScript.addEventListener('click', (event) => {
   event.stopPropagation();
