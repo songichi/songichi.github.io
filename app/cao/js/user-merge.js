@@ -71,8 +71,404 @@ function emptyUserStats(userId) {
      * 磁盘短键 `sb`
      */
     shopBuys: {},
+    /**
+     * 保底 unique 领取记录（连续未掉落达阈值后手动领取）
+     * 磁盘短键 `upc`
+     */
+    uniquePityClaims: [],
+    /**
+     * 已达标、待领取的保底卡（就绪时预先掷好；领取前不进库存）
+     * 磁盘短键 `upp`
+     */
+    uniquePityPending: null,
     chars: {},
     sessions: [],
+  };
+}
+
+/** 规范化保底 unique 领取记录 */
+function normalizeUniquePityClaims(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const item of raw) {
+    const claim = unpackUniquePityClaimFromDisk(item);
+    if (claim) out.push(claim);
+  }
+  return out;
+}
+
+/** 待领取保底卡（与 upc 条目同形，用 rolledAt/acquiredAt 记掷骰时间） */
+function unpackUniquePityPendingFromDisk(raw) {
+  const claim = unpackUniquePityClaimFromDisk(raw);
+  if (!claim) return null;
+  return {
+    ...claim,
+    rolledAt: claim.acquiredAt || raw?.ra || raw?.rolledAt || null,
+    isPityPending: true,
+  };
+}
+
+function packUniquePityPendingForDisk(pending) {
+  if (!pending || typeof pending !== 'object') return null;
+  const row = packUniquePityClaimForDisk({
+    ...pending,
+    acquiredAt: pending.rolledAt || pending.acquiredAt || null,
+  });
+  return row;
+}
+
+/** 估算 unique 获取时刻（ISO）：session.startedAt + 此前各字 durationMs */
+function estimateUniqueAcquiredAtIso(session, strokeIndex) {
+  const startMs = Date.parse(session?.startedAt || '');
+  if (Number.isFinite(startMs)) {
+    let offset = 0;
+    const strokes = session.strokes || [];
+    for (let i = 0; i < strokeIndex; i += 1) {
+      offset += Math.max(0, Number(strokes[i]?.durationMs) || 0);
+    }
+    return new Date(startMs + offset).toISOString();
+  }
+  if (typeof session?.endedAt === 'string' && session.endedAt) return session.endedAt;
+  if (typeof session?.startedAt === 'string' && session.startedAt) return session.startedAt;
+  return null;
+}
+
+function packUniqueInventoryItemForDisk(item) {
+  if (!item || typeof item !== 'object') return null;
+  const id = String(item.id || '');
+  if (!id) return null;
+  const sessionIndex = Math.floor(Number(item.sessionIndex));
+  const strokeIndex = Math.floor(Number(item.strokeIndex));
+  if (!Number.isFinite(sessionIndex) || !Number.isFinite(strokeIndex)) return null;
+  const row = {
+    id,
+    si: sessionIndex,
+    sti: strokeIndex,
+  };
+  if (item.acquiredAt) row.a = String(item.acquiredAt);
+  const ci = Math.max(1, Math.floor(Number(item.ciHao) || 1));
+  if (ci !== 1) row.ci = ci;
+  if (item.starred) row.star = true;
+  if (item.isPityUnique) row.p = 1;
+  if (item.streakAtClaim != null) {
+    const st = Math.max(0, Math.floor(Number(item.streakAtClaim) || 0));
+    if (st > 0) row.st = st;
+  }
+  const cs = item.cardStyle || {};
+  const schemeId = cs.colorSchemeId || null;
+  const decorationId = cs.decorationId || null;
+  const baseId = typeof resolveCardBaseId === 'function'
+    ? (resolveCardBaseId(cs.cardBase) || null)
+    : (cs.cardBase || null);
+  const modifierId = typeof resolveCardModifierId === 'function'
+    ? (resolveCardModifierId(cs.cardModifier) || null)
+    : (cs.cardModifier || null);
+  if (schemeId) row.cs = schemeId;
+  if (decorationId) row.d = decorationId;
+  if (baseId) row.cb = baseId;
+  if (modifierId) row.cm = modifierId;
+  if (!schemeId && !decorationId && !baseId && !modifierId) return null;
+  return row;
+}
+
+function unpackUniqueInventoryItemFromDisk(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const id = String(raw.id || '');
+  if (!id) return null;
+  const sessionIndex = Math.floor(Number(raw.si ?? raw.sessionIndex));
+  const strokeIndex = Math.floor(Number(raw.sti ?? raw.strokeIndex));
+  if (!Number.isFinite(sessionIndex) || !Number.isFinite(strokeIndex)) return null;
+
+  const colorSchemeId = raw.cs || raw.colorSchemeId || null;
+  const decorationId = raw.d || raw.decorationId || null;
+  const cardBase = raw.cb || raw.cardBase || null;
+  const cardModifier = raw.cm || raw.cardModifier || null;
+  let cardStyle = null;
+  if (colorSchemeId || decorationId || cardBase || cardModifier) {
+    cardStyle = typeof buildCardStyleRecord === 'function'
+      ? buildCardStyleRecord(colorSchemeId, decorationId, cardBase, cardModifier)
+      : {
+        colorSchemeId: colorSchemeId || null,
+        decorationId: decorationId || null,
+        cardBase: cardBase || null,
+        cardModifier: cardModifier || null,
+        tags: [],
+      };
+  }
+  if (!cardStyle && raw.cardStyle) {
+    cardStyle = typeof normalizeCardStyleRecord === 'function'
+      ? normalizeCardStyleRecord(raw.cardStyle)
+      : raw.cardStyle;
+  }
+  if (!cardStyle) return null;
+
+  const out = {
+    id,
+    cardStyle: typeof normalizeCardStyleRecord === 'function'
+      ? normalizeCardStyleRecord(cardStyle)
+      : cardStyle,
+    acquiredAt: raw.a || raw.acquiredAt || null,
+    ciHao: Math.max(1, Math.floor(Number(raw.ci ?? raw.ciHao) || 1)),
+    sessionIndex,
+    strokeIndex,
+    starred: Boolean(raw.star ?? raw.starred),
+  };
+  if (raw.p || raw.isPityUnique || sessionIndex < 0) {
+    out.isPityUnique = true;
+    const streak = Math.max(0, Math.floor(Number(raw.st ?? raw.streakAtClaim) || 0));
+    if (streak > 0) out.streakAtClaim = streak;
+  }
+  return out;
+}
+
+function normalizeUniquesList(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const item of raw) {
+    const row = unpackUniqueInventoryItemFromDisk(item);
+    if (row) out.push(row);
+  }
+  return out;
+}
+
+function strokeQualifiesAsUniqueInventory(stroke) {
+  if (!stroke || typeof stroke !== 'object') return false;
+  if (typeof strokeHasUniqueCardStyle === 'function') {
+    return strokeHasUniqueCardStyle(stroke);
+  }
+  if (!stroke.isUnique || !stroke.cardStyle) return false;
+  const cs = stroke.cardStyle;
+  return Boolean(
+    cs.colorSchemeId || cs.decorationId || cs.cardBase || cs.cardModifier,
+  );
+}
+
+function buildUniqueInventoryItemFromStroke(session, sessionIndex, strokeIndex) {
+  const stroke = session?.strokes?.[strokeIndex];
+  if (!strokeQualifiesAsUniqueInventory(stroke)) return null;
+  const id = String(stroke.id || '');
+  if (!id) return null;
+  const cardStyle = typeof normalizeCardStyleRecord === 'function'
+    ? normalizeCardStyleRecord(stroke.cardStyle)
+    : stroke.cardStyle;
+  if (!cardStyle) return null;
+  const schemeId = typeof resolveColorSchemeId === 'function'
+    ? resolveColorSchemeId(cardStyle.colorSchemeId)
+    : cardStyle.colorSchemeId;
+  const baseId = typeof resolveCardBaseId === 'function'
+    ? resolveCardBaseId(cardStyle.cardBase)
+    : cardStyle.cardBase;
+  const modifierId = typeof resolveCardModifierId === 'function'
+    ? resolveCardModifierId(cardStyle.cardModifier)
+    : cardStyle.cardModifier;
+  if (!schemeId && !cardStyle.decorationId && !baseId && !modifierId) return null;
+  return {
+    id,
+    cardStyle,
+    acquiredAt: estimateUniqueAcquiredAtIso(session, strokeIndex),
+    ciHao: typeof resolveCiHao === 'function'
+      ? resolveCiHao(stroke)
+      : (Math.max(1, Math.floor(Number(stroke.ciHao) || 1))),
+    sessionIndex,
+    strokeIndex,
+  };
+}
+
+function buildUniqueInventoryItemFromPity(claim, pityIndex) {
+  if (!claim?.id || !claim?.cardStyle) return null;
+  const cardStyle = typeof normalizeCardStyleRecord === 'function'
+    ? normalizeCardStyleRecord(claim.cardStyle)
+    : claim.cardStyle;
+  if (!cardStyle) return null;
+  const out = {
+    id: String(claim.id),
+    cardStyle,
+    acquiredAt: claim.acquiredAt || null,
+    ciHao: typeof resolveCiHao === 'function'
+      ? resolveCiHao(claim)
+      : (Math.max(1, Math.floor(Number(claim.ciHao) || 1))),
+    sessionIndex: -1,
+    strokeIndex: pityIndex,
+    isPityUnique: true,
+  };
+  const streak = Math.max(0, Math.floor(Number(claim.streakAtClaim) || 0));
+  if (streak > 0) out.streakAtClaim = streak;
+  return out;
+}
+
+/** 从 sessions + upc 重建期望库存（不改写 stats） */
+function rebuildUniquesFromHistory(stats) {
+  const items = [];
+  const sessions = stats?.sessions || [];
+  for (let sessionIndex = 0; sessionIndex < sessions.length; sessionIndex += 1) {
+    const session = sessions[sessionIndex];
+    const strokes = session?.strokes || [];
+    for (let strokeIndex = 0; strokeIndex < strokes.length; strokeIndex += 1) {
+      const item = buildUniqueInventoryItemFromStroke(session, sessionIndex, strokeIndex);
+      if (item) items.push(item);
+    }
+  }
+  const pityClaims = Array.isArray(stats?.uniquePityClaims) ? stats.uniquePityClaims : [];
+  for (let pityIndex = 0; pityIndex < pityClaims.length; pityIndex += 1) {
+    const item = buildUniqueInventoryItemFromPity(pityClaims[pityIndex], pityIndex);
+    if (item) items.push(item);
+  }
+  return items;
+}
+
+function uniqueInventoryFingerprint(item) {
+  const cs = item?.cardStyle || {};
+  return [
+    String(item?.id || ''),
+    String(Math.floor(Number(item?.sessionIndex))),
+    String(Math.floor(Number(item?.strokeIndex))),
+    String(cs.colorSchemeId || ''),
+    String(cs.decorationId || ''),
+    String(cs.cardBase || ''),
+    String(cs.cardModifier || ''),
+    String(Math.max(1, Math.floor(Number(item?.ciHao) || 1))),
+    item?.isPityUnique ? '1' : '0',
+  ].join('|');
+}
+
+function fingerprintUniquesList(list) {
+  return (list || [])
+    .map((item) => uniqueInventoryFingerprint(item))
+    .sort()
+    .join('\n');
+}
+
+/** 库存是否与历史（sessions / upc）一致 */
+function uniquesInventoryMatchesHistory(stats) {
+  const expected = rebuildUniquesFromHistory(stats);
+  return fingerprintUniquesList(stats?.uniques) === fingerprintUniquesList(expected);
+}
+
+function refreshUniquesMismatchFlag(stats) {
+  if (!stats || typeof stats !== 'object') return false;
+  stats.uniquesMismatch = !uniquesInventoryMatchesHistory(stats);
+  return stats.uniquesMismatch;
+}
+
+/** 将某次 session 中的 unique 追加进库存 */
+function appendUniquesFromSession(stats, sessionIndex) {
+  if (!stats || typeof stats !== 'object') return;
+  if (!Array.isArray(stats.uniques)) stats.uniques = [];
+  const session = stats.sessions?.[sessionIndex];
+  if (!session) return;
+  const strokes = session.strokes || [];
+  for (let strokeIndex = 0; strokeIndex < strokes.length; strokeIndex += 1) {
+    const item = buildUniqueInventoryItemFromStroke(session, sessionIndex, strokeIndex);
+    if (item) stats.uniques.push(item);
+  }
+  refreshUniquesMismatchFlag(stats);
+}
+
+/** 将某一条保底领取追加进库存 */
+function appendUniqueFromPityClaim(stats, pityIndex) {
+  if (!stats || typeof stats !== 'object') return;
+  if (!Array.isArray(stats.uniques)) stats.uniques = [];
+  const claim = stats.uniquePityClaims?.[pityIndex];
+  const item = buildUniqueInventoryItemFromPity(claim, pityIndex);
+  if (item) stats.uniques.push(item);
+  refreshUniquesMismatchFlag(stats);
+}
+
+/** 按 session/stroke 设置库存收藏标记（不参与历史对账） */
+function setUniqueInventoryStarred(stats, sessionIndex, strokeIndex, starred) {
+  if (!Array.isArray(stats?.uniques)) return false;
+  const si = Math.floor(Number(sessionIndex));
+  const sti = Math.floor(Number(strokeIndex));
+  const item = stats.uniques.find((entry) => (
+    Math.floor(Number(entry.sessionIndex)) === si
+    && Math.floor(Number(entry.strokeIndex)) === sti
+  ));
+  if (!item) return false;
+  item.starred = Boolean(starred);
+  return true;
+}
+
+/** 按 session/stroke 索引从库存移除（分解） */
+function removeUniqueInventoryAt(stats, sessionIndex, strokeIndex) {
+  if (!Array.isArray(stats?.uniques)) return false;
+  const si = Math.floor(Number(sessionIndex));
+  const sti = Math.floor(Number(strokeIndex));
+  const idx = stats.uniques.findIndex((item) => (
+    Math.floor(Number(item.sessionIndex)) === si
+    && Math.floor(Number(item.strokeIndex)) === sti
+  ));
+  if (idx < 0) return false;
+  stats.uniques.splice(idx, 1);
+  refreshUniquesMismatchFlag(stats);
+  return true;
+}
+
+function packUniquePityClaimForDisk(claim) {
+  if (!claim || typeof claim !== 'object') return null;
+  const id = String(claim.id || '');
+  if (!id) return null;
+  const row = {
+    id,
+    a: claim.acquiredAt || null,
+    st: Math.max(0, Math.floor(Number(claim.streakAtClaim) || 0)),
+    ci: Math.max(1, Math.floor(Number(claim.ciHao) || Number(claim.streakAtClaim) || 1)),
+  };
+  if (claim.anchorSessionAt) row.as = String(claim.anchorSessionAt);
+  const cs = claim.cardStyle || {};
+  const schemeId = cs.colorSchemeId || null;
+  const decorationId = cs.decorationId || null;
+  const baseId = typeof resolveCardBaseId === 'function'
+    ? (resolveCardBaseId(cs.cardBase) || null)
+    : (cs.cardBase || null);
+  const modifierId = typeof resolveCardModifierId === 'function'
+    ? (resolveCardModifierId(cs.cardModifier) || null)
+    : (cs.cardModifier || null);
+  if (schemeId) row.cs = schemeId;
+  if (decorationId) row.d = decorationId;
+  if (baseId) row.cb = baseId;
+  if (modifierId) row.cm = modifierId;
+  return row;
+}
+
+function unpackUniquePityClaimFromDisk(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const id = String(raw.id || '');
+  if (!id) return null;
+  const colorSchemeId = raw.cs || raw.colorSchemeId || null;
+  const decorationId = raw.d || raw.decorationId || null;
+  const cardBase = raw.cb || raw.cardBase || null;
+  const cardModifier = raw.cm || raw.cardModifier || null;
+  let cardStyle = null;
+  if (colorSchemeId || decorationId || cardBase || cardModifier) {
+    cardStyle = typeof buildCardStyleRecord === 'function'
+      ? buildCardStyleRecord(colorSchemeId, decorationId, cardBase, cardModifier)
+      : {
+        colorSchemeId: colorSchemeId || null,
+        decorationId: decorationId || null,
+        cardBase: cardBase || null,
+        cardModifier: cardModifier || null,
+        tags: [],
+      };
+  }
+  if (!cardStyle && raw.cardStyle) {
+    cardStyle = typeof normalizeCardStyleRecord === 'function'
+      ? normalizeCardStyleRecord(raw.cardStyle)
+      : raw.cardStyle;
+  }
+  if (!cardStyle) return null;
+  const streakAtClaim = Math.max(0, Math.floor(Number(raw.st ?? raw.streakAtClaim) || 0));
+  const ciHao = Math.max(1, Math.floor(Number(raw.ci ?? raw.ciHao) || streakAtClaim || 1));
+  return {
+    id,
+    cardStyle: typeof normalizeCardStyleRecord === 'function'
+      ? normalizeCardStyleRecord(cardStyle)
+      : cardStyle,
+    acquiredAt: raw.a || raw.acquiredAt || null,
+    streakAtClaim,
+    ciHao,
+    anchorSessionAt: raw.as || raw.anchorSessionAt || null,
+    isUnique: true,
+    isPityUnique: true,
   };
 }
 
@@ -405,18 +801,16 @@ function resolveInk(source, defaultValue = 0) {
 }
 
 /**
- * unique 卡分解所得墨（按组件组合）
- * 单件：配色 20 / 底纹 40 / 修饰 50
- * 两件：160 / 200 / 400；三件：1600
+ * unique 词缀开关（cs000 默认底色不计配色）
+ * @returns {{ hasCs: boolean, hasCb: boolean, hasCm: boolean, key: string }}
  */
-function computeUniqueDismantleInk(cardStyle) {
+function getUniqueAffixFlags(cardStyle) {
   const schemeId = typeof resolveColorSchemeId === 'function'
     ? resolveColorSchemeId(cardStyle?.colorSchemeId)
     : cardStyle?.colorSchemeId;
   const defaultId = typeof CARD_DEFAULT_COLOR_SCHEME_ID !== 'undefined'
     ? CARD_DEFAULT_COLOR_SCHEME_ID
     : 'cs000';
-  // cs000 视为默认底色，不计入词条定价
   const hasCs = Boolean(schemeId) && schemeId !== defaultId;
   const hasCb = Boolean(
     typeof resolveCardBaseId === 'function'
@@ -428,7 +822,21 @@ function computeUniqueDismantleInk(cardStyle) {
       ? resolveCardModifierId(cardStyle?.cardModifier)
       : cardStyle?.cardModifier,
   );
-  const key = `${hasCs ? 1 : 0}${hasCb ? 1 : 0}${hasCm ? 1 : 0}`;
+  return {
+    hasCs,
+    hasCb,
+    hasCm,
+    key: `${hasCs ? 1 : 0}${hasCb ? 1 : 0}${hasCm ? 1 : 0}`,
+  };
+}
+
+/**
+ * unique 卡分解所得墨（按组件组合）
+ * 单件：配色 20 / 底纹 40 / 修饰 50
+ * 两件：160 / 200 / 400；三件：1600
+ */
+function computeUniqueDismantleInk(cardStyle) {
+  const { key } = getUniqueAffixFlags(cardStyle);
   const table = {
     '100': 20,
     '010': 40,
@@ -690,6 +1098,20 @@ function unpackUserStatsFromDisk(data, userId) {
     shopPurchases,
   );
 
+  const uniquePityClaims = normalizeUniquePityClaims(
+    data.uniquePityClaims ?? data.upc,
+  );
+
+  const uniquePityPending = unpackUniquePityPendingFromDisk(
+    data.uniquePityPending ?? data.upp,
+  );
+
+  const hadUniquesKey = Object.prototype.hasOwnProperty.call(data, 'uq')
+    || Object.prototype.hasOwnProperty.call(data, 'uniques');
+  const uniques = hadUniquesKey
+    ? normalizeUniquesList(data.uniques ?? data.uq)
+    : [];
+
   const sum = data.summary || data.sum || {};
   const stats = {
     version: Number(data.version ?? data.v) || USER_STATS_DISK_VERSION,
@@ -710,6 +1132,10 @@ function unpackUserStatsFromDisk(data, userId) {
     inkHistory,
     shopPurchases,
     shopBuys,
+    uniquePityClaims,
+    uniquePityPending,
+    uniques,
+    _hadUniquesKey: hadUniquesKey,
     chars,
     sessions,
   };
@@ -740,12 +1166,40 @@ function packUserStatsForDisk(data) {
     } else {
       stats.shopBuys = hydrateShopBuysFromPurchases(stats.shopBuys, stats.shopPurchases);
     }
+    if (Array.isArray(data.uniquePityClaims) || Array.isArray(data.upc)) {
+      stats.uniquePityClaims = normalizeUniquePityClaims(
+        data.uniquePityClaims ?? data.upc,
+      );
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'uniquePityPending')
+      || Object.prototype.hasOwnProperty.call(data, 'upp')) {
+      stats.uniquePityPending = unpackUniquePityPendingFromDisk(
+        data.uniquePityPending ?? data.upp,
+      );
+    }
+    if (Array.isArray(data.uniques) || Array.isArray(data.uq)) {
+      stats.uniques = normalizeUniquesList(data.uniques ?? data.uq);
+      stats._hadUniquesKey = true;
+    }
   }
+  if (!stats._hadUniquesKey) {
+    stats.uniques = rebuildUniquesFromHistory(stats);
+  } else if (!Array.isArray(stats.uniques)) {
+    stats.uniques = [];
+  }
+  delete stats._hadUniquesKey;
   const chars = {};
   for (const [id, item] of Object.entries(stats.chars || {})) {
     chars[id] = packCharForDisk(item);
   }
   const shopBuysPacked = normalizeShopBuys(stats.shopBuys);
+  const pityPacked = (stats.uniquePityClaims || [])
+    .map((claim) => packUniquePityClaimForDisk(claim))
+    .filter(Boolean);
+  const pityPendingPacked = packUniquePityPendingForDisk(stats.uniquePityPending);
+  const uniquesPacked = (stats.uniques || [])
+    .map((item) => packUniqueInventoryItemForDisk(item))
+    .filter(Boolean);
   return {
     v: USER_STATS_DISK_VERSION,
     u: stats.user,
@@ -761,6 +1215,9 @@ function packUserStatsForDisk(data) {
     inkHistory: (stats.inkHistory || []).map((entry) => packInkHistoryEntryForDisk(entry)),
     sp: (stats.shopPurchases || []).map((entry) => packShopPurchaseForDisk(entry)),
     ...(Object.keys(shopBuysPacked).length ? { sb: shopBuysPacked } : {}),
+    ...(pityPacked.length ? { upc: pityPacked } : {}),
+    ...(pityPendingPacked ? { upp: pityPendingPacked } : {}),
+    uq: uniquesPacked,
     chars,
     sessions: (stats.sessions || []).map((session) => packSessionForDisk(session)),
   };
@@ -834,6 +1291,85 @@ function stringifyCharRowForDisk(row) {
   return `[${JSON.stringify(row[0])}, ${row[1]}, ${JSON.stringify(row[2])}, ${JSON.stringify(row[3])}]`;
 }
 
+/** uq 条目：识别库存对象（含 id + si/sti） */
+function isUniqueInventoryObjectForDisk(value) {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && typeof value.id === 'string'
+    && value.id
+    && ('si' in value || 'sessionIndex' in value)
+    && ('sti' in value || 'strokeIndex' in value),
+  );
+}
+
+function isUniqueInventoryListForDisk(value) {
+  return Array.isArray(value) && value.length > 0 && value.every(isUniqueInventoryObjectForDisk);
+}
+
+/**
+ * uq 落盘：si/sti 收成一行，其余字段（含 ci）各占一行
+ * 例：
+ * {
+ *   "id": "...",
+ *   "si": 8, "sti": 1,
+ *   "a": "...",
+ *   "ci": 2,
+ *   "cs": "cs002"
+ * }
+ */
+function stringifyUniqueInventoryObjectForDisk(item, indentUnit, level) {
+  const pad = indentUnit.repeat(level);
+  const padInner = indentUnit.repeat(level + 1);
+  const lines = [];
+
+  if ('id' in item) {
+    lines.push(`${padInner}"id": ${JSON.stringify(item.id)}`);
+  }
+
+  const indexParts = [];
+  if ('si' in item) indexParts.push(`"si": ${JSON.stringify(item.si)}`);
+  if ('sti' in item) indexParts.push(`"sti": ${JSON.stringify(item.sti)}`);
+  if (indexParts.length) {
+    lines.push(`${padInner}${indexParts.join(', ')}`);
+  }
+
+  // 固定顺序；ci 单独一行；star 收藏标记；未知键跟在后面
+  const restOrder = ['a', 'ci', 'star', 'cs', 'd', 'cb', 'cm', 'p', 'st'];
+  const seen = new Set(['id', 'si', 'sti', ...restOrder]);
+  for (const key of restOrder) {
+    if (!(key in item)) continue;
+    if (key === 'star' && !item.star) continue;
+    lines.push(`${padInner}${JSON.stringify(key)}: ${JSON.stringify(item[key])}`);
+  }
+  for (const key of Object.keys(item)) {
+    if (seen.has(key)) continue;
+    lines.push(`${padInner}${JSON.stringify(key)}: ${JSON.stringify(item[key])}`);
+  }
+
+  if (lines.length === 0) return '{}';
+  return `{\n${lines.join(',\n')}\n${pad}}`;
+}
+
+/** upc 落盘行：保底领取紧凑对象（整条一行） */
+function isUniquePityClaimObjectForDisk(value) {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && typeof value.id === 'string'
+    && value.id
+    && (value.cs || value.cm || value.cb || value.d || value.cardStyle)
+    && !('si' in value)
+    && !('sti' in value),
+  );
+}
+
+function isUniquePityClaimListForDisk(value) {
+  return Array.isArray(value) && value.length > 0 && value.every(isUniquePityClaimObjectForDisk);
+}
+
 function stringifyPackedSessionForDisk(session, indentUnit, level) {
   const pad = indentUnit.repeat(level);
   const padInner = indentUnit.repeat(level + 1);
@@ -892,6 +1428,16 @@ function stringifyJsonIndented(value, indentUnit, level) {
       const lines = value.map((row) => `${padInner}${stringifyInkHistoryRowForDisk(row)}`);
       return `[\n${lines.join(',\n')}\n${pad}]`;
     }
+    if (isUniqueInventoryListForDisk(value)) {
+      const lines = value.map((row) => (
+        `${padInner}${stringifyUniqueInventoryObjectForDisk(row, indentUnit, level + 1)}`
+      ));
+      return `[\n${lines.join(',\n')}\n${pad}]`;
+    }
+    if (isUniquePityClaimListForDisk(value)) {
+      const lines = value.map((row) => `${padInner}${JSON.stringify(row)}`);
+      return `[\n${lines.join(',\n')}\n${pad}]`;
+    }
     const items = value.map((item) => `${padInner}${stringifyJsonIndented(item, indentUnit, level + 1)}`);
     return `[\n${items.join(',\n')}\n${pad}]`;
   }
@@ -931,6 +1477,18 @@ function normalizeUserStats(data, userId) {
   if (!Array.isArray(stats.inkHistory)) stats.inkHistory = [];
   if (!Array.isArray(stats.shopPurchases)) stats.shopPurchases = [];
   stats.shopBuys = hydrateShopBuysFromPurchases(stats.shopBuys, stats.shopPurchases);
+  if (!Array.isArray(stats.uniquePityClaims)) {
+    stats.uniquePityClaims = normalizeUniquePityClaims(stats.uniquePityClaims);
+  }
+  const hadUniquesKey = Boolean(stats._hadUniquesKey);
+  delete stats._hadUniquesKey;
+  if (!hadUniquesKey) {
+    stats.uniques = rebuildUniquesFromHistory(stats);
+    stats.uniquesNeedsPersist = true;
+  } else if (!Array.isArray(stats.uniques)) {
+    stats.uniques = [];
+  }
+  refreshUniquesMismatchFlag(stats);
   stats.user = userId || stats.user || USER_MERGE_DEFAULT_USER_ID;
   return stats;
 }
@@ -1145,7 +1703,8 @@ function applySnapshotToUserStats(stats, snapshot, maps) {
   }
   if (!Array.isArray(stats.sessions)) stats.sessions = [];
   stats.sessions.push(snapshotToPracticeSession(snapshot));
-  // Unique / 墨掉落均随结算写入；墨同时记 inkHistory
+  // Unique / 墨掉落均随结算写入；墨同时记 inkHistory；库存同步追加
+  appendUniquesFromSession(stats, stats.sessions.length - 1);
   applyPracticeInkDropsFromSnapshot(stats, snapshot);
   return stats;
 }

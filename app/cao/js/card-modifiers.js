@@ -13,4 +13,6 @@ registerCardModifierLibrary([
   createCardModifier({ id: 'cm003', type: 'sticker', name: '准心', weight: 1 }),
   createCardModifier({ id: 'cm004', type: 'sticker', name: '星光', weight: 1 }),
   createCardModifier({ id: 'cm005', type: 'sticker', name: '连珠', weight: 1 }),
+  createCardModifier({ id: 'cm006', type: 'sticker', name: '月牙', weight: 1 }),
+  createCardModifier({ id: 'cm007', type: 'sticker', name: '黑箭头', weight: 1 }),
 ]);

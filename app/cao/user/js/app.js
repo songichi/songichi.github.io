@@ -28,11 +28,14 @@ const el = {
   levelNavOverview: document.getElementById('level-nav-overview'),
   levelNavUnique: document.getElementById('level-nav-unique'),
   levelNavLevels: document.getElementById('level-nav-levels'),
+  levelNavRecognize: document.getElementById('level-nav-recognize'),
+  levelNavSort: document.getElementById('level-nav-sort'),
   levelNavLast: document.getElementById('level-nav-last'),
   levelNavInk: document.getElementById('level-nav-ink'),
   levelNavCard: document.getElementById('level-nav-card'),
   levelNavGlyph: document.getElementById('level-nav-glyph'),
   levelNavShop: document.getElementById('level-nav-shop'),
+  levelNavAtlas: document.getElementById('level-nav-atlas'),
   levelNavSettings: document.getElementById('level-nav-settings'),
   settingsPanel: document.getElementById('settings-panel'),
   inkHistoryPanel: document.getElementById('ink-history-panel'),
@@ -45,6 +48,8 @@ const el = {
   shopToast: document.getElementById('shop-toast'),
   sfxVolume: document.getElementById('sfx-volume'),
   sfxVolumeValue: document.getElementById('sfx-volume-value'),
+  btnUnicodeCheck: document.getElementById('btn-unicode-check'),
+  unicodeCheckResult: document.getElementById('unicode-check-result'),
   cardPreviewSlot: document.getElementById('card-preview-slot'),
   cardPreview: document.getElementById('card-preview'),
   cardPreviewBase: document.getElementById('card-preview-base'),
@@ -66,6 +71,12 @@ const el = {
   dismantleOverlay: document.getElementById('dismantle-overlay'),
   dismantleInkValue: document.getElementById('dismantle-ink-value'),
   btnDismantleConfirm: document.getElementById('btn-dismantle-confirm'),
+  pityTools: document.getElementById('pity-tools'),
+  btnPityDiamond: document.getElementById('btn-pity-diamond'),
+  pityDiamondLabel: document.getElementById('pity-diamond-label'),
+  pityClaimOverlay: document.getElementById('pity-claim-overlay'),
+  pityClaimCardSlot: document.getElementById('pity-claim-card-slot'),
+  btnPityClaimClose: document.getElementById('btn-pity-claim-close'),
   uniqueInjectDialog: document.getElementById('unique-inject-dialog'),
   uniqueInjectForm: document.getElementById('unique-inject-form'),
   uniqueInjectCharFilter: document.getElementById('unique-inject-char-filter'),
@@ -75,6 +86,7 @@ const el = {
   uniqueInjectModifier: document.getElementById('unique-inject-modifier'),
   uniqueInjectStatus: document.getElementById('unique-inject-status'),
   uniqueInjectSubmit: document.getElementById('unique-inject-submit'),
+  uniquesMismatchFlag: document.getElementById('uniques-mismatch-flag'),
   toolbar: document.getElementById('toolbar'),
   viewStats: document.getElementById('view-stats'),
   viewLevel: document.getElementById('view-level'),
@@ -90,8 +102,10 @@ let activeId = null;
 let historyFilter = 'week';
 /** 当前界面：stats | level */
 let currentView = 'level';
-/** 等级子视图：overview | unique | levels | lastSession | inkHistory | cardFace | glyphImage | shop | settings */
+/** 等级子视图：overview | unique | levels | recognize | sort | lastSession | inkHistory | cardFace | glyphImage | shop | atlas | settings */
 let levelDisplayMode = 'overview';
+/** 排序方式子选项：joined = 加入时间（字库顺序），recency = 练习顺序 */
+let sortByMode = 'joined';
 /** 记录历史当前下标；null 表示自动落到最近一次 */
 let historySessionIndex = null;
 
@@ -292,7 +306,13 @@ function syncSfxVolumeUI() {
 function renderSettingsView() {
   hideCardPreview();
   stopShopCountdown();
-  document.body.classList.remove('is-card-face-view', 'is-glyph-image-view', 'is-unique-filter-view', 'is-levels-only-view');
+  document.body.classList.remove(
+    'is-card-face-view',
+    'is-glyph-image-view',
+    'is-unique-filter-view',
+    'is-levels-only-view',
+    'is-atlas-view',
+  );
   el.levelPanel?.classList.add('hidden');
   el.panel?.classList.add('hidden');
   el.shopPanel?.classList.add('hidden');
@@ -300,6 +320,232 @@ function renderSettingsView() {
   syncSfxVolumeUI();
   el.settingsPanel?.classList.remove('hidden');
   updateLevelOverlays();
+}
+
+function expectedUnicodeFromChar(char) {
+  const cp = typeof charToCodePoint === 'function'
+    ? charToCodePoint(char)
+    : (String(char || '').codePointAt(0) || 0);
+  if (!cp) return '';
+  return typeof formatUnicodeLabel === 'function'
+    ? formatUnicodeLabel(cp)
+    : `U+${cp.toString(16).toUpperCase()}`;
+}
+
+function parseCodePointFromUnicodeLabel(unicode) {
+  const m = String(unicode || '').trim().match(/^U\+([0-9A-Fa-f]{4,6})$/);
+  if (!m) return 0;
+  return parseInt(m[1], 16) || 0;
+}
+
+function parseCode5FromZiId(id) {
+  const m = String(id || '').match(/^[a-z]\.([0-9A-Fa-f]{5})\.\d{2}$/i);
+  return m ? m[1].toUpperCase() : '';
+}
+
+/** 收集用户 JSON 中出现过的 zi id → 来源标记 */
+function collectUserZiIdRefs(data) {
+  const refs = new Map();
+  const add = (id, source) => {
+    const key = String(id || '').trim();
+    if (!key) return;
+    if (!refs.has(key)) refs.set(key, new Set());
+    refs.get(key).add(source);
+  };
+
+  for (const item of iterateUserChars(data)) {
+    add(item.id, 'chars');
+  }
+
+  const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+  sessions.forEach((session, si) => {
+    (session?.strokes || []).forEach((stroke, ti) => {
+      if (stroke?.id) add(stroke.id, `sessions[${si}].strokes[${ti}]`);
+    });
+  });
+
+  for (const u of data?.uniques || []) {
+    add(u?.id || u?.ziId, 'uniques');
+  }
+  for (const claim of getUniquePityClaims(data)) {
+    add(claim?.id || claim?.ziId, 'uniquePityClaims');
+  }
+  const pending = getUniquePityPending(data);
+  if (pending?.id) add(pending.id, 'uniquePityPending');
+
+  return refs;
+}
+
+/** 直接扫描 zi-catalog-cao.js 的 DEFAULT_ZI_CAO（含可选 kai） */
+function getCatalogZiGroupsForUnicodeCheck() {
+  const groups = [];
+  if (typeof DEFAULT_ZI_CAO !== 'undefined' && Array.isArray(DEFAULT_ZI_CAO)) {
+    groups.push({ label: 'cao', list: DEFAULT_ZI_CAO });
+  }
+  if (typeof DEFAULT_ZI_KAI !== 'undefined' && Array.isArray(DEFAULT_ZI_KAI)) {
+    groups.push({ label: 'kai', list: DEFAULT_ZI_KAI });
+  }
+  return groups;
+}
+
+function checkCatalogUnicodeConsistency() {
+  const issues = [];
+  const groups = getCatalogZiGroupsForUnicodeCheck();
+  if (!groups.length) {
+    issues.push({
+      kind: 'catalog',
+      id: '—',
+      detail: '未加载 DEFAULT_ZI_CAO（请确认 zi.js / zi-catalog-cao.js 已引入）',
+    });
+    return issues;
+  }
+
+  for (const { label, list } of groups) {
+    list.forEach((zi, index) => {
+      const char = zi?.char || '';
+      const id = zi?.id || '—';
+      const row = `${label}#${index + 1}`;
+      if (!char) {
+        issues.push({ kind: 'catalog', id, detail: `${row} 缺少主字 char` });
+        return;
+      }
+
+      const expectCp = typeof charToCodePoint === 'function'
+        ? charToCodePoint(char)
+        : (char.codePointAt(0) || 0);
+      const expectUnicode = expectedUnicodeFromChar(char);
+      const expectCode5 = typeof formatCodePoint5 === 'function'
+        ? formatCodePoint5(expectCp)
+        : expectCp.toString(16).toUpperCase().padStart(5, '0');
+
+      const unicodeCp = parseCodePointFromUnicodeLabel(zi.unicode);
+      if (zi.unicode && unicodeCp && unicodeCp !== expectCp) {
+        const wrongChar = String.fromCodePoint(unicodeCp);
+        issues.push({
+          kind: 'catalog',
+          id,
+          detail: `${row}「${char}」unicode ${zi.unicode} ≠ ${expectUnicode}（写成了「${wrongChar}」）`,
+        });
+      } else if (!zi.unicode) {
+        issues.push({
+          kind: 'catalog',
+          id,
+          detail: `${row}「${char}」缺少 unicode（应为 ${expectUnicode}）`,
+        });
+      }
+
+      if (zi.codePoint && Number(zi.codePoint) !== expectCp) {
+        issues.push({
+          kind: 'catalog',
+          id,
+          detail: `${row}「${char}」codePoint ${zi.codePoint} ≠ ${expectCp}`,
+        });
+      }
+
+      const idCode5 = parseCode5FromZiId(zi.id);
+      if (zi.id && idCode5 && idCode5 !== expectCode5) {
+        issues.push({
+          kind: 'catalog',
+          id: zi.id,
+          detail: `${row}「${char}」id 码位段 ${idCode5} ≠ 字形 ${expectCode5}`,
+        });
+      }
+    });
+  }
+  return issues;
+}
+
+function checkUserCatalogMatch(data) {
+  const issues = [];
+  if (!data) {
+    issues.push({ kind: 'user', id: '—', detail: '未加载用户数据' });
+    return issues;
+  }
+  const catalogById = getCatalogById();
+  const refs = collectUserZiIdRefs(data);
+  for (const [id, sources] of refs) {
+    const entry = catalogById.get(id);
+    if (!entry) {
+      issues.push({
+        kind: 'user',
+        id,
+        detail: `用户有记录，字库无此 id（${[...sources].slice(0, 3).join('、')}${sources.size > 3 ? '…' : ''}）`,
+      });
+      continue;
+    }
+    const expectUnicode = expectedUnicodeFromChar(entry.char);
+    const unicodeCp = parseCodePointFromUnicodeLabel(entry.unicode);
+    const expectCp = typeof charToCodePoint === 'function'
+      ? charToCodePoint(entry.char)
+      : (entry.char.codePointAt(0) || 0);
+    if (entry.unicode && unicodeCp && unicodeCp !== expectCp) {
+      issues.push({
+        kind: 'user',
+        id,
+        detail: `已练「${entry.char}」：字库 unicode 仍不一致（${entry.unicode} / 应为 ${expectUnicode}）；id 若未变则练习数据一般仍可保留`,
+      });
+    }
+  }
+  return issues;
+}
+
+function countCatalogZiEntries() {
+  return getCatalogZiGroupsForUnicodeCheck().reduce((sum, g) => sum + (g.list?.length || 0), 0);
+}
+
+function runUnicodeConsistencyCheck() {
+  const entry = fileEntries.find((item) => item.id === activeId);
+  const catalogIssues = checkCatalogUnicodeConsistency();
+  const userIssues = checkUserCatalogMatch(entry?.data);
+  const issues = catalogIssues.concat(userIssues);
+  renderUnicodeCheckResult(issues, {
+    catalogCount: countCatalogZiEntries(),
+    catalogIssueCount: catalogIssues.length,
+    userIdCount: entry?.data ? collectUserZiIdRefs(entry.data).size : 0,
+    userIssueCount: userIssues.length,
+    hasUser: Boolean(entry?.data),
+  });
+}
+
+function renderUnicodeCheckResult(issues, summary) {
+  const box = el.unicodeCheckResult;
+  if (!box) return;
+  box.classList.remove('hidden');
+  box.replaceChildren();
+
+  const head = document.createElement('p');
+  head.className = 'settings-check-summary';
+  if (!issues.length) {
+    head.classList.add('is-ok');
+    head.textContent = summary.hasUser
+      ? `通过：zi-catalog 共 ${summary.catalogCount} 条字↔unicode 均正确；用户 ${summary.userIdCount} 个 id 均可匹配。`
+      : `通过：zi-catalog 共 ${summary.catalogCount} 条字↔unicode 均正确（未加载用户，跳过用户对账）。`;
+  } else {
+    head.classList.add('is-bad');
+    head.textContent = `发现 ${issues.length} 处问题（字库 ${summary.catalogIssueCount} / 用户 ${summary.userIssueCount}；已扫 ${summary.catalogCount} 条）`;
+  }
+  box.appendChild(head);
+
+  if (!issues.length) return;
+
+  const list = document.createElement('ul');
+  list.className = 'settings-check-list';
+  for (const issue of issues) {
+    const li = document.createElement('li');
+    li.className = `settings-check-item is-${issue.kind}`;
+    const tag = document.createElement('span');
+    tag.className = 'settings-check-tag';
+    tag.textContent = issue.kind === 'catalog' ? '字库' : '用户';
+    const idEl = document.createElement('code');
+    idEl.className = 'settings-check-id';
+    idEl.textContent = issue.id;
+    const detail = document.createElement('span');
+    detail.className = 'settings-check-detail';
+    detail.textContent = issue.detail;
+    li.append(tag, idEl, detail);
+    list.appendChild(li);
+  }
+  box.appendChild(list);
 }
 
 function formatInkHistoryReason(reason) {
@@ -359,7 +605,13 @@ function syncInkHistoryHidePracticeToggle() {
 function renderInkHistoryView(entry) {
   hideCardPreview();
   stopShopCountdown();
-  document.body.classList.remove('is-card-face-view', 'is-glyph-image-view', 'is-unique-filter-view', 'is-levels-only-view');
+  document.body.classList.remove(
+    'is-card-face-view',
+    'is-glyph-image-view',
+    'is-unique-filter-view',
+    'is-levels-only-view',
+    'is-atlas-view',
+  );
   el.levelPanel?.classList.add('hidden');
   el.panel?.classList.add('hidden');
   el.shopPanel?.classList.add('hidden');
@@ -446,7 +698,13 @@ function renderInkHistoryView(entry) {
 
 function renderShopView() {
   hideCardPreview();
-  document.body.classList.remove('is-card-face-view', 'is-glyph-image-view', 'is-unique-filter-view', 'is-levels-only-view');
+  document.body.classList.remove(
+    'is-card-face-view',
+    'is-glyph-image-view',
+    'is-unique-filter-view',
+    'is-levels-only-view',
+    'is-atlas-view',
+  );
   el.levelPanel?.classList.add('hidden');
   el.panel?.classList.add('hidden');
   el.settingsPanel?.classList.add('hidden');
@@ -455,6 +713,189 @@ function renderShopView() {
   updateLevelOverlays();
   startShopCountdown();
   void ensureAndRenderShop();
+}
+
+/** 图鉴预览用「心」字（草体优先） */
+function resolveAtlasHeartZi() {
+  const entries = typeof getLibraryEntries === 'function' ? getLibraryEntries() : [];
+  let found = null;
+  for (const entry of entries) {
+    if (entry?.char !== '心') continue;
+    if (normalizeItemScript(entry.script) === 'cao') return entry;
+    if (!found) found = entry;
+  }
+  return found || { id: '', char: '心', script: 'cao' };
+}
+
+/**
+ * 图鉴格子对应的预览样式
+ * - scheme：仅该配色
+ * - base：默认配色 + 该底纹
+ * - modifier：默认配色 + 默认底纹（库中第一条）+ 该修饰
+ */
+function buildAtlasPreviewCardStyle(kind, styleId) {
+  const defaultScheme = typeof CARD_DEFAULT_COLOR_SCHEME_ID !== 'undefined'
+    ? CARD_DEFAULT_COLOR_SCHEME_ID
+    : DEFAULT_COLOR_SCHEME_ID;
+  const defaultBaseId = (CARD_BASE_LIBRARY || [])[0]?.id || null;
+  let colorSchemeId = defaultScheme;
+  let cardBase = null;
+  let cardModifier = null;
+
+  if (kind === 'scheme') {
+    colorSchemeId = styleId;
+  } else if (kind === 'base') {
+    cardBase = styleId;
+  } else if (kind === 'modifier') {
+    cardBase = defaultBaseId;
+    cardModifier = styleId;
+  }
+
+  if (typeof buildCardStyleRecord === 'function') {
+    return buildCardStyleRecord(colorSchemeId, null, cardBase, cardModifier);
+  }
+  return {
+    colorSchemeId,
+    decorationId: null,
+    cardBase,
+    cardModifier,
+    tags: [],
+  };
+}
+
+function createAtlasStyleCard(kind, entry) {
+  const heart = resolveAtlasHeartZi();
+  const script = normalizeItemScript(heart.script);
+  const rawStyle = buildAtlasPreviewCardStyle(kind, entry.id);
+  const paintStyle = withDefaultUniqueColorScheme(
+    typeof normalizeCardStyleRecord === 'function'
+      ? normalizeCardStyleRecord(rawStyle)
+      : rawStyle,
+  );
+
+  const card = document.createElement('div');
+  card.className = 'level-card atlas-style-card';
+  card.dataset.atlasKind = kind;
+  card.dataset.atlasId = String(entry.id || '');
+
+  const frame = document.createElement('div');
+  frame.className = `level-frame atlas-style-frame script-${script}`;
+  if (typeof applyCardStyleToElement === 'function') {
+    applyCardStyleToElement(frame, paintStyle);
+  } else {
+    const scheme = typeof getColorSchemeById === 'function'
+      ? getColorSchemeById(paintStyle.colorSchemeId)
+      : null;
+    const color = scheme?.secondaryColor || levelFrameColor(1);
+    frame.style.background = color;
+    frame.style.borderColor = color;
+  }
+  if (paintStyle?.cardModifier) {
+    applyCardModifierToUniqueFrame(frame, paintStyle.cardModifier);
+  }
+
+  const glyph = document.createElement('span');
+  glyph.className = 'char-glyph atlas-style-name';
+  glyph.textContent = entry.name || entry.id || '—';
+  frame.appendChild(glyph);
+  card.appendChild(frame);
+
+  const uniquePreview = { cardStyle: paintStyle };
+  setKeyboardSelectRingColor(card, paintStyle);
+  levelCardPreviewByEl.set(card, {
+    char: heart.char || '心',
+    script,
+    id: heart.id || '',
+    uniquePreview,
+  });
+
+  card.addEventListener('mouseenter', () => {
+    onLevelCardEnter(heart.char || '心', script, heart.id || '', uniquePreview);
+  });
+  card.addEventListener('mouseleave', onLevelCardLeave);
+  card.addEventListener('click', (event) => {
+    onLevelCardKeyboardSelectClick(card, event);
+  });
+
+  return card;
+}
+
+function buildAtlasSection(titleText, kind, entries) {
+  const section = document.createElement('section');
+  section.className = 'level-section level-section-atlas';
+  section.dataset.atlasKind = kind;
+
+  const head = document.createElement('div');
+  head.className = 'level-section-head';
+
+  const title = document.createElement('div');
+  title.className = 'level-section-title';
+  title.textContent = titleText;
+
+  const rule = document.createElement('div');
+  rule.className = 'level-section-rule';
+  head.append(title, rule);
+
+  const group = document.createElement('div');
+  group.className = 'level-group atlas-style-group';
+  for (const entry of entries || []) {
+    if (!entry?.id) continue;
+    group.appendChild(createAtlasStyleCard(kind, entry));
+  }
+
+  section.append(head, group);
+  return section;
+}
+
+function renderAtlasSummary() {
+  const schemes = (CARD_COLOR_SCHEME_LIBRARY || []).length;
+  const bases = (CARD_BASE_LIBRARY || []).length;
+  const modifiers = (CARD_MODIFIER_LIBRARY || []).length;
+  const stats = [
+    ['配色', schemes],
+    ['底纹', bases],
+    ['修饰', modifiers],
+  ];
+  el.levelSummary.replaceChildren();
+  for (const [label, value] of stats) {
+    const item = document.createElement('div');
+    item.className = 'level-summary-item';
+    const num = document.createElement('span');
+    num.className = 'level-summary-value';
+    num.textContent = String(value);
+    const tag = document.createElement('span');
+    tag.className = 'level-summary-label';
+    tag.textContent = label;
+    item.append(num, tag);
+    el.levelSummary.appendChild(item);
+  }
+}
+
+function renderAtlasView() {
+  stopShopCountdown();
+  hideCardPreview();
+  document.body.classList.remove(
+    'is-card-face-view',
+    'is-glyph-image-view',
+    'is-unique-filter-view',
+    'is-levels-only-view',
+  );
+  document.body.classList.add('is-atlas-view');
+  el.settingsPanel?.classList.add('hidden');
+  el.shopPanel?.classList.add('hidden');
+  el.inkHistoryPanel?.classList.add('hidden');
+  el.panel?.classList.add('hidden');
+  el.levelPanel?.classList.remove('hidden');
+
+  renderAtlasSummary();
+  el.levelList.replaceChildren();
+
+  const fragment = document.createDocumentFragment();
+  fragment.appendChild(buildAtlasSection('配色', 'scheme', CARD_COLOR_SCHEME_LIBRARY || []));
+  fragment.appendChild(buildAtlasSection('底纹', 'base', CARD_BASE_LIBRARY || []));
+  fragment.appendChild(buildAtlasSection('修饰', 'modifier', CARD_MODIFIER_LIBRARY || []));
+  el.levelList.appendChild(fragment);
+  updateLevelOverlays();
 }
 
 function stopShopCountdown() {
@@ -577,6 +1018,13 @@ let dismantleMode = false;
 let dismantleSelection = null;
 /** 中央按钮二次确认：已点过「分解此卡」 */
 let dismantleConfirmArmed = false;
+/** 空格：键盘逐字选择模式 */
+let keyboardSelectMode = false;
+let keyboardSelectIndex = 0;
+/** @type {HTMLElement | null} 选中字下方操作钮 */
+let kbSelectActionsEl = null;
+/** @type {WeakMap<Element, { char: string, script: string, id: string, uniquePreview: object|null }>} */
+const levelCardPreviewByEl = new WeakMap();
 /** @type {object|null} 当前商店日 session */
 let currentShopSession = null;
 /** @type {object|null} 完整商店历史 */
@@ -670,6 +1118,27 @@ function resolveCardStyleForDisplay(originalStyle = null) {
   if (!isActiveTestUser()) return originalStyle || null;
   if (cardStyleOverrideAll) return getToolOverrideCardStyle();
   return originalStyle || null;
+}
+
+/** 卡面 primaryColor；无配色时用默认 cs000 */
+function resolveCardPrimaryColor(cardStyle = null) {
+  const fallbackId = typeof CARD_DEFAULT_COLOR_SCHEME_ID !== 'undefined'
+    ? CARD_DEFAULT_COLOR_SCHEME_ID
+    : DEFAULT_COLOR_SCHEME_ID;
+  const schemeId = cardStyle?.colorSchemeId || fallbackId;
+  const scheme = typeof getColorSchemeById === 'function'
+    ? getColorSchemeById(schemeId)
+    : null;
+  if (scheme?.primaryColor) return scheme.primaryColor;
+  const fallback = typeof getColorSchemeById === 'function'
+    ? getColorSchemeById(fallbackId)
+    : null;
+  return fallback?.primaryColor || '#191919';
+}
+
+function setKeyboardSelectRingColor(card, cardStyle = null) {
+  if (!card) return;
+  card.style.setProperty('--kb-select-ring', resolveCardPrimaryColor(cardStyle));
 }
 
 function refreshLevelViewForStyleTools() {
@@ -1066,6 +1535,9 @@ function closeUniqueInjectDialog() {
 async function writeActiveUserData(data) {
   const entry = fileEntries.find((item) => item.id === activeId);
   if (!entry) throw new Error('未选择用户');
+  if (data && typeof data === 'object') {
+    delete data.uniquesNeedsPersist;
+  }
   const text = (typeof stringifyUserStatsForDisk === 'function')
     ? stringifyUserStatsForDisk(data)
     : `${JSON.stringify(data, null, 2)}\n`;
@@ -1076,6 +1548,7 @@ async function writeActiveUserData(data) {
     entry.data = typeof normalizeUserStats === 'function'
       ? normalizeUserStats(data, entry.id)
       : data;
+    syncUniquesMismatchFlag(entry.data);
     return;
   }
   if (dirHandle && entry.file && typeof writeJsonToDir === 'function') {
@@ -1083,6 +1556,7 @@ async function writeActiveUserData(data) {
     entry.data = typeof normalizeUserStats === 'function'
       ? normalizeUserStats(data, entry.id)
       : data;
+    syncUniquesMismatchFlag(entry.data);
     return;
   }
   throw new Error('请先连接 local 文件夹（需写入权限）');
@@ -1141,6 +1615,9 @@ async function submitUniqueInject() {
   const data = entry.data;
   if (!Array.isArray(data.sessions)) data.sessions = [];
   data.sessions.push(session);
+  if (typeof appendUniquesFromSession === 'function') {
+    appendUniquesFromSession(data, data.sessions.length - 1);
+  }
   data.updatedAt = now;
   if (!data.summary || typeof data.summary !== 'object') data.summary = {};
   data.summary.sessionCount = data.sessions.length;
@@ -1636,6 +2113,7 @@ function iterateUserChars(data) {
 function countSessionStrokesById(data) {
   const byId = new Map();
   for (const session of data?.sessions || []) {
+    if (isRecognizeSession(session)) continue;
     for (const stroke of session.strokes || []) {
       if (!stroke?.id) continue;
       const id = String(stroke.id);
@@ -1645,11 +2123,55 @@ function countSessionStrokesById(data) {
   return byId;
 }
 
+/** 识字模式 strokes：只计识别数，不计入练字经验 */
+function countRecognizeById(data) {
+  const byId = new Map();
+  for (const session of data?.sessions || []) {
+    if (!isRecognizeSession(session)) continue;
+    for (const stroke of session.strokes || []) {
+      if (!stroke?.id) continue;
+      const id = String(stroke.id);
+      byId.set(id, (byId.get(id) || 0) + 1);
+    }
+  }
+  return byId;
+}
+
+function collectRecognizeChars(data) {
+  const counts = countRecognizeById(data);
+  const byId = new Map();
+  for (const entry of getLibraryEntries()) {
+    if (normalizeItemScript(entry?.script) !== 'cao' || !entry?.id) continue;
+    byId.set(entry.id, {
+      id: entry.id,
+      char: entry.char,
+      script: 'cao',
+      recognizeCount: counts.get(entry.id) || 0,
+    });
+  }
+  const catalogById = getCatalogById();
+  for (const [id, count] of counts) {
+    if (byId.has(id)) continue;
+    const catalog = catalogById.get(id);
+    byId.set(id, {
+      id,
+      char: catalog?.char || id,
+      script: normalizeItemScript(catalog?.script),
+      recognizeCount: count,
+    });
+  }
+  return [...byId.values()].sort((a, b) => (
+    (b.recognizeCount || 0) - (a.recognizeCount || 0)
+    || String(a.char || '').localeCompare(String(b.char || ''), 'zh')
+  ));
+}
+
 /** sessions 内各 id 最早/最晚时间（用 session 起止近似） */
 function getSessionTimeBoundsById(data) {
   const firstById = new Map();
   const lastById = new Map();
   for (const session of data?.sessions || []) {
+    if (isRecognizeSession(session)) continue;
     const started = session.startedAt || session.endedAt || null;
     const ended = session.endedAt || session.startedAt || null;
     for (const stroke of session.strokes || []) {
@@ -1821,6 +2343,19 @@ function getLibraryEntries() {
   return buildLibrary(caoChars);
 }
 
+/** 草体字库 id → 加入时间序（越大越新；来自 zi-catalog-cao.js 文件顺序） */
+function getCaoCatalogOrderIndex() {
+  const map = new Map();
+  const list = typeof DEFAULT_ZI_CAO !== 'undefined' && Array.isArray(DEFAULT_ZI_CAO)
+    ? DEFAULT_ZI_CAO
+    : [];
+  list.forEach((zi, index) => {
+    const id = zi?.id ? String(zi.id) : '';
+    if (id) map.set(id, index);
+  });
+  return map;
+}
+
 function lerp(a, b, t) {
   return a + (b - a) * t;
 }
@@ -1847,18 +2382,29 @@ function updateLevelOverlays() {
   const isShop = levelDisplayMode === 'shop';
   const isSettings = levelDisplayMode === 'settings';
   const isInkHistory = levelDisplayMode === 'inkHistory';
-  const showStyleTools = showLevel && isActiveTestUser() && !isSettings && !isShop && !isInkHistory;
-  const showDismantle = showLevel && !isSettings && !isShop && !isInkHistory
-    && levelDisplayMode !== 'levels';
+  const isAtlas = levelDisplayMode === 'atlas';
+  const showStyleTools = showLevel && isActiveTestUser()
+    && !isSettings && !isShop && !isInkHistory && !isAtlas;
+  const showDismantle = showLevel && !isSettings && !isShop && !isInkHistory && !isAtlas
+    && levelDisplayMode !== 'levels'
+    && levelDisplayMode !== 'sort'
+    && levelDisplayMode !== 'recognize';
   const showPreview = showLevel && !isSettings && !isShop && !isInkHistory;
   el.cardPreviewSlot?.classList.toggle('hidden', !showPreview);
   el.cardStyleTools?.classList.toggle('hidden', !showStyleTools);
   el.dismantleTools?.classList.toggle('hidden', !showDismantle);
+  document.body.classList.toggle('has-dismantle-tools', showDismantle);
   document.body.classList.toggle('has-card-style-tools', showStyleTools);
   el.levelNavSlot?.classList.toggle('hidden', !showLevel);
   document.body.classList.toggle('has-level-nav', showLevel);
   document.body.classList.toggle('is-dismantle-mode', showDismantle && dismantleMode);
   document.body.classList.toggle('is-shop-view', showLevel && isShop);
+  document.body.classList.toggle('is-atlas-view', showLevel && isAtlas);
+  document.body.classList.toggle(
+    'is-catalog-sort-view',
+    showLevel && levelDisplayMode === 'sort',
+  );
+  syncPityDiamondUI();
   syncDismantleModeButton();
   if (!showStyleTools) {
     closeCardStyleMenus();
@@ -1874,6 +2420,21 @@ function updateLevelOverlays() {
     hideCardPreview();
   }
   syncDismantleOverlay();
+  syncKeyboardSelectAfterRender();
+  const activeEntry = fileEntries.find((item) => item.id === activeId);
+  syncUniquesMismatchFlag(activeEntry?.data);
+}
+
+function syncUniquesMismatchFlag(data) {
+  const mismatch = Boolean(data)
+    && (
+      Boolean(data.uniquesMismatch)
+      || (typeof uniquesInventoryMatchesHistory === 'function'
+        && !uniquesInventoryMatchesHistory(data))
+    );
+  el.uniquesMismatchFlag?.classList.toggle('hidden', !mismatch);
+  el.uniquesMismatchFlag?.setAttribute('aria-hidden', mismatch ? 'false' : 'true');
+  document.body.classList.toggle('has-uniques-mismatch', mismatch);
 }
 
 function syncDismantleModeButton() {
@@ -1882,6 +2443,567 @@ function syncDismantleModeButton() {
   el.btnDismantleMode.setAttribute('aria-pressed', dismantleMode ? 'true' : 'false');
   const label = el.btnDismantleMode.querySelector('.dismantle-switch-label');
   if (label) label.textContent = dismantleMode ? '取消' : '分解';
+}
+
+/** 连续未获得 unique 达到此数可领取保底 */
+const UNIQUE_PITY_STREAK_THRESHOLD = 32;
+/** 写盘触发页面刷新时，用 sessionStorage 恢复中央领取卡 */
+const PITY_REVEAL_STORAGE_KEY = 'cao-pity-claim-reveal';
+
+function getUniquePityClaims(data) {
+  return Array.isArray(data?.uniquePityClaims) ? data.uniquePityClaims : [];
+}
+
+function getUniquePityPending(data) {
+  return data?.uniquePityPending && typeof data.uniquePityPending === 'object'
+    ? data.uniquePityPending
+    : null;
+}
+
+function clearPityRevealStorage() {
+  try {
+    sessionStorage.removeItem(PITY_REVEAL_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function stashPityRevealForReload(item) {
+  try {
+    sessionStorage.setItem(PITY_REVEAL_STORAGE_KEY, JSON.stringify(item));
+  } catch {
+    // ignore
+  }
+}
+
+function readStashedPityReveal() {
+  try {
+    const raw = sessionStorage.getItem(PITY_REVEAL_STORAGE_KEY);
+    if (!raw) return null;
+    const item = JSON.parse(raw);
+    return item && typeof item === 'object' ? item : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 保底就绪时预先掷好待领卡（写入 data.uniquePityPending）
+ * 字池与左侧「卡面」一致：仅已有卡面图的字
+ * 未就绪则清空 pending
+ * @returns {Promise<{ pending: object|null, created: boolean, cleared?: boolean }>}
+ */
+async function ensureUniquePityPending(data) {
+  if (!data || typeof data !== 'object') return { pending: null, created: false };
+  const streak = computeUniqueDryStreak(data);
+  if (streak < UNIQUE_PITY_STREAK_THRESHOLD) {
+    if (data.uniquePityPending) {
+      data.uniquePityPending = null;
+      return { pending: null, created: false, cleared: true };
+    }
+    return { pending: null, created: false };
+  }
+
+  const existing = getUniquePityPending(data);
+  if (existing?.id && existing?.cardStyle) {
+    const catalog = getCatalogById().get(String(existing.id));
+    const hasFace = await probeCardImageExists(
+      catalog?.char || existing.id,
+      normalizeItemScript(catalog?.script),
+      String(existing.id),
+    );
+    if (hasFace) return { pending: existing, created: false };
+    // 旧 pending 无卡面：作废重掷
+    data.uniquePityPending = null;
+  }
+
+  const zi = await pickRandomLibraryEntryForPity();
+  if (!zi?.id) return { pending: null, created: false };
+
+  const rolled = typeof rollPityUniqueCardStyle === 'function'
+    ? rollPityUniqueCardStyle(Math.random)
+    : (typeof rollUniqueTraitChecks === 'function' ? rollUniqueTraitChecks(Math.random) : null);
+  if (!rolled?.isUnique || !rolled?.cardStyle) return { pending: null, created: false };
+
+  const cardStyle = typeof normalizeCardStyleRecord === 'function'
+    ? normalizeCardStyleRecord(rolled.cardStyle)
+    : rolled.cardStyle;
+  const rolledAt = new Date().toISOString();
+  const pending = {
+    id: String(zi.id),
+    cardStyle,
+    rolledAt,
+    acquiredAt: rolledAt,
+    streakAtClaim: streak,
+    ciHao: streak,
+    isUnique: true,
+    isPityUnique: true,
+    isPityPending: true,
+  };
+  data.uniquePityPending = pending;
+  return { pending, created: true };
+}
+
+function sessionTimeIso(session) {
+  return session?.endedAt || session?.startedAt || null;
+}
+
+function estimateStrokeTimeIso(session, strokeIndex) {
+  const ms = estimateUniqueAcquiredAt(session, strokeIndex);
+  if (Number.isFinite(ms)) return new Date(ms).toISOString();
+  return sessionTimeIso(session);
+}
+
+/** 最近一次「打断」连续未 unique 的时间：练习 unique 或保底领取 */
+function getLastUniqueBreakIso(data) {
+  let latest = null;
+  for (const claim of getUniquePityClaims(data)) {
+    const at = claim?.acquiredAt ? String(claim.acquiredAt) : '';
+    if (at && (!latest || at > latest)) latest = at;
+  }
+  const sessions = getPracticeSessions(data);
+  for (const session of sessions) {
+    const strokes = session.strokes || [];
+    for (let i = 0; i < strokes.length; i += 1) {
+      const stroke = strokes[i];
+      const isUnique = typeof strokeHasUniqueCardStyle === 'function'
+        ? strokeHasUniqueCardStyle(stroke)
+        : Boolean(stroke?.isUnique && stroke?.cardStyle);
+      if (!isUnique) continue;
+      const at = estimateStrokeTimeIso(session, i);
+      if (at && (!latest || at > latest)) latest = at;
+    }
+  }
+  return latest;
+}
+
+/**
+ * 实时计算：最近一次 unique/保底领取之后，连续练习字数（无 unique）
+ */
+function computeUniqueDryStreak(data) {
+  const breakAt = getLastUniqueBreakIso(data);
+  const sessions = getPracticeSessions(data);
+  let streak = 0;
+  for (let si = sessions.length - 1; si >= 0; si -= 1) {
+    const session = sessions[si];
+    const strokes = session.strokes || [];
+    for (let i = strokes.length - 1; i >= 0; i -= 1) {
+      const stroke = strokes[i];
+      const strokeAt = estimateStrokeTimeIso(session, i);
+      if (breakAt && strokeAt && strokeAt <= breakAt) {
+        return streak;
+      }
+      const isUnique = typeof strokeHasUniqueCardStyle === 'function'
+        ? strokeHasUniqueCardStyle(stroke)
+        : Boolean(stroke?.isUnique && stroke?.cardStyle);
+      if (isUnique) return streak;
+      if (stroke?.id) streak += 1;
+    }
+  }
+  return streak;
+}
+
+function findNearestPracticeSession(sessions, acquiredAt) {
+  if (!acquiredAt || !sessions?.length) return null;
+  let best = null;
+  for (const session of sessions) {
+    const t = sessionTimeIso(session);
+    if (t && t <= acquiredAt) best = session;
+  }
+  return best;
+}
+
+function findNearestPracticeSessionIndex(sessions, acquiredAt) {
+  if (!acquiredAt || !sessions?.length) return -1;
+  let best = -1;
+  for (let i = 0; i < sessions.length; i += 1) {
+    const t = sessionTimeIso(sessions[i]);
+    if (t && t <= acquiredAt) best = i;
+  }
+  return best;
+}
+
+/** 与左侧「卡面」一致：已探测到卡面图的字库条目缓存 */
+let pityCardFaceCatalogCache = null;
+let pityCardFaceCatalogPromise = null;
+
+/** 收集有卡面的字（逻辑同卡面 tab 的 probeCardImageExists） */
+async function collectCatalogWithCardFace() {
+  if (pityCardFaceCatalogCache) return pityCardFaceCatalogCache;
+  if (pityCardFaceCatalogPromise) return pityCardFaceCatalogPromise;
+
+  pityCardFaceCatalogPromise = (async () => {
+    const entries = typeof getLibraryEntries === 'function'
+      ? getLibraryEntries().filter((zi) => zi?.id && zi?.char)
+      : [];
+    const out = [];
+    const batchSize = 12;
+    for (let i = 0; i < entries.length; i += batchSize) {
+      const batch = entries.slice(i, i + batchSize);
+      const flags = await Promise.all(
+        batch.map((zi) => probeCardImageExists(
+          zi.char,
+          normalizeItemScript(zi.script),
+          zi.id,
+        )),
+      );
+      batch.forEach((zi, index) => {
+        if (flags[index]) out.push(zi);
+      });
+    }
+    pityCardFaceCatalogCache = out;
+    return out;
+  })();
+
+  try {
+    return await pityCardFaceCatalogPromise;
+  } finally {
+    pityCardFaceCatalogPromise = null;
+  }
+}
+
+/** 保底随机字：仅从已有卡面的字中抽 */
+async function pickRandomLibraryEntryForPity() {
+  const usable = await collectCatalogWithCardFace();
+  if (!usable.length) return null;
+  return usable[Math.floor(Math.random() * usable.length)];
+}
+
+function syncPityDiamondUI() {
+  void syncPityDiamondUIAsync();
+}
+
+async function syncPityDiamondUIAsync() {
+  const entry = fileEntries.find((item) => item.id === activeId);
+  const show = currentView === 'level' && Boolean(entry?.data);
+  el.pityTools?.classList.toggle('hidden', !show);
+  if (!show) {
+    el.btnPityDiamond?.classList.remove('is-ready');
+    return;
+  }
+  const ensured = await ensureUniquePityPending(entry.data);
+  const overlayOpen = el.pityClaimOverlay && !el.pityClaimOverlay.classList.contains('hidden');
+  if ((ensured.created || ensured.cleared) && !overlayOpen) {
+    // 就绪时预先落盘待领卡 / 未就绪清掉；不阻塞 UI
+    void writeActiveUserData(entry.data).catch(() => {});
+  }
+  const streak = computeUniqueDryStreak(entry.data);
+  const ready = streak >= UNIQUE_PITY_STREAK_THRESHOLD && Boolean(getUniquePityPending(entry.data));
+  el.btnPityDiamond?.classList.toggle('is-ready', ready);
+  if (el.pityDiamondLabel) {
+    el.pityDiamondLabel.textContent = ready ? '!' : String(streak);
+  }
+  if (el.btnPityDiamond) {
+    el.btnPityDiamond.title = ready
+      ? `可领取保底 unique（连续 ${streak} 字未获得）`
+      : `连续 ${streak} 字未获得 unique（${UNIQUE_PITY_STREAK_THRESHOLD} 可领取）`;
+    el.btnPityDiamond.disabled = false;
+  }
+}
+
+function closePityClaimOverlay({ obtained = false } = {}) {
+  const wasOpen = el.pityClaimOverlay && !el.pityClaimOverlay.classList.contains('hidden');
+  el.pityClaimOverlay?.classList.add('hidden');
+  el.pityClaimOverlay?.setAttribute('aria-hidden', 'true');
+  el.pityClaimCardSlot?.replaceChildren();
+  clearPityRevealStorage();
+  if (!wasOpen) return;
+  const entry = fileEntries.find((item) => item.id === activeId);
+  syncPityDiamondUI();
+  // 仅真正获得后刷新列表；取消关闭则保留 pending，金刚仍可点
+  if (obtained && entry?.data) renderActiveView(entry);
+}
+
+function resolvePityFaceColors(cardStyle) {
+  const fallbackId = typeof CARD_DEFAULT_COLOR_SCHEME_ID !== 'undefined'
+    ? CARD_DEFAULT_COLOR_SCHEME_ID
+    : DEFAULT_COLOR_SCHEME_ID;
+  const schemeId = cardStyle?.colorSchemeId || fallbackId;
+  const scheme = typeof getColorSchemeById === 'function'
+    ? (getColorSchemeById(schemeId) || getColorSchemeById(fallbackId))
+    : null;
+  return {
+    primary: scheme?.primaryColor || '#191919',
+    secondary: scheme?.secondaryColor || '#848484',
+    tertiary: scheme?.tertiaryColor || scheme?.secondaryColor || '#848484',
+  };
+}
+
+function loadFirstImage(candidates) {
+  const list = Array.isArray(candidates) ? candidates : [];
+  return new Promise((resolve) => {
+    let index = 0;
+    const tryNext = () => {
+      if (index >= list.length) {
+        resolve('');
+        return;
+      }
+      const path = list[index++];
+      const probe = new Image();
+      probe.onload = () => resolve(path);
+      probe.onerror = tryNext;
+      probe.src = path;
+    };
+    tryNext();
+  });
+}
+
+/** 中央展示 unique 卡面（与右侧预览同结构），不是字 cell */
+async function paintPityClaimFace(faceRoot, item) {
+  if (!faceRoot || !item) return;
+  // 必须用待领卡自身的 cardStyle，勿走 resolveCardStyleForDisplay（测试用户「覆盖」会盖掉）
+  const paintStyle = withDefaultUniqueColorScheme(
+    typeof normalizeCardStyleRecord === 'function'
+      ? normalizeCardStyleRecord(item.cardStyle)
+      : item.cardStyle,
+  );
+  const colors = resolvePityFaceColors(paintStyle);
+
+  faceRoot.classList.add('card-preview', 'is-visible');
+  if (typeof applyCardStyleToElement === 'function') {
+    applyCardStyleToElement(faceRoot, paintStyle);
+  }
+  // 显式铺底色（secondary）；配色 class 负责 CSS 变量，这里保证立刻可见
+  faceRoot.style.background = colors.secondary;
+
+  const baseEl = faceRoot.querySelector('.card-preview-base');
+  const maskEl = faceRoot.querySelector('.card-preview-mask');
+  const fallbackEl = faceRoot.querySelector('.card-preview-fallback');
+  const modifierEl = faceRoot.querySelector('.card-preview-modifier');
+
+  if (fallbackEl) {
+    fallbackEl.textContent = item.char || '?';
+    fallbackEl.style.color = colors.primary;
+    fallbackEl.classList.remove('hidden');
+  }
+
+  // cardBase（tertiary mask）
+  if (baseEl) {
+    const baseId = paintStyle?.cardBase || null;
+    const baseUrl = baseId && typeof getCardBaseImageCandidates === 'function'
+      ? await loadFirstImage(getCardBaseImageCandidates(baseId))
+      : '';
+    if (baseUrl) {
+      const quoted = `url("${baseUrl}")`;
+      baseEl.style.webkitMaskImage = quoted;
+      baseEl.style.maskImage = quoted;
+      baseEl.style.backgroundColor = colors.tertiary;
+      baseEl.classList.remove('hidden');
+      baseEl.setAttribute('aria-hidden', 'false');
+    } else {
+      baseEl.style.webkitMaskImage = '';
+      baseEl.style.maskImage = '';
+      baseEl.style.backgroundColor = '';
+      baseEl.classList.add('hidden');
+      baseEl.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  // cardImage mask（primary）
+  if (maskEl) {
+    const candidates = getCardImageCandidates(item.char, item.script, item.id);
+    const maskUrl = await loadFirstImage(candidates);
+    if (maskUrl) {
+      const quoted = `url("${maskUrl}")`;
+      maskEl.style.webkitMaskImage = quoted;
+      maskEl.style.maskImage = quoted;
+      maskEl.style.backgroundColor = colors.primary;
+      maskEl.classList.remove('hidden');
+      maskEl.setAttribute('aria-hidden', 'false');
+      fallbackEl?.classList.add('hidden');
+    } else {
+      maskEl.style.webkitMaskImage = '';
+      maskEl.style.maskImage = '';
+      maskEl.style.backgroundColor = '';
+      maskEl.classList.add('hidden');
+      maskEl.setAttribute('aria-hidden', 'true');
+      fallbackEl?.classList.remove('hidden');
+    }
+  }
+
+  // modifier sticker
+  if (modifierEl) {
+    const modId = paintStyle?.cardModifier || null;
+    let modUrl = '';
+    if (modId && typeof getCardModifierImageCandidates === 'function') {
+      modUrl = await loadFirstImage(getCardModifierImageCandidates(modId));
+    }
+    if (modUrl) {
+      modifierEl.src = modUrl;
+      modifierEl.classList.remove('hidden');
+      modifierEl.setAttribute('aria-hidden', 'false');
+    } else {
+      modifierEl.removeAttribute('src');
+      modifierEl.classList.add('hidden');
+      modifierEl.setAttribute('aria-hidden', 'true');
+    }
+  }
+}
+
+function buildPityClaimFaceShell(item) {
+  const face = document.createElement('div');
+  // 同时挂 card-preview，才能吃到 injectCardStyleSheet 的配色规则
+  face.className = 'pity-claim-face card-preview is-visible';
+  face.setAttribute('aria-label', `保底 unique：${item?.char || item?.id || ''}`);
+
+  const base = document.createElement('div');
+  base.className = 'card-preview-base hidden';
+  base.setAttribute('aria-hidden', 'true');
+
+  const mask = document.createElement('div');
+  mask.className = 'card-preview-mask hidden';
+  mask.setAttribute('aria-hidden', 'true');
+
+  const fallback = document.createElement('span');
+  fallback.className = 'card-preview-fallback';
+  fallback.textContent = item?.char || '?';
+
+  const modifier = document.createElement('img');
+  modifier.className = 'card-preview-modifier hidden';
+  modifier.alt = '';
+  modifier.setAttribute('aria-hidden', 'true');
+
+  face.append(base, mask, fallback, modifier);
+  return face;
+}
+
+function buildPityOfferRevealItem(pending, data) {
+  if (!pending?.id || !pending?.cardStyle) return null;
+  const catalog = getCatalogById().get(String(pending.id));
+  const cardStyle = typeof normalizeCardStyleRecord === 'function'
+    ? normalizeCardStyleRecord(pending.cardStyle)
+    : pending.cardStyle;
+  const streakAtClaim = Math.max(
+    UNIQUE_PITY_STREAK_THRESHOLD,
+    Math.floor(Number(pending.streakAtClaim) || computeUniqueDryStreak(data) || 0),
+  );
+  return {
+    id: String(pending.id),
+    char: catalog?.char || pending.id,
+    script: normalizeItemScript(catalog?.script),
+    cardStyle,
+    ciHao: streakAtClaim,
+    streakAtClaim,
+    isPityUnique: true,
+    isPityPending: true,
+  };
+}
+
+function showPityClaimOverlay(item) {
+  if (!el.pityClaimOverlay || !el.pityClaimCardSlot || !item) return;
+  el.pityClaimCardSlot.replaceChildren();
+  const face = buildPityClaimFaceShell(item);
+  el.pityClaimCardSlot.appendChild(face);
+  el.pityClaimOverlay.classList.remove('hidden');
+  el.pityClaimOverlay.setAttribute('aria-hidden', 'false');
+  void paintPityClaimFace(face, item);
+}
+
+function restorePityClaimOverlayIfNeeded() {
+  const item = readStashedPityReveal();
+  if (!item) return false;
+  // 仅恢复「待确认获得」的展示；已写入的不要再弹
+  if (!item.isPityPending) {
+    clearPityRevealStorage();
+    return false;
+  }
+  showPityClaimOverlay(item);
+  return true;
+}
+
+/** 点钻石：只展示预先掷好的卡面，不写入库存 */
+async function openPityClaimOffer() {
+  const entry = fileEntries.find((item) => item.id === activeId);
+  if (!entry?.data) return;
+
+  const ensured = await ensureUniquePityPending(entry.data);
+  if (ensured.created || ensured.cleared) {
+    void writeActiveUserData(entry.data).catch(() => {});
+  }
+  const pending = ensured.pending || getUniquePityPending(entry.data);
+  const streak = computeUniqueDryStreak(entry.data);
+  if (streak < UNIQUE_PITY_STREAK_THRESHOLD || !pending?.id || !pending?.cardStyle) {
+    setHint(
+      ensured.pending == null && streak >= UNIQUE_PITY_STREAK_THRESHOLD
+        ? '字库中暂无带卡面的字，无法生成保底 unique'
+        : `还需连续 ${Math.max(0, UNIQUE_PITY_STREAK_THRESHOLD - streak)} 字未获得 unique`,
+      true,
+    );
+    syncPityDiamondUI();
+    return;
+  }
+
+  const revealItem = buildPityOfferRevealItem(pending, entry.data);
+  if (!revealItem) {
+    setHint('保底卡尚未准备好', true);
+    return;
+  }
+  stashPityRevealForReload(revealItem);
+  showPityClaimOverlay(revealItem);
+  setHint(`保底 unique「${revealItem.char}」待确认，点击获得收入卡库`);
+}
+
+/** 点「获得」：此时才写入 upc / uq */
+async function confirmPityClaimObtain() {
+  const entry = fileEntries.find((item) => item.id === activeId);
+  if (!entry?.data) return;
+
+  const pending = getUniquePityPending(entry.data);
+  if (!pending?.id || !pending?.cardStyle) {
+    setHint('没有待领取的保底卡', true);
+    closePityClaimOverlay({ obtained: false });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const sessions = getPracticeSessions(entry.data);
+  const anchor = findNearestPracticeSession(sessions, now);
+  const cardStyle = typeof normalizeCardStyleRecord === 'function'
+    ? normalizeCardStyleRecord(pending.cardStyle)
+    : pending.cardStyle;
+  const streakAtClaim = Math.max(
+    UNIQUE_PITY_STREAK_THRESHOLD,
+    Math.floor(Number(pending.streakAtClaim) || computeUniqueDryStreak(entry.data) || 0),
+  );
+
+  const claim = {
+    id: String(pending.id),
+    cardStyle,
+    acquiredAt: now,
+    streakAtClaim,
+    ciHao: streakAtClaim,
+    anchorSessionAt: sessionTimeIso(anchor) || anchor?.startedAt || null,
+    isUnique: true,
+    isPityUnique: true,
+  };
+
+  if (!Array.isArray(entry.data.uniquePityClaims)) entry.data.uniquePityClaims = [];
+  entry.data.uniquePityClaims.push(claim);
+  const pityIndex = entry.data.uniquePityClaims.length - 1;
+  if (typeof appendUniqueFromPityClaim === 'function') {
+    appendUniqueFromPityClaim(entry.data, pityIndex);
+  }
+  entry.data.uniquePityPending = null;
+  entry.data.updatedAt = now;
+
+  const catalog = getCatalogById().get(String(claim.id));
+  try {
+    if (el.btnPityClaimClose) el.btnPityClaimClose.disabled = true;
+    await writeActiveUserData(entry.data);
+    clearPityRevealStorage();
+    closePityClaimOverlay({ obtained: true });
+    setHint(`已获得保底 unique：${catalog?.char || claim.id}（次号 ${streakAtClaim}）`);
+  } catch (error) {
+    entry.data.uniquePityClaims.pop();
+    if (typeof removeUniqueInventoryAt === 'function') {
+      removeUniqueInventoryAt(entry.data, -1, pityIndex);
+    }
+    entry.data.uniquePityPending = pending;
+    setHint(`获得失败：${error.message || error}`, true);
+  } finally {
+    if (el.btnPityClaimClose) el.btnPityClaimClose.disabled = false;
+    syncPityDiamondUI();
+  }
 }
 
 function updateCardPreviewSlot() {
@@ -2061,6 +3183,9 @@ async function confirmDismantleSelected() {
   }
 
   stripUniqueFromStroke(stroke);
+  if (typeof removeUniqueInventoryAt === 'function') {
+    removeUniqueInventoryAt(data, item.sessionIndex, item.strokeIndex);
+  }
   dismantleSelection = null;
   resetDismantleConfirmButton();
   syncDismantleOverlay();
@@ -2143,26 +3268,43 @@ async function collectCatalogWithCardPng() {
   }
 }
 
-async function ensureAndRenderShop() {
+let todayShopEnsurePromise = null;
+
+/** 当天货架还没有就生成并写入。不切换当前页面。 */
+function requestTodayShopCheck() {
+  if (!dirHandle) return Promise.resolve(null);
+  const day = typeof getShopDayKey === 'function' ? getShopDayKey() : '';
+  if (
+    day
+    && currentShopSession?.day === day
+    && Array.isArray(currentShopSession.offers)
+    && currentShopSession.offers.length > 0
+  ) {
+    return Promise.resolve(currentShopSession);
+  }
+  if (todayShopEnsurePromise) return todayShopEnsurePromise;
+  todayShopEnsurePromise = ensureTodayShopSession().finally(() => {
+    todayShopEnsurePromise = null;
+  });
+  return todayShopEnsurePromise;
+}
+
+async function ensureTodayShopSession() {
   const token = ++shopEnsureToken;
-  if (!dirHandle) {
-    currentShopSession = null;
-    renderShopPanel(null);
-    return;
-  }
-  if (typeof getShopDayKey !== 'function' || typeof generateShopSession !== 'function') {
-    renderShopPanel(null);
-    return;
-  }
+  if (!dirHandle) return null;
+  if (typeof getShopDayKey !== 'function' || typeof generateShopSession !== 'function') return null;
 
   const day = getShopDayKey();
-  if (currentShopSession?.day === day && el.shopRow?.childElementCount > 0) {
-    renderShopPanel(currentShopSession);
-    return;
+  if (
+    currentShopSession?.day === day
+    && Array.isArray(currentShopSession.offers)
+    && currentShopSession.offers.length > 0
+  ) {
+    return currentShopSession;
   }
 
   let history = shopHistoryCache || await loadShopHistoryFromDisk();
-  if (token !== shopEnsureToken) return;
+  if (token !== shopEnsureToken) return null;
   shopHistoryCache = history;
 
   let session = typeof findShopSessionByDay === 'function'
@@ -2170,13 +3312,14 @@ async function ensureAndRenderShop() {
     : null;
 
   if (!session || !Array.isArray(session.offers) || session.offers.length === 0) {
+    // 写盘可能让页面热刷新；先记住当前分类，避免被打回总览以外的页面
+    persistLevelDisplayMode(levelDisplayMode);
     const pool = await collectCatalogWithCardPng();
-    if (token !== shopEnsureToken) return;
+    if (token !== shopEnsureToken) return null;
     if (!pool.length) {
-      setHint('商店：没有找到带 png 卡面的字', true);
+      if (levelDisplayMode === 'shop') setHint('商店：没有找到带 png 卡面的字', true);
       currentShopSession = null;
-      renderShopPanel(null);
-      return;
+      return null;
     }
     session = generateShopSession(pool, { day });
     if (!history.sessions) history.sessions = [];
@@ -2184,9 +3327,11 @@ async function ensureAndRenderShop() {
     try {
       await saveShopHistoryToDisk(history);
     } catch (error) {
-      setHint(`商店写入失败：${error.message || error}`, true);
+      if (levelDisplayMode === 'shop') {
+        setHint(`商店写入失败：${error.message || error}`, true);
+      }
     }
-    if (token !== shopEnsureToken) return;
+    if (token !== shopEnsureToken) return null;
   }
 
   // 旧货架缺次号时补写 1–20 并落盘
@@ -2199,6 +3344,7 @@ async function ensureAndRenderShop() {
     }
   }
   if (patchedCi) {
+    persistLevelDisplayMode(levelDisplayMode);
     try {
       await saveShopHistoryToDisk(history);
     } catch {
@@ -2207,6 +3353,24 @@ async function ensureAndRenderShop() {
   }
 
   currentShopSession = session;
+  return session;
+}
+
+async function ensureAndRenderShop() {
+  if (levelDisplayMode === 'shop') persistLevelDisplayMode('shop');
+  if (!dirHandle) {
+    currentShopSession = null;
+    renderShopPanel(null);
+    return;
+  }
+  const session = await requestTodayShopCheck();
+  if (levelDisplayMode !== 'shop') return;
+  el.levelPanel?.classList.add('hidden');
+  el.panel?.classList.add('hidden');
+  el.settingsPanel?.classList.add('hidden');
+  el.inkHistoryPanel?.classList.add('hidden');
+  el.shopPanel?.classList.remove('hidden');
+  document.body.classList.add('is-shop-view');
   renderShopPanel(session);
 }
 
@@ -2519,6 +3683,9 @@ async function purchaseShopOffer(offerId, actionsBtn = null) {
       totalDurationMs: 0,
     },
   });
+  if (typeof appendUniquesFromSession === 'function') {
+    appendUniquesFromSession(data, data.sessions.length - 1);
+  }
   data.updatedAt = now;
   if (!data.summary || typeof data.summary !== 'object') data.summary = {};
   data.summary.sessionCount = data.sessions.length;
@@ -2548,7 +3715,11 @@ async function purchaseShopOffer(offerId, actionsBtn = null) {
     if (Array.isArray(data.sessions) && data.sessions.length) {
       const last = data.sessions[data.sessions.length - 1];
       if (last?.commitSource === 'daily-shop' && last?.startedAt === now) {
+        const poppedIndex = data.sessions.length - 1;
         data.sessions.pop();
+        if (typeof removeUniqueInventoryAt === 'function') {
+          removeUniqueInventoryAt(data, poppedIndex, 0);
+        }
       }
     }
     setHint(`写入失败：${error.message || error}`, true);
@@ -2563,12 +3734,21 @@ function setLevelDisplayMode(mode) {
     historySessionIndex = null;
   } else if (mode === 'unique') levelDisplayMode = 'unique';
   else if (mode === 'levels') levelDisplayMode = 'levels';
+  else if (mode === 'recognize') levelDisplayMode = 'recognize';
+  else if (mode === 'sort' || mode === 'catalog' || mode === 'recency') {
+    levelDisplayMode = 'sort';
+    if (mode === 'catalog') sortByMode = 'joined';
+    else if (mode === 'recency') sortByMode = 'recency';
+    persistSortByMode(sortByMode);
+  }
   else if (mode === 'cardFace') levelDisplayMode = 'cardFace';
   else if (mode === 'glyphImage') levelDisplayMode = 'glyphImage';
   else if (mode === 'shop') levelDisplayMode = 'shop';
+  else if (mode === 'atlas') levelDisplayMode = 'atlas';
   else if (mode === 'inkHistory') levelDisplayMode = 'inkHistory';
   else if (mode === 'settings') levelDisplayMode = 'settings';
   else levelDisplayMode = 'overview';
+  persistLevelDisplayMode(levelDisplayMode);
   if (prevMode === 'shop' && levelDisplayMode !== 'shop') stopShopCountdown();
   applyLevelNavUI();
   hideCardPreview();
@@ -2576,7 +3756,11 @@ function setLevelDisplayMode(mode) {
   if (entry?.data && currentView === 'level') renderActiveView(entry);
   else if (levelDisplayMode === 'settings' && currentView === 'level') renderSettingsView();
   else if (levelDisplayMode === 'shop' && currentView === 'level') renderShopView();
+  else if (levelDisplayMode === 'atlas' && currentView === 'level') renderAtlasView();
   else if (levelDisplayMode === 'inkHistory' && currentView === 'level') renderInkHistoryView(entry);
+  if (levelDisplayMode === 'overview' && currentView === 'level') {
+    void requestTodayShopCheck();
+  }
 }
 
 function setView(view) {
@@ -2597,10 +3781,14 @@ function setView(view) {
   }
   updateCardPreviewSlot();
 
-  if (currentView !== 'level') hideCardPreview();
+  if (currentView !== 'level') {
+    setKeyboardSelectMode(false);
+    hideCardPreview();
+  }
 
   const entry = fileEntries.find((item) => item.id === activeId);
   if (entry?.data) renderActiveView(entry);
+  if (currentView === 'level') void requestTodayShopCheck();
 }
 
 function getCardImageCandidates(char, script, id) {
@@ -3027,6 +4215,33 @@ function formatBeijingDate(isoOrMs) {
   return `${year}年${month}月${day}日`;
 }
 
+/** 北京时间 → xxxx年x月x日 HH:MM */
+function formatBeijingDateTime(isoOrMs) {
+  if (isoOrMs == null || isoOrMs === '') return '';
+  const date = new Date(isoOrMs);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+  const hour = parts.find((p) => p.type === 'hour')?.value;
+  const minute = parts.find((p) => p.type === 'minute')?.value;
+  if (!year || !month || !day || hour == null || minute == null) return '';
+  return `${year}年${month}月${day}日 ${hour}:${minute}`;
+}
+
+function sessionCompletedAt(session) {
+  return session?.endedAt || session?.startedAt || null;
+}
+
 /** unique 卡面信息行（有则显示）：配色 / 装饰 / 底纹 / 修饰 + 获取日期 */
 function collectCardPreviewMetaLines(uniquePreview) {
   const lines = [];
@@ -3150,6 +4365,7 @@ function fadeOutCardPreview() {
  * @param {{ cardStyle?: object, acquiredAt?: number|string|null }|null} [uniquePreview]
  */
 function onLevelCardEnter(char, script, id, uniquePreview = null) {
+  if (keyboardSelectMode) return;
   if (dismantleMode && dismantleSelection) return;
   playCardHoverSfx();
   cardPreviewHoverAt = Date.now();
@@ -3157,6 +4373,7 @@ function onLevelCardEnter(char, script, id, uniquePreview = null) {
 }
 
 function onLevelCardLeave() {
+  if (keyboardSelectMode) return;
   // 已钉住选中卡：离开其它卡时不要重载预览（showCardPreview 会清 mask，造成闪一下）
   if (dismantleMode && dismantleSelection) {
     cancelCardPreviewFade();
@@ -3194,6 +4411,10 @@ function renderActiveView(entry) {
       renderShopView();
       return;
     }
+    if (levelDisplayMode === 'atlas') {
+      renderAtlasView();
+      return;
+    }
     if (levelDisplayMode === 'inkHistory') {
       renderInkHistoryView(entry);
       return;
@@ -3203,8 +4424,14 @@ function renderActiveView(entry) {
     el.shopPanel?.classList.add('hidden');
     el.inkHistoryPanel?.classList.add('hidden');
     if (levelDisplayMode === 'lastSession') renderLastSessionView(entry);
+    else if (levelDisplayMode === 'recognize') renderRecognizeView(entry);
     else if (levelDisplayMode === 'unique') renderLevelView(entry, { uniqueOnly: true });
     else if (levelDisplayMode === 'levels') renderLevelView(entry, { levelsOnly: true });
+    else if (levelDisplayMode === 'sort') {
+      renderLevelView(entry, sortByMode === 'recency'
+        ? { recencyOrder: true }
+        : { catalogOrder: true });
+    }
     else if (levelDisplayMode === 'cardFace') renderLevelView(entry, { imageFilter: 'card' });
     else if (levelDisplayMode === 'glyphImage') renderLevelView(entry, { imageFilter: 'glyph' });
     else renderLevelView(entry);
@@ -3219,12 +4446,14 @@ function renderActiveView(entry) {
 
 const RECORD_UNIQUE_FRAME_COLOR = '#e87822';
 
-function createLevelCard(item, info, color, { recordMode = false } = {}) {
+function createLevelCard(item, info, color, { recordMode = false, badgeText = null, xpText = null } = {}) {
   const script = normalizeItemScript(item.script);
   const card = document.createElement('div');
   card.className = 'level-card';
   if (recordMode) card.classList.add('is-record');
   if (recordMode && item.isUnique) card.classList.add('is-record-unique');
+  if (recordMode && item.isPityUnique) card.classList.add('is-record-pity');
+  if (recordMode && item.isPityUnique) card.classList.add('is-record-pity');
 
   const frame = document.createElement('div');
   frame.className = `level-frame script-${script}`;
@@ -3242,6 +4471,12 @@ function createLevelCard(item, info, color, { recordMode = false } = {}) {
     : (overrideScheme ? overrideScheme.primaryColor : color);
   frame.style.background = frameColor;
   frame.style.borderColor = frameColor;
+  // 记录/高光 palette：unique（含保底）额外黑描边
+  if (recordMode && item.isUnique) {
+    frame.style.borderColor = '#1a1a1a';
+    frame.style.borderWidth = '4px';
+    frame.style.borderStyle = 'solid';
+  }
   if (displayStyle && typeof applyCardStyleToElement === 'function' && !(recordMode && item.isUnique)) {
     applyCardStyleToElement(frame, displayStyle);
   }
@@ -3253,7 +4488,7 @@ function createLevelCard(item, info, color, { recordMode = false } = {}) {
   if (!recordMode) {
     const badge = document.createElement('span');
     badge.className = 'level-badge';
-    badge.textContent = `LVL. ${info.level}`;
+    badge.textContent = badgeText != null ? badgeText : `LVL. ${info.level}`;
     frame.append(glyph, badge);
   } else {
     frame.appendChild(glyph);
@@ -3262,46 +4497,105 @@ function createLevelCard(item, info, color, { recordMode = false } = {}) {
     applyCardModifierToUniqueFrame(frame, displayStyle.cardModifier);
   }
 
-  const track = document.createElement('div');
-  track.className = 'level-track';
+  if (!recordMode) {
+    const track = document.createElement('div');
+    track.className = 'level-track';
 
-  const bar = document.createElement('div');
-  bar.className = 'level-bar';
-  const fill = document.createElement('div');
-  fill.className = 'level-bar-fill';
-  fill.style.width = recordMode ? '0%' : `${Math.round(info.ratio * 1000) / 10}%`;
-  fill.style.background = accentColor;
-  bar.appendChild(fill);
+    const bar = document.createElement('div');
+    bar.className = 'level-bar';
+    const fill = document.createElement('div');
+    fill.className = 'level-bar-fill';
+    fill.style.width = `${Math.round(info.ratio * 1000) / 10}%`;
+    fill.style.background = accentColor;
+    bar.appendChild(fill);
 
-  const xp = document.createElement('div');
-  xp.className = 'level-xp';
-  if (recordMode) {
-    xp.textContent = '0 / 1';
+    const xp = document.createElement('div');
+    xp.className = 'level-xp';
+    xp.textContent = xpText != null
+      ? xpText
+      : (info.level >= MAX_CHAR_LEVEL
+        ? '满级'
+        : `${info.xp} / ${info.need}`);
+
+    track.append(bar, xp);
+    card.append(frame, track);
   } else {
-    xp.textContent = info.level >= MAX_CHAR_LEVEL
-      ? '满级'
-      : `${info.xp} / ${info.need}`;
+    card.appendChild(frame);
   }
 
-  track.append(bar, xp);
-  card.append(frame, track);
+  const uniquePreview = item.isUnique && item.cardStyle
+    ? {
+      cardStyle: item.cardStyle,
+      acquiredAt: item.acquiredAt ?? null,
+      ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(item) : (Number(item.ciHao) || 1),
+    }
+    : (displayStyle ? { cardStyle: displayStyle } : null);
+  // 默认卡 → cs000 primary；有配色则用该配色 primary
+  setKeyboardSelectRingColor(card, uniquePreview?.cardStyle || displayStyle || null);
+  levelCardPreviewByEl.set(card, {
+    char: item.char,
+    script,
+    id: item.id,
+    uniquePreview,
+  });
 
   card.addEventListener('mouseenter', () => {
-    const uniquePreview = item.isUnique && item.cardStyle
-      ? {
-        cardStyle: item.cardStyle,
-        acquiredAt: item.acquiredAt ?? null,
-        ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(item) : (Number(item.ciHao) || 1),
-      }
-      : (displayStyle ? { cardStyle: displayStyle } : null);
     onLevelCardEnter(item.char, script, item.id, uniquePreview);
   });
   card.addEventListener('mouseleave', onLevelCardLeave);
+  card.addEventListener('click', (event) => {
+    onLevelCardKeyboardSelectClick(card, event);
+  });
 
   return card;
 }
 
 function collectUniqueCardAppearances(data) {
+  if (Array.isArray(data?.uniques)) {
+    return enrichUniquesInventoryForUi(data.uniques);
+  }
+  return collectUniqueCardAppearancesFromHistory(data);
+}
+
+/** 将库存条目补全为界面用结构（字 / 体 / 时间戳毫秒） */
+function enrichUniquesInventoryForUi(uniques) {
+  const catalogById = getCatalogById();
+  return (uniques || []).map((item) => {
+    const id = String(item?.id || '');
+    const catalog = catalogById.get(id);
+    let acquiredAt = item?.acquiredAt;
+    if (typeof acquiredAt === 'string') {
+      const ms = Date.parse(acquiredAt);
+      acquiredAt = Number.isFinite(ms) ? ms : null;
+    } else if (typeof acquiredAt === 'number' && Number.isFinite(acquiredAt)) {
+      // already ms
+    } else {
+      acquiredAt = null;
+    }
+    const cardStyle = typeof normalizeCardStyleRecord === 'function'
+      ? normalizeCardStyleRecord(item?.cardStyle)
+      : item?.cardStyle;
+    return {
+      id,
+      char: catalog?.char || id,
+      script: normalizeItemScript(catalog?.script),
+      cardStyle,
+      acquiredAt,
+      ciHao: typeof resolveCiHao === 'function'
+        ? resolveCiHao(item)
+        : (Math.max(1, Math.floor(Number(item?.ciHao) || 1))),
+      sessionIndex: Math.floor(Number(item?.sessionIndex)),
+      strokeIndex: Math.floor(Number(item?.strokeIndex)),
+      starred: Boolean(item?.starred),
+      ...(item?.isPityUnique
+        ? { isPityUnique: true, streakAtClaim: item.streakAtClaim }
+        : {}),
+    };
+  });
+}
+
+/** 仅从 sessions / upc 历史拼装（对账与无库存兜底） */
+function collectUniqueCardAppearancesFromHistory(data) {
   const catalogById = getCatalogById();
   const items = [];
   const sessions = data?.sessions || [];
@@ -3347,7 +4641,53 @@ function collectUniqueCardAppearances(data) {
       });
     }
   }
+
+  const pityClaims = getUniquePityClaims(data);
+  for (let pityIndex = 0; pityIndex < pityClaims.length; pityIndex += 1) {
+    const claim = pityClaims[pityIndex];
+    if (!claim?.id || !claim?.cardStyle) continue;
+    const id = String(claim.id);
+    const catalog = catalogById.get(id);
+    const cardStyle = typeof normalizeCardStyleRecord === 'function'
+      ? normalizeCardStyleRecord(claim.cardStyle)
+      : claim.cardStyle;
+    items.push({
+      id,
+      char: catalog?.char || id,
+      script: normalizeItemScript(catalog?.script),
+      cardStyle,
+      acquiredAt: claim.acquiredAt ? Date.parse(claim.acquiredAt) : null,
+      ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(claim) : (Number(claim.ciHao) || 1),
+      sessionIndex: -1,
+      strokeIndex: pityIndex,
+      isPityUnique: true,
+      streakAtClaim: claim.streakAtClaim,
+    });
+  }
   return items;
+}
+
+function sortUniqueItemsByAcquiredAt(items) {
+  return [...(items || [])].sort((a, b) => {
+    const ta = Number(a?.acquiredAt);
+    const tb = Number(b?.acquiredAt);
+    const aOk = Number.isFinite(ta);
+    const bOk = Number.isFinite(tb);
+    if (aOk && bOk && ta !== tb) return ta - tb;
+    if (aOk && !bOk) return -1;
+    if (!aOk && bOk) return 1;
+    const sa = Number(a?.sessionIndex);
+    const sb = Number(b?.sessionIndex);
+    if (Number.isFinite(sa) && Number.isFinite(sb) && sa !== sb) return sa - sb;
+    return (Number(a?.strokeIndex) || 0) - (Number(b?.strokeIndex) || 0);
+  });
+}
+
+/** 最近获得的 unique（新→旧），默认取 5 张 */
+function collectNewestUniqueItems(items, limit = 5) {
+  const n = Math.max(0, Math.floor(Number(limit) || 0));
+  if (n <= 0) return [];
+  return sortUniqueItemsByAcquiredAt(items).reverse().slice(0, n);
 }
 
 /**
@@ -3377,6 +4717,7 @@ function createUniqueCard(item, { imageFilter = null } = {}) {
   const script = normalizeItemScript(item.script);
   const card = document.createElement('div');
   card.className = 'level-card unique-card';
+  if (item.starred) card.classList.add('is-starred');
   card.dataset.sessionIndex = String(item.sessionIndex);
   card.dataset.strokeIndex = String(item.strokeIndex);
   const displayStyle = resolveCardStyleForDisplay(item.cardStyle || null);
@@ -3416,29 +4757,97 @@ function createUniqueCard(item, { imageFilter = null } = {}) {
     card.classList.add('is-dismantle-selected');
   }
 
+  const uniquePreview = {
+    // 预览词条保持原样（无配色不伪造成「默认」）；格子上色用 paintStyle
+    cardStyle: displayStyle || paintStyle,
+    acquiredAt: item.acquiredAt,
+    ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(item) : (Number(item.ciHao) || 1),
+  };
+  setKeyboardSelectRingColor(card, paintStyle);
+  levelCardPreviewByEl.set(card, {
+    char: item.char,
+    script,
+    id: item.id,
+    uniquePreview,
+  });
+
   card.addEventListener('click', (event) => {
-    if (!dismantleMode) return;
-    event.preventDefault();
-    event.stopPropagation();
-    toggleDismantleSelection(item);
+    if (dismantleMode) {
+      if (item.isPityUnique || item.sessionIndex < 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      toggleDismantleSelection(item);
+      return;
+    }
+    onLevelCardKeyboardSelectClick(card, event);
   });
 
   card.addEventListener('mouseenter', () => {
     // 已选中某张卡时，右侧只钉住选中卡，不再因 hover 切换
     if (dismantleMode && dismantleSelection) return;
-    onLevelCardEnter(item.char, script, item.id, {
-      // 预览词条保持原样（无配色不伪造成「默认」）；格子上色用 paintStyle
-      cardStyle: displayStyle || paintStyle,
-      acquiredAt: item.acquiredAt,
-      ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(item) : (Number(item.ciHao) || 1),
-    });
+    onLevelCardEnter(item.char, script, item.id, uniquePreview);
   });
   card.addEventListener('mouseleave', onLevelCardLeave);
 
   return card;
 }
 
-function buildUniqueSection(uniqueItems, { imageFilter = null, imageFilterToken = 0, ink = 0 } = {}) {
+/** 独特栏按分解价值分栏（高→低） */
+const UNIQUE_AFFIX_TIER_ORDER = [
+  { key: '111', label: '配色 · 底纹 · 修饰', ink: 1600 },
+  { key: '011', label: '底纹 · 修饰', ink: 400 },
+  { key: '101', label: '修饰 · 配色', ink: 200 },
+  { key: '110', label: '底纹 · 配色', ink: 160 },
+  { key: '001', label: '修饰', ink: 50 },
+  { key: '010', label: '底纹', ink: 40 },
+  { key: '100', label: '配色', ink: 20 },
+];
+
+function uniqueAffixKey(cardStyle) {
+  if (typeof getUniqueAffixFlags === 'function') {
+    return getUniqueAffixFlags(cardStyle).key;
+  }
+  const ink = typeof computeUniqueDismantleInk === 'function'
+    ? computeUniqueDismantleInk(cardStyle)
+    : 0;
+  const byInk = UNIQUE_AFFIX_TIER_ORDER.find((tier) => tier.ink === ink);
+  return byInk?.key || '000';
+}
+
+function groupUniqueItemsByAffixTier(uniqueItems) {
+  const buckets = new Map(UNIQUE_AFFIX_TIER_ORDER.map((tier) => [tier.key, []]));
+  const other = [];
+  for (const item of uniqueItems || []) {
+    const key = uniqueAffixKey(item?.cardStyle);
+    if (buckets.has(key)) buckets.get(key).push(item);
+    else other.push(item);
+  }
+  const tiers = [];
+  for (const tier of UNIQUE_AFFIX_TIER_ORDER) {
+    const items = buckets.get(tier.key) || [];
+    if (!items.length) continue;
+    tiers.push({ ...tier, items });
+  }
+  if (other.length) {
+    tiers.push({ key: '000', label: '其他', ink: 0, items: other });
+  }
+  return tiers;
+}
+
+function appendUniqueCards(group, items, imageFilter, imageFilterToken) {
+  for (const item of items || []) {
+    const card = createUniqueCard(item, { imageFilter });
+    if (imageFilter) applyImageFilterToCard(card, item, imageFilterToken, imageFilter);
+    group.appendChild(card);
+  }
+}
+
+function buildUniqueSection(uniqueItems, {
+  imageFilter = null,
+  imageFilterToken = 0,
+  ink = 0,
+  groupByAffix = false,
+} = {}) {
   const section = document.createElement('section');
   section.className = 'level-section level-section-unique';
   section.dataset.level = 'unique';
@@ -3472,17 +4881,109 @@ function buildUniqueSection(uniqueItems, { imageFilter = null, imageFilterToken 
   rule.className = 'level-section-rule';
 
   head.append(titleRow, rule);
+  section.appendChild(head);
+
+  // 总览等：按获取时间穿插（含保底卡），不要把保底永远甩在最后
+  if (!groupByAffix) {
+    const group = document.createElement('div');
+    group.className = 'level-group unique-group';
+    appendUniqueCards(group, sortUniqueItemsByAcquiredAt(uniqueItems), imageFilter, imageFilterToken);
+    section.appendChild(group);
+    return section;
+  }
+
+  // 独特页：按分解价值分栏，栏标题层级同 LEVEL；最顶即第一栏
+  const tiersWrap = document.createElement('div');
+  tiersWrap.className = 'unique-affix-tiers';
+  const tiers = groupUniqueItemsByAffixTier(uniqueItems);
+  let firstTier = true;
+
+  if (!tiers.length) {
+    const group = document.createElement('div');
+    group.className = 'level-group unique-group';
+    tiersWrap.appendChild(group);
+  } else {
+    for (const tier of tiers) {
+      const tierSection = document.createElement('section');
+      tierSection.className = 'level-section unique-affix-tier level-section-unique';
+      tierSection.dataset.affixKey = tier.key;
+
+      const tierHead = document.createElement('div');
+      tierHead.className = 'level-section-head';
+
+      const titleRow = document.createElement('div');
+      titleRow.className = 'level-section-title-row unique-title-row';
+
+      const tierTitle = document.createElement('div');
+      tierTitle.className = 'level-section-title unique-affix-tier-title';
+      tierTitle.textContent = tier.ink > 0 ? `${tier.label} · ${tier.ink}` : tier.label;
+
+      titleRow.appendChild(tierTitle);
+      if (firstTier) {
+        const inkEl = document.createElement('div');
+        inkEl.className = 'unique-ink';
+        inkEl.title = '墨';
+        const inkValue = document.createElement('span');
+        inkValue.className = 'unique-ink-value';
+        inkValue.textContent = String(
+          typeof resolveInk === 'function' ? resolveInk({ ink }) : Math.max(0, Math.floor(Number(ink) || 0)),
+        );
+        const inkUnit = document.createElement('span');
+        inkUnit.className = 'unique-ink-unit';
+        inkUnit.textContent = '墨';
+        inkEl.append(inkValue, inkUnit);
+        titleRow.appendChild(inkEl);
+        firstTier = false;
+      }
+
+      const tierRule = document.createElement('div');
+      tierRule.className = 'level-section-rule';
+
+      tierHead.append(titleRow, tierRule);
+
+      const group = document.createElement('div');
+      group.className = 'level-group unique-group';
+      appendUniqueCards(group, sortUniqueItemsByAcquiredAt(tier.items), imageFilter, imageFilterToken);
+
+      tierSection.append(tierHead, group);
+      tiersWrap.appendChild(tierSection);
+    }
+  }
+
+  return tiersWrap;
+}
+
+/** 总览：UNIQUE 下方的「最近获得」分栏 */
+function buildUniqueNewSection(uniqueItems, {
+  imageFilter = null,
+  imageFilterToken = 0,
+} = {}) {
+  const section = document.createElement('section');
+  section.className = 'level-section level-section-unique level-section-unique-new';
+  section.dataset.level = 'unique-new';
+
+  const head = document.createElement('div');
+  head.className = 'level-section-head';
+
+  const titleRow = document.createElement('div');
+  titleRow.className = 'level-section-title-row unique-title-row';
+
+  const title = document.createElement('div');
+  title.className = 'level-section-title';
+  title.textContent = 'UNIQUE NEW';
+
+  titleRow.appendChild(title);
+
+  const rule = document.createElement('div');
+  rule.className = 'level-section-rule';
+
+  head.append(titleRow, rule);
+  section.appendChild(head);
 
   const group = document.createElement('div');
   group.className = 'level-group unique-group';
-
-  for (const item of uniqueItems) {
-    const card = createUniqueCard(item, { imageFilter });
-    if (imageFilter) applyImageFilterToCard(card, item, imageFilterToken, imageFilter);
-    group.appendChild(card);
-  }
-
-  section.append(head, group);
+  appendUniqueCards(group, uniqueItems || [], imageFilter, imageFilterToken);
+  section.appendChild(group);
   return section;
 }
 
@@ -3543,20 +5044,61 @@ function renderUniqueFilterSummary(uniqueItems, data) {
   }
 }
 
-function renderLevelView(entry, { imageFilter = null, uniqueOnly = false, levelsOnly = false } = {}) {
+function renderLevelView(entry, {
+  imageFilter = null,
+  uniqueOnly = false,
+  levelsOnly = false,
+  catalogOrder = false,
+  recencyOrder = false,
+} = {}) {
   const data = entry.data || {};
   const chars = uniqueOnly ? [] : collectLevelChars(data);
-  const uniqueItems = levelsOnly ? [] : collectUniqueCardAppearances(data);
+  // 排序方式 / 字形视图：不展示 unique；卡面视图按 level 并显示 unique
+  const hideUnique = levelsOnly || catalogOrder || recencyOrder || imageFilter === 'glyph';
+  const allUniqueItems = hideUnique ? [] : collectUniqueCardAppearances(data);
+  // 总览默认只显示已收藏；UNIQUE 页 / 卡面筛选仍可带 unique
+  const showOverviewUniqueNew = !uniqueOnly && !imageFilter && !hideUnique;
+  const uniqueItems = uniqueOnly
+    ? allUniqueItems
+    : (imageFilter
+      ? allUniqueItems
+      : allUniqueItems.filter((item) => item.starred));
+  const newestUniqueItems = showOverviewUniqueNew
+    ? collectNewestUniqueItems(allUniqueItems, 5)
+    : [];
+  const flatOrder = catalogOrder || recencyOrder;
 
   if (!uniqueOnly) {
-    chars.sort((a, b) => {
-      const la = getLevelFromCount(a.count);
-      const lb = getLevelFromCount(b.count);
-      return lb.level - la.level
-        || lb.ratio - la.ratio
-        || (b.count || 0) - (a.count || 0)
-        || String(a.char || a.id || '').localeCompare(String(b.char || b.id || ''), 'zh');
-    });
+    if (catalogOrder) {
+      const orderIndex = getCaoCatalogOrderIndex();
+      chars.sort((a, b) => {
+        const ia = orderIndex.has(String(a.id)) ? orderIndex.get(String(a.id)) : -1;
+        const ib = orderIndex.has(String(b.id)) ? orderIndex.get(String(b.id)) : -1;
+        // 加入时间：新（字库文件末尾）在前；不在草体库的排最后
+        if (ia !== ib) return ib - ia;
+        return (b.count || 0) - (a.count || 0)
+          || String(a.char || a.id || '').localeCompare(String(b.char || b.id || ''), 'zh');
+      });
+    } else if (recencyOrder) {
+      chars.sort((a, b) => {
+        const ta = a.lastSeenAt || a.firstSeenAt || '';
+        const tb = b.lastSeenAt || b.firstSeenAt || '';
+        if (ta && tb && ta !== tb) return ta > tb ? -1 : 1;
+        if (ta && !tb) return -1;
+        if (!ta && tb) return 1;
+        return (b.count || 0) - (a.count || 0)
+          || String(a.char || a.id || '').localeCompare(String(b.char || b.id || ''), 'zh');
+      });
+    } else {
+      chars.sort((a, b) => {
+        const la = getLevelFromCount(a.count);
+        const lb = getLevelFromCount(b.count);
+        return lb.level - la.level
+          || lb.ratio - la.ratio
+          || (b.count || 0) - (a.count || 0)
+          || String(a.char || a.id || '').localeCompare(String(b.char || b.id || ''), 'zh');
+      });
+    }
     renderLevelSummary(chars, data);
   } else {
     renderUniqueFilterSummary(uniqueItems, data);
@@ -3568,12 +5110,15 @@ function renderLevelView(entry, { imageFilter = null, uniqueOnly = false, levels
   document.body.classList.toggle('is-glyph-image-view', imageFilter === 'glyph');
   document.body.classList.toggle('is-unique-filter-view', uniqueOnly);
   document.body.classList.toggle('is-levels-only-view', levelsOnly);
+  document.body.classList.toggle('is-catalog-sort-view', flatOrder);
+  document.body.classList.remove('is-atlas-view');
 
   if (imageFilter) {
     imageFilterToken += 1;
   }
 
-  if (!uniqueOnly && chars.length === 0 && (levelsOnly || uniqueItems.length === 0)) {
+  if (!uniqueOnly && chars.length === 0 && !imageFilter
+    && (hideUnique || (uniqueItems.length === 0 && allUniqueItems.length === 0))) {
     const empty = document.createElement('p');
     empty.className = 'empty-state';
     empty.textContent = '暂无字记录';
@@ -3602,6 +5147,7 @@ function renderLevelView(entry, { imageFilter = null, uniqueOnly = false, levels
     topBlock.className = 'level-top-block';
     topBlock.appendChild(buildUniqueSection(uniqueItems, {
       ink: typeof resolveInk === 'function' ? resolveInk(data) : (Number(data?.ink) || 0),
+      groupByAffix: true,
     }));
     fragment.appendChild(topBlock);
     el.levelList.appendChild(fragment);
@@ -3612,14 +5158,22 @@ function renderLevelView(entry, { imageFilter = null, uniqueOnly = false, levels
   }
 
   const groups = new Map();
-  for (const item of chars) {
-    const info = getLevelFromCount(item.count);
-    if (!groups.has(info.level)) groups.set(info.level, []);
-    groups.get(info.level).push({ item, info });
+  if (flatOrder) {
+    const sectionKey = catalogOrder ? 'catalog' : 'recency';
+    groups.set(sectionKey, chars.map((item) => ({
+      item,
+      info: getLevelFromCount(item.count),
+    })));
+  } else {
+    for (const item of chars) {
+      const info = getLevelFromCount(item.count);
+      if (!groups.has(info.level)) groups.set(info.level, []);
+      groups.get(info.level).push({ item, info });
+    }
   }
 
-  if (!levelsOnly) {
-    if (imageFilter || uniqueItems.length > 0) {
+  if (!levelsOnly && !catalogOrder && !recencyOrder && imageFilter !== 'glyph') {
+    if (imageFilter || uniqueItems.length > 0 || newestUniqueItems.length > 0 || showOverviewUniqueNew) {
       const topBlock = document.createElement('div');
       topBlock.className = 'level-top-block';
 
@@ -3635,14 +5189,13 @@ function renderLevelView(entry, { imageFilter = null, uniqueOnly = false, levels
         ink: typeof resolveInk === 'function' ? resolveInk(data) : (Number(data?.ink) || 0),
       }));
 
-      fragment.appendChild(topBlock);
-    } else {
-      // 无卡面筛选且尚无 unique 卡：仍显示 UNIQUE + 墨
-      const topBlock = document.createElement('div');
-      topBlock.className = 'level-top-block';
-      topBlock.appendChild(buildUniqueSection([], {
-        ink: typeof resolveInk === 'function' ? resolveInk(data) : (Number(data?.ink) || 0),
-      }));
+      if (showOverviewUniqueNew) {
+        topBlock.appendChild(buildUniqueNewSection(newestUniqueItems, {
+          imageFilter,
+          imageFilterToken,
+        }));
+      }
+
       fragment.appendChild(topBlock);
     }
   } else if (imageFilter) {
@@ -3662,14 +5215,40 @@ function renderLevelView(entry, { imageFilter = null, uniqueOnly = false, levels
     const head = document.createElement('div');
     head.className = 'level-section-head';
 
-    const title = document.createElement('div');
-    title.className = 'level-section-title';
-    title.textContent = `LEVEL. ${level}`;
+    if (flatOrder) {
+      const titleRow = document.createElement('div');
+      titleRow.className = 'level-section-title-row';
 
-    const rule = document.createElement('div');
-    rule.className = 'level-section-rule';
+      const title = document.createElement('div');
+      title.className = 'level-section-title';
+      title.textContent = '排序方式';
 
-    head.append(title, rule);
+      const sortToggle = document.createElement('button');
+      sortToggle.type = 'button';
+      sortToggle.className = 'filter-toggle sort-by-toggle';
+      sortToggle.classList.toggle('is-joined', catalogOrder);
+      sortToggle.classList.toggle('is-recency', recencyOrder);
+      sortToggle.setAttribute('aria-pressed', catalogOrder ? 'true' : 'false');
+      sortToggle.title = catalogOrder
+        ? '当前：加入时间（点击切换为顺序）'
+        : '当前：顺序（点击切换为加入时间）';
+      sortToggle.textContent = catalogOrder ? '加入时间' : '顺序';
+      sortToggle.addEventListener('click', toggleSortByMode);
+
+      titleRow.append(title, sortToggle);
+      const rule = document.createElement('div');
+      rule.className = 'level-section-rule';
+      head.append(titleRow, rule);
+    } else {
+      const title = document.createElement('div');
+      title.className = 'level-section-title';
+      title.textContent = `LEVEL. ${level}`;
+
+      const rule = document.createElement('div');
+      rule.className = 'level-section-rule';
+
+      head.append(title, rule);
+    }
 
     const group = document.createElement('div');
     group.className = 'level-group';
@@ -3684,7 +5263,77 @@ function renderLevelView(entry, { imageFilter = null, uniqueOnly = false, levels
     fragment.appendChild(section);
   }
 
+  // 总览：全部 level 之后追加「最多 UNIQUE / 最多字数」高光练习
+  const isOverview = !uniqueOnly && !levelsOnly && !flatOrder && !imageFilter;
+  if (isOverview) {
+    appendOverviewHighlightSections(fragment, data);
+  }
+
   el.levelList.appendChild(fragment);
+  el.levelPanel.classList.remove('hidden');
+  el.panel.classList.add('hidden');
+  updateLevelOverlays();
+}
+
+function renderRecognizeSummary(items) {
+  const recognized = items.filter((item) => (item.recognizeCount || 0) > 0).length;
+  const total = items.reduce((sum, item) => sum + (item.recognizeCount || 0), 0);
+  const stats = [
+    ['字', items.length],
+    ['已识别', recognized],
+    ['识别数', total],
+  ];
+  el.levelSummary.replaceChildren();
+  for (const [label, value] of stats) {
+    const item = document.createElement('div');
+    item.className = 'level-summary-item';
+    const num = document.createElement('span');
+    num.className = 'level-summary-value';
+    num.textContent = String(value);
+    const tag = document.createElement('span');
+    tag.className = 'level-summary-label';
+    tag.textContent = label;
+    item.append(num, tag);
+    el.levelSummary.appendChild(item);
+  }
+}
+
+function renderRecognizeView(entry) {
+  const items = collectRecognizeChars(entry?.data || {});
+  hideCardPreview();
+  el.levelList.replaceChildren();
+  document.body.classList.toggle('is-card-face-view', false);
+  document.body.classList.toggle('is-glyph-image-view', false);
+  document.body.classList.toggle('is-unique-filter-view', false);
+  document.body.classList.toggle('is-levels-only-view', false);
+  document.body.classList.toggle('is-catalog-sort-view', false);
+  renderRecognizeSummary(items);
+
+  const section = document.createElement('section');
+  section.className = 'level-section';
+  const head = document.createElement('div');
+  head.className = 'level-section-head';
+  const title = document.createElement('div');
+  title.className = 'level-section-title';
+  title.textContent = '识别';
+  const rule = document.createElement('div');
+  rule.className = 'level-section-rule';
+  head.append(title, rule);
+
+  const group = document.createElement('div');
+  group.className = 'level-group';
+  for (const item of items) {
+    const count = item.recognizeCount || 0;
+    const card = createLevelCard(
+      item,
+      { level: 0, xp: 0, need: 1, ratio: 0 },
+      levelFrameColor(Math.min(10, count)),
+      { badgeText: String(count), xpText: '识别' },
+    );
+    group.appendChild(card);
+  }
+  section.append(head, group);
+  el.levelList.appendChild(section);
   el.levelPanel.classList.remove('hidden');
   el.panel.classList.add('hidden');
   updateLevelOverlays();
@@ -3697,16 +5346,310 @@ function isShopPurchaseSession(session) {
     || session.commitSource === 'daily-shop';
 }
 
-/** 练字记录（排除商店购买等非练习 session） */
+function isRecognizeSession(session) {
+  return Boolean(session && session.mode === 'recognize');
+}
+
+/** 练字记录（排除商店购买、识字等非练习 session） */
 function getPracticeSessions(data) {
   const list = Array.isArray(data?.sessions) ? data.sessions : [];
-  return list.filter((session) => !isShopPurchaseSession(session));
+  return list.filter((session) => !isShopPurchaseSession(session) && !isRecognizeSession(session));
 }
 
 function getLastPracticeSession(data) {
   const sessions = getPracticeSessions(data);
   if (sessions.length === 0) return null;
   return sessions[sessions.length - 1];
+}
+
+/** 单次练习包含的字数（去重 id） */
+function sessionDistinctCharCount(session) {
+  const ids = new Set();
+  for (const stroke of session?.strokes || []) {
+    if (stroke?.id) ids.add(String(stroke.id));
+  }
+  return ids.size;
+}
+
+function isStrokeUniqueDrop(stroke) {
+  return typeof strokeHasUniqueCardStyle === 'function'
+    ? strokeHasUniqueCardStyle(stroke)
+    : Boolean(stroke?.isUnique && stroke?.cardStyle);
+}
+
+/** 练习内掉落的 unique 数（不含保底领取） */
+function countSessionUniqueDrops(session) {
+  let n = 0;
+  for (const stroke of session?.strokes || []) {
+    if (isStrokeUniqueDrop(stroke)) n += 1;
+  }
+  return n;
+}
+
+/** 保底 unique 锚定到某次练习的下标（与记录历史一致） */
+function resolvePityClaimSessionIndex(claim, sessions) {
+  if (!claim || !sessions?.length) return -1;
+  let anchorIndex = -1;
+  if (claim.anchorSessionAt) {
+    anchorIndex = sessions.findIndex((s) => sessionTimeIso(s) === claim.anchorSessionAt
+      || s?.startedAt === claim.anchorSessionAt
+      || s?.endedAt === claim.anchorSessionAt);
+  }
+  if (anchorIndex < 0) {
+    anchorIndex = findNearestPracticeSessionIndex(sessions, claim.acquiredAt);
+  }
+  return anchorIndex;
+}
+
+function countPityUniquesForSession(data, sessions, sessionIndex) {
+  let n = 0;
+  for (const claim of getUniquePityClaims(data)) {
+    if (!claim?.id || !claim?.cardStyle) continue;
+    if (resolvePityClaimSessionIndex(claim, sessions) === sessionIndex) n += 1;
+  }
+  return n;
+}
+
+function collectPityItemsForSession(data, sessions, sessionIndex, startOrder = 1) {
+  const items = [];
+  let order = startOrder;
+  for (const claim of getUniquePityClaims(data)) {
+    if (!claim?.id || !claim?.cardStyle) continue;
+    if (resolvePityClaimSessionIndex(claim, sessions) !== sessionIndex) continue;
+    const catalog = getCatalogById().get(String(claim.id));
+    items.push({
+      id: String(claim.id),
+      char: catalog?.char || claim.id,
+      script: normalizeItemScript(catalog?.script),
+      order: order,
+      durationMs: 0,
+      isUnique: true,
+      isPityUnique: true,
+      cardStyle: typeof normalizeCardStyleRecord === 'function'
+        ? normalizeCardStyleRecord(claim.cardStyle)
+        : claim.cardStyle,
+      ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(claim) : (Number(claim.ciHao) || 1),
+      streakAtClaim: claim.streakAtClaim,
+    });
+    order += 1;
+  }
+  return items;
+}
+
+/**
+ * 最多 UNIQUE：unique 数最多；
+ * 并列 → 字数更少；再并列 → 时间更远（更早）。
+ */
+function pickMostUniqueSession(data) {
+  const sessions = getPracticeSessions(data);
+  let best = null;
+  for (let i = 0; i < sessions.length; i += 1) {
+    const session = sessions[i];
+    const uniqueCount = countSessionUniqueDrops(session)
+      + countPityUniquesForSession(data, sessions, i);
+    if (uniqueCount <= 0) continue;
+    const charCount = sessionDistinctCharCount(session);
+    const time = sessionCompletedAt(session) || sessionTimeIso(session) || '';
+    const candidate = { session, sessionIndex: i, uniqueCount, charCount, time };
+    if (!best) {
+      best = candidate;
+      continue;
+    }
+    if (candidate.uniqueCount !== best.uniqueCount) {
+      if (candidate.uniqueCount > best.uniqueCount) best = candidate;
+      continue;
+    }
+    if (candidate.charCount !== best.charCount) {
+      if (candidate.charCount < best.charCount) best = candidate;
+      continue;
+    }
+    if (candidate.time && best.time && candidate.time !== best.time) {
+      if (candidate.time < best.time) best = candidate;
+    }
+  }
+  return best;
+}
+
+/** 最多字数：单次练习去重字数最多；并列取时间更远（更早） */
+function pickMostCharsSession(data) {
+  const sessions = getPracticeSessions(data);
+  let best = null;
+  for (let i = 0; i < sessions.length; i += 1) {
+    const session = sessions[i];
+    const charCount = sessionDistinctCharCount(session);
+    if (charCount <= 0) continue;
+    const time = sessionCompletedAt(session) || sessionTimeIso(session) || '';
+    const candidate = { session, sessionIndex: i, charCount, time };
+    if (!best) {
+      best = candidate;
+      continue;
+    }
+    if (candidate.charCount !== best.charCount) {
+      if (candidate.charCount > best.charCount) best = candidate;
+      continue;
+    }
+    if (candidate.time && best.time && candidate.time !== best.time) {
+      if (candidate.time < best.time) best = candidate;
+    }
+  }
+  return best;
+}
+
+/**
+ * 某次练习开始前的累计次数（chars 冻结基数 + 此前 sessions，规则同 countSessionStrokesById）
+ */
+function buildCountsBeforeSession(data, targetSession) {
+  const counts = new Map();
+  for (const item of iterateUserChars(data)) {
+    if (!item?.id) continue;
+    counts.set(String(item.id), Math.max(0, Number(item.count) || 0));
+  }
+  for (const session of data?.sessions || []) {
+    if (session === targetSession) break;
+    if (isRecognizeSession(session)) continue;
+    for (const stroke of session.strokes || []) {
+      if (!stroke?.id) continue;
+      const id = String(stroke.id);
+      counts.set(id, (counts.get(id) || 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
+ * 为练习字卡标注「当时」等级（含本笔；unique / 保底仍走原有配色）
+ */
+function annotateSessionItemsWithHistoricalLevel(items, data, session) {
+  const counts = buildCountsBeforeSession(data, session);
+  return (items || []).map((item) => {
+    if (!item || item.isPityUnique) return item;
+    if (!item.id) return item;
+    const id = String(item.id);
+    const next = (counts.get(id) || 0) + 1;
+    counts.set(id, next);
+    if (item.isUnique) return item;
+    return {
+      ...item,
+      historicalLevelInfo: getLevelFromCount(next),
+    };
+  });
+}
+
+function buildHighlightSessionMeta(pick, displayItems, sessions) {
+  const session = pick.session;
+  const strokeItems = displayItems.filter((item) => !item.isPityUnique);
+  const uniqueCount = typeof pick.uniqueCount === 'number'
+    ? pick.uniqueCount
+    : (strokeItems.filter((item) => item.isUnique).length
+      + displayItems.filter((item) => item.isPityUnique).length);
+  const charCount = typeof pick.charCount === 'number'
+    ? pick.charCount
+    : new Set(strokeItems.map((item) => item.id)).size;
+  const appearanceCount = strokeItems.length;
+  const durationMs = sessionDurationMs(session)
+    || strokeItems.reduce((sum, item) => sum + (item.durationMs || 0), 0);
+  const completedAt = formatBeijingDateTime(sessionCompletedAt(session)) || '—';
+  const sessionNo = `${pick.sessionIndex + 1} / ${sessions.length}`;
+
+  return [
+    ['编号', sessionNo],
+    ['完成', completedAt],
+    ['字', charCount],
+    ['次序', appearanceCount],
+    ['UNIQUE', uniqueCount],
+    ['时长', formatLongDuration(durationMs)],
+  ];
+}
+
+function buildOverviewHighlightSessionSection(titleText, pick, data, sessions) {
+  if (!pick?.session) return null;
+  const items = annotateSessionItemsWithHistoricalLevel(
+    strokesToOrderedItems(pick.session.strokes),
+    data,
+    pick.session,
+  );
+  const pityItems = collectPityItemsForSession(
+    data,
+    sessions,
+    pick.sessionIndex,
+    items.length + 1,
+  );
+  const displayItems = items.concat(pityItems);
+  if (!displayItems.length) return null;
+
+  const section = document.createElement('section');
+  section.className = 'level-section level-section-record level-section-highlight';
+  section.dataset.highlight = titleText;
+
+  const head = document.createElement('div');
+  head.className = 'level-section-head';
+
+  const titleRow = document.createElement('div');
+  titleRow.className = 'level-section-title-row';
+
+  const title = document.createElement('div');
+  title.className = 'level-section-title';
+  title.textContent = titleText;
+  titleRow.appendChild(title);
+
+  const meta = document.createElement('div');
+  meta.className = 'highlight-session-meta';
+  meta.setAttribute('aria-label', `${titleText}练习信息`);
+  for (const [label, value] of buildHighlightSessionMeta(pick, displayItems, sessions)) {
+    const item = document.createElement('div');
+    item.className = 'highlight-session-meta-item';
+    if (label === '完成') item.classList.add('is-datetime');
+    const num = document.createElement('span');
+    num.className = 'highlight-session-meta-value';
+    num.textContent = String(value);
+    const tag = document.createElement('span');
+    tag.className = 'highlight-session-meta-label';
+    tag.textContent = label;
+    item.append(num, tag);
+    meta.appendChild(item);
+  }
+
+  const rule = document.createElement('div');
+  rule.className = 'level-section-rule';
+  head.append(titleRow, meta, rule);
+
+  const group = document.createElement('div');
+  group.className = 'level-group';
+  const zeroLevel = getLevelFromCount(0);
+  for (const item of displayItems) {
+    if (item.isUnique) {
+      group.appendChild(createLevelCard(item, zeroLevel, levelFrameColor(0), { recordMode: true }));
+      continue;
+    }
+    const info = item.historicalLevelInfo || zeroLevel;
+    group.appendChild(createLevelCard(item, info, levelFrameColor(info.level), { recordMode: true }));
+  }
+
+  section.append(head, group);
+  return section;
+}
+
+function appendOverviewHighlightSections(fragment, data) {
+  const sessions = getPracticeSessions(data);
+  if (!sessions.length) return;
+
+  const mostUnique = pickMostUniqueSession(data);
+  const mostUniqueSection = buildOverviewHighlightSessionSection(
+    '最多UNIQUE',
+    mostUnique,
+    data,
+    sessions,
+  );
+  if (mostUniqueSection) fragment.appendChild(mostUniqueSection);
+
+  const mostChars = pickMostCharsSession(data);
+  const mostCharsSection = buildOverviewHighlightSessionSection(
+    '最多字数',
+    mostChars,
+    data,
+    sessions,
+  );
+  if (mostCharsSection) fragment.appendChild(mostCharsSection);
 }
 
 function resolveHistorySessionIndex(sessions) {
@@ -3797,8 +5740,10 @@ function renderLastSessionSummary(session, items) {
   const totalDurationMs = sessionDurationMs(session)
     || items.reduce((sum, item) => sum + item.durationMs, 0);
   const uniqueIds = new Set(items.map((item) => item.id));
+  const completedText = formatBeijingDateTime(sessionCompletedAt(session)) || '—';
 
   const stats = [
+    ['完成', completedText],
     ['次序', items.length],
     ['字', uniqueIds.size],
     ['时长', formatLongDuration(totalDurationMs)],
@@ -3808,6 +5753,7 @@ function renderLastSessionSummary(session, items) {
   for (const [label, value] of stats) {
     const stat = document.createElement('div');
     stat.className = 'level-summary-item';
+    if (label === '完成') stat.classList.add('is-datetime');
     const num = document.createElement('span');
     num.className = 'level-summary-value';
     num.textContent = String(value);
@@ -3832,18 +5778,29 @@ function shiftHistorySession(delta) {
 }
 
 function renderLastSessionView(entry) {
-  document.body.classList.remove('is-card-face-view', 'is-glyph-image-view', 'is-unique-filter-view', 'is-levels-only-view');
+  document.body.classList.remove(
+    'is-card-face-view',
+    'is-glyph-image-view',
+    'is-unique-filter-view',
+    'is-levels-only-view',
+    'is-atlas-view',
+  );
   const data = entry.data || {};
   const sessions = getPracticeSessions(data);
   const index = resolveHistorySessionIndex(sessions);
   const session = index >= 0 ? sessions[index] : null;
-  const items = session ? strokesToOrderedItems(session.strokes) : [];
-
-  renderLastSessionSummary(session, items);
+  const items = session
+    ? annotateSessionItemsWithHistoricalLevel(
+      strokesToOrderedItems(session.strokes),
+      data,
+      session,
+    )
+    : [];
   hideCardPreview();
   el.levelList.replaceChildren();
 
   if (!session || items.length === 0) {
+    renderLastSessionSummary(session, items);
     const empty = document.createElement('p');
     empty.className = 'empty-state';
     empty.textContent = sessions.length === 0 ? '暂无练习记录' : '该次记录没有字';
@@ -3855,7 +5812,6 @@ function renderLastSessionView(entry) {
   }
 
   const zeroLevel = getLevelFromCount(0);
-  const frameColor = levelFrameColor(0);
 
   const section = document.createElement('section');
   section.className = 'level-section level-section-record';
@@ -3869,6 +5825,16 @@ function renderLastSessionView(entry) {
   const title = document.createElement('div');
   title.className = 'level-section-title';
   title.textContent = '记录';
+
+  const completedAt = formatBeijingDateTime(sessionCompletedAt(session));
+  if (completedAt) {
+    const timeEl = document.createElement('div');
+    timeEl.className = 'record-completed-at';
+    timeEl.textContent = completedAt;
+    titleRow.append(title, timeEl);
+  } else {
+    titleRow.appendChild(title);
+  }
 
   const nav = document.createElement('div');
   nav.className = 'record-nav';
@@ -3896,7 +5862,7 @@ function renderLastSessionView(entry) {
   btnNext.addEventListener('click', () => shiftHistorySession(1));
 
   nav.append(btnPrev, indexLabel, btnNext);
-  titleRow.append(title, nav);
+  titleRow.appendChild(nav);
 
   const rule = document.createElement('div');
   rule.className = 'level-section-rule';
@@ -3906,8 +5872,19 @@ function renderLastSessionView(entry) {
   const group = document.createElement('div');
   group.className = 'level-group';
 
-  for (const item of items) {
-    group.appendChild(createLevelCard(item, zeroLevel, frameColor, { recordMode: true }));
+  const displayItems = items.concat(
+    collectPityItemsForSession(data, sessions, index, items.length + 1),
+  );
+
+  renderLastSessionSummary(session, displayItems);
+
+  for (const item of displayItems) {
+    if (item.isUnique) {
+      group.appendChild(createLevelCard(item, zeroLevel, levelFrameColor(0), { recordMode: true }));
+      continue;
+    }
+    const info = item.historicalLevelInfo || zeroLevel;
+    group.appendChild(createLevelCard(item, info, levelFrameColor(info.level), { recordMode: true }));
   }
 
   section.append(head, group);
@@ -3990,11 +5967,22 @@ async function openEntry(id) {
     await readEntryData(entry);
     saveActiveUserId(id);
     document.body.classList.add('has-user-data');
+    if (entry.data?.uniquesNeedsPersist) {
+      try {
+        await writeActiveUserData(entry.data);
+      } catch {
+        // 首次种子写盘失败仍可继续浏览；感叹号会提示不一致
+      }
+    }
     updateCardPreviewSlot();
     renderActiveView(entry);
+    syncUniquesMismatchFlag(entry.data);
+    restorePityClaimOverlayIfNeeded();
     setHint(`已找到 ${fileEntries.length} 个用户文件。当前：${entry.file}`);
+    void requestTodayShopCheck();
   } catch (error) {
     document.body.classList.remove('has-user-data');
+    syncUniquesMismatchFlag(null);
     el.panel.classList.add('hidden');
     el.levelPanel.classList.add('hidden');
     setHint(`读取 ${entry.file} 失败：${error.message || error}`, true);
@@ -4006,6 +5994,7 @@ async function disconnect() {
   fileEntries = [];
   activeId = null;
   document.body.classList.remove('has-user-data');
+  syncUniquesMismatchFlag(null);
   updateCardPreviewSlot();
   await clearDirHandle();
   el.fileList.classList.add('hidden');
@@ -4102,6 +6091,7 @@ async function tryApplyCachedUserData() {
   renderFileList();
   updateCardPreviewSlot();
   renderActiveView(entry);
+  restorePityClaimOverlayIfNeeded();
   setHint(`已从本轮保存加载 ${file}（连接 local 可刷新磁盘数据）`);
   setView(currentView);
   return true;
@@ -4114,14 +6104,154 @@ function applyInitialViewFromUrl() {
     currentView = viewParam;
   }
   const modeParam = params.get('mode');
+  sortByMode = loadPersistedSortByMode();
   if (modeParam === 'last') levelDisplayMode = 'lastSession';
   else if (modeParam === 'unique') levelDisplayMode = 'unique';
   else if (modeParam === 'levels') levelDisplayMode = 'levels';
+  else if (modeParam === 'recognize') levelDisplayMode = 'recognize';
+  else if (modeParam === 'sort') {
+    levelDisplayMode = 'sort';
+    const sortParam = params.get('sort');
+    if (sortParam === 'joined' || sortParam === 'recency') sortByMode = sortParam;
+  }
+  else if (modeParam === 'catalog') {
+    levelDisplayMode = 'sort';
+    sortByMode = 'joined';
+  }
+  else if (modeParam === 'recency' || modeParam === 'order') {
+    levelDisplayMode = 'sort';
+    sortByMode = 'recency';
+  }
   else if (modeParam === 'ink') levelDisplayMode = 'inkHistory';
   else if (modeParam === 'card') levelDisplayMode = 'cardFace';
   else if (modeParam === 'glyph') levelDisplayMode = 'glyphImage';
   else if (modeParam === 'shop') levelDisplayMode = 'shop';
+  else if (modeParam === 'atlas') levelDisplayMode = 'atlas';
   else if (modeParam === 'settings') levelDisplayMode = 'settings';
+  else if (isDocumentReload()) {
+    const saved = loadPersistedLevelDisplayMode();
+    if (saved) levelDisplayMode = saved;
+  }
+  persistSortByMode(sortByMode);
+  applyLevelNavUI();
+}
+
+function isDocumentReload() {
+  try {
+    const nav = performance.getEntriesByType('navigation')[0];
+    return nav?.type === 'reload';
+  } catch {
+    return false;
+  }
+}
+
+const LEVEL_MODE_STORAGE_KEY = 'cao-level-display-mode';
+const SORT_BY_STORAGE_KEY = 'cao-sort-by';
+
+const LEVEL_MODE_TO_PARAM = {
+  lastSession: 'last',
+  unique: 'unique',
+  levels: 'levels',
+  recognize: 'recognize',
+  sort: 'sort',
+  inkHistory: 'ink',
+  cardFace: 'card',
+  glyphImage: 'glyph',
+  shop: 'shop',
+  atlas: 'atlas',
+  settings: 'settings',
+};
+
+function normalizeSortByMode(value) {
+  return value === 'recency' ? 'recency' : 'joined';
+}
+
+function loadPersistedSortByMode() {
+  try {
+    const saved = sessionStorage.getItem(SORT_BY_STORAGE_KEY);
+    if (saved === 'joined' || saved === 'recency') return saved;
+  } catch {
+    // ignore
+  }
+  return 'joined';
+}
+
+function persistSortByMode(mode) {
+  const next = normalizeSortByMode(mode);
+  sortByMode = next;
+  try {
+    sessionStorage.setItem(SORT_BY_STORAGE_KEY, next);
+  } catch {
+    // ignore
+  }
+  try {
+    const url = new URL(window.location.href);
+    if (levelDisplayMode === 'sort') {
+      url.searchParams.set('mode', 'sort');
+      url.searchParams.set('sort', next);
+    } else {
+      url.searchParams.delete('sort');
+    }
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+    if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== nextUrl) {
+      history.replaceState(null, '', nextUrl);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function toggleSortByMode() {
+  unlockCardHoverSfx();
+  persistSortByMode(sortByMode === 'joined' ? 'recency' : 'joined');
+  const entry = fileEntries.find((item) => item.id === activeId);
+  if (entry?.data && currentView === 'level' && levelDisplayMode === 'sort') {
+    renderActiveView(entry);
+  }
+}
+
+function loadPersistedLevelDisplayMode() {
+  try {
+    const saved = sessionStorage.getItem(LEVEL_MODE_STORAGE_KEY);
+    if (saved === 'catalog') {
+      sortByMode = 'joined';
+      persistSortByMode('joined');
+      return 'sort';
+    }
+    if (saved === 'recency') {
+      sortByMode = 'recency';
+      persistSortByMode('recency');
+      return 'sort';
+    }
+    if (saved && LEVEL_FILTER_MODES.includes(saved)) return saved;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+/** 记住当前分类，避免写盘触发整页刷新后掉回总览 */
+function persistLevelDisplayMode(mode) {
+  const next = mode || 'overview';
+  try {
+    sessionStorage.setItem(LEVEL_MODE_STORAGE_KEY, next);
+  } catch {
+    // ignore
+  }
+  try {
+    const url = new URL(window.location.href);
+    const param = LEVEL_MODE_TO_PARAM[next];
+    if (param) url.searchParams.set('mode', param);
+    else url.searchParams.delete('mode');
+    if (next === 'sort') url.searchParams.set('sort', normalizeSortByMode(sortByMode));
+    else url.searchParams.delete('sort');
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+    if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== nextUrl) {
+      history.replaceState(null, '', nextUrl);
+    }
+  } catch {
+    // file:// 等环境可能拒绝改地址，sessionStorage 仍生效
+  }
 }
 
 function applyLevelNavUI() {
@@ -4129,17 +6259,485 @@ function applyLevelNavUI() {
     [el.levelNavOverview, 'overview'],
     [el.levelNavUnique, 'unique'],
     [el.levelNavLevels, 'levels'],
+    [el.levelNavRecognize, 'recognize'],
+    [el.levelNavSort, 'sort'],
     [el.levelNavLast, 'lastSession'],
     [el.levelNavInk, 'inkHistory'],
     [el.levelNavCard, 'cardFace'],
     [el.levelNavGlyph, 'glyphImage'],
     [el.levelNavShop, 'shop'],
+    [el.levelNavAtlas, 'atlas'],
     [el.levelNavSettings, 'settings'],
   ];
   for (const [btn, mode] of modes) {
     const active = levelDisplayMode === mode;
     btn?.classList.toggle('is-active', active);
     btn?.setAttribute('aria-selected', active ? 'true' : 'false');
+  }
+}
+
+/** 左侧 filter 顺序（[ / ] 切换） */
+const LEVEL_FILTER_MODES = [
+  'overview',
+  'unique',
+  'levels',
+  'recognize',
+  'sort',
+  'lastSession',
+  'inkHistory',
+  'cardFace',
+  'glyphImage',
+  'shop',
+  'atlas',
+  'settings',
+];
+
+function isLevelHotkeyBlocked() {
+  if (document.querySelector('dialog[open]')) return true;
+  const active = document.activeElement;
+  if (!active) return false;
+  const tag = active.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (active.isContentEditable) return true;
+  return false;
+}
+
+function cycleLevelFilter(delta) {
+  if (currentView !== 'level') return;
+  const hasData = Boolean(fileEntries.find((item) => item.id === activeId)?.data);
+  if (!hasData && levelDisplayMode !== 'settings' && levelDisplayMode !== 'shop') return;
+
+  setKeyboardSelectMode(false);
+
+  const list = LEVEL_FILTER_MODES;
+  let index = list.indexOf(levelDisplayMode);
+  if (index < 0) index = 0;
+  const next = list[(index + delta + list.length) % list.length];
+  setLevelDisplayMode(next);
+}
+
+function isPageToggleHotkey(event) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return false;
+  const key = event.key;
+  return key === 'Tab' || key === 'q' || key === 'Q';
+}
+
+function goToPracticePage() {
+  window.location.href = '../';
+}
+
+function getKeyboardSelectCards() {
+  return [...(el.levelList?.querySelectorAll('.level-card') || [])];
+}
+
+/** 当前视口内能看到的最上方一张卡（进入空格模式默认选中） */
+function findTopVisibleKeyboardSelectIndex(cards) {
+  if (!cards.length) return 0;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  let best = -1;
+  let bestTop = Infinity;
+  for (let i = 0; i < cards.length; i += 1) {
+    const rect = cards[i].getBoundingClientRect();
+    if (rect.bottom <= 0 || rect.top >= vh) continue;
+    if (rect.top < bestTop) {
+      bestTop = rect.top;
+      best = i;
+    }
+  }
+  return best >= 0 ? best : 0;
+}
+
+function clearKeyboardSelectHighlight() {
+  detachKbSelectActions();
+  el.levelList?.querySelectorAll('.level-card.is-kb-selected').forEach((node) => {
+    node.classList.remove('is-kb-selected');
+  });
+}
+
+function buildKbSelectActions() {
+  const wrap = document.createElement('div');
+  wrap.className = 'kb-select-actions';
+  wrap.setAttribute('role', 'toolbar');
+  wrap.setAttribute('aria-label', '字卡操作');
+
+  const defs = [
+    {
+      action: 'square',
+      label: '方形',
+      svg: '<rect x="7" y="7" width="10" height="10" rx="1"/>',
+    },
+    {
+      action: 'star',
+      label: '收藏',
+      svg: '<polygon points="12 3.5 14.4 9.2 20.5 9.6 15.8 13.6 17.4 19.5 12 16.2 6.6 19.5 8.2 13.6 3.5 9.6 9.6 9.2"/>',
+    },
+    {
+      action: 'triangle',
+      label: '三角形',
+      svg: '<polygon points="12 5 20 19 4 19"/>',
+    },
+  ];
+
+  for (const def of defs) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'kb-select-action';
+    btn.dataset.action = def.action;
+    btn.setAttribute('aria-label', def.label);
+    btn.title = def.label;
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true">${def.svg}</svg>`;
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (def.action === 'star') {
+        void toggleUniqueStarFromKbSelect();
+      }
+    });
+    wrap.appendChild(btn);
+  }
+
+  wrap.addEventListener('mousedown', (event) => {
+    event.stopPropagation();
+  });
+  return wrap;
+}
+
+function readUniqueSelectionFromCard(card) {
+  if (!card?.classList.contains('unique-card')) return null;
+  const sessionIndex = Math.floor(Number(card.dataset.sessionIndex));
+  const strokeIndex = Math.floor(Number(card.dataset.strokeIndex));
+  if (!Number.isFinite(sessionIndex) || !Number.isFinite(strokeIndex)) return null;
+  return { sessionIndex, strokeIndex };
+}
+
+function findUniqueInventoryItem(data, selection) {
+  if (!selection || !Array.isArray(data?.uniques)) return null;
+  return data.uniques.find((item) => (
+    Math.floor(Number(item.sessionIndex)) === selection.sessionIndex
+    && Math.floor(Number(item.strokeIndex)) === selection.strokeIndex
+  )) || null;
+}
+
+function syncKbSelectStarButton(card) {
+  const btn = kbSelectActionsEl?.querySelector('[data-action="star"]');
+  if (!btn) return;
+  const selection = readUniqueSelectionFromCard(card);
+  const entry = fileEntries.find((item) => item.id === activeId);
+  const inv = selection ? findUniqueInventoryItem(entry?.data, selection) : null;
+  const canStar = Boolean(selection && inv);
+  const starred = Boolean(inv?.starred);
+  btn.disabled = !canStar;
+  btn.classList.toggle('is-starred', starred);
+  btn.setAttribute('aria-pressed', starred ? 'true' : 'false');
+  btn.title = !canStar ? '仅 unique 卡可收藏' : (starred ? '取消收藏' : '收藏');
+  btn.setAttribute('aria-label', btn.title);
+  const svg = btn.querySelector('svg');
+  if (svg) svg.setAttribute('fill', starred ? 'currentColor' : 'none');
+}
+
+async function toggleUniqueStarFromKbSelect() {
+  const card = kbSelectActionsEl?.closest('.level-card');
+  const selection = readUniqueSelectionFromCard(card);
+  if (!selection) {
+    setHint('请先选中一张 unique 卡', true);
+    return;
+  }
+
+  const entry = fileEntries.find((item) => item.id === activeId);
+  if (!entry?.data) {
+    setHint('请先打开用户文件', true);
+    return;
+  }
+
+  const data = typeof normalizeUserStats === 'function'
+    ? normalizeUserStats(entry.data, entry.id)
+    : entry.data;
+  entry.data = data;
+
+  const inv = findUniqueInventoryItem(data, selection);
+  if (!inv) {
+    setHint('未找到对应 unique 库存', true);
+    return;
+  }
+
+  const nextStarred = !inv.starred;
+  if (typeof setUniqueInventoryStarred === 'function') {
+    setUniqueInventoryStarred(data, selection.sessionIndex, selection.strokeIndex, nextStarred);
+  } else {
+    inv.starred = nextStarred;
+  }
+  data.updatedAt = new Date().toISOString();
+
+  try {
+    await writeActiveUserData(data);
+    card.classList.toggle('is-starred', nextStarred);
+    syncKbSelectStarButton(card);
+    const catalog = getCatalogById().get(String(inv.id));
+    const label = catalog?.char || inv.id;
+    setHint(nextStarred ? `已收藏「${label}」` : `已取消收藏「${label}」`);
+    // 总览只显示收藏卡：取消收藏后需刷新列表
+    if (currentView === 'level' && levelDisplayMode === 'overview') {
+      const keepIndex = keyboardSelectIndex;
+      renderActiveView(entry);
+      if (keyboardSelectMode) {
+        // 取消收藏后该卡可能已从总览消失
+        const cards = getKeyboardSelectCards();
+        if (cards.length) {
+          applyKeyboardSelectIndex(Math.min(keepIndex, cards.length - 1), {
+            playSfx: false,
+            scroll: false,
+          });
+        } else {
+          setKeyboardSelectMode(false);
+        }
+      }
+    } else {
+      syncKbSelectStarButton(card);
+    }
+  } catch (error) {
+    inv.starred = !nextStarred;
+    setHint(`收藏失败：${error.message || error}`, true);
+  }
+}
+
+function ensureKbSelectActions() {
+  if (!kbSelectActionsEl) {
+    kbSelectActionsEl = buildKbSelectActions();
+  }
+  return kbSelectActionsEl;
+}
+
+function detachKbSelectActions() {
+  if (!kbSelectActionsEl) return;
+  kbSelectActionsEl.remove();
+}
+
+function attachKbSelectActions(card) {
+  if (!card?.classList.contains('unique-card')) {
+    detachKbSelectActions();
+    return;
+  }
+  const actions = ensureKbSelectActions();
+  if (actions.parentElement !== card) {
+    card.appendChild(actions);
+  }
+  syncKbSelectStarButton(card);
+}
+
+/** 空格选中跟随滚动：上下预留边距，避免贴边 */
+const KB_SELECT_SCROLL_PAD_RATIO = 0.2;
+const KB_SELECT_SCROLL_PAD_MIN_PX = 96;
+
+function scrollKeyboardSelectCardIntoView(card) {
+  if (!card) return;
+  const rect = card.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  if (vh <= 0) return;
+
+  const pad = Math.max(KB_SELECT_SCROLL_PAD_MIN_PX, Math.round(vh * KB_SELECT_SCROLL_PAD_RATIO));
+  const usable = vh - pad * 2;
+  let delta = 0;
+
+  if (usable <= 0 || rect.height >= usable) {
+    // 卡过高：顶边对齐到上预留线
+    delta = rect.top - pad;
+  } else if (rect.top < pad) {
+    delta = rect.top - pad;
+  } else if (rect.bottom > vh - pad) {
+    delta = rect.bottom - (vh - pad);
+  }
+
+  if (Math.abs(delta) < 1) return;
+  window.scrollBy({ top: delta, left: 0, behavior: 'auto' });
+}
+
+function applyKeyboardSelectIndex(index, { playSfx = true, scroll = true } = {}) {
+  const cards = getKeyboardSelectCards();
+  if (!cards.length) return;
+  const next = ((index % cards.length) + cards.length) % cards.length;
+  keyboardSelectIndex = next;
+  clearKeyboardSelectHighlight();
+  const card = cards[next];
+  card.classList.add('is-kb-selected');
+  attachKbSelectActions(card);
+  if (scroll) {
+    scrollKeyboardSelectCardIntoView(card);
+  }
+  const data = levelCardPreviewByEl.get(card);
+  if (!data) return;
+  if (playSfx) playCardHoverSfx();
+  cardPreviewHoverAt = Date.now();
+  showCardPreview(data.char, data.script, data.id, data.uniquePreview, { allowWhenPinned: true });
+}
+
+function setKeyboardSelectMode(on, { startIndex = null } = {}) {
+  const next = Boolean(on);
+  if (!next) {
+    if (!keyboardSelectMode) return;
+    keyboardSelectMode = false;
+    document.body.classList.remove('is-kb-select-mode');
+    clearKeyboardSelectHighlight();
+    hideCardPreview();
+    return;
+  }
+
+  if (currentView !== 'level') return;
+  const cards = getKeyboardSelectCards();
+  if (!cards.length) return;
+
+  const wasOn = keyboardSelectMode;
+  keyboardSelectMode = true;
+  document.body.classList.add('is-kb-select-mode');
+  let index;
+  if (startIndex != null && Number.isFinite(Number(startIndex))) {
+    index = Number(startIndex);
+  } else if (wasOn) {
+    index = keyboardSelectIndex;
+  } else {
+    index = findTopVisibleKeyboardSelectIndex(cards);
+  }
+  applyKeyboardSelectIndex(index, {
+    playSfx: !wasOn || startIndex != null,
+  });
+}
+
+/** 点击字卡：进入/切换空格选中；再点当前选中字则退出 */
+function onLevelCardKeyboardSelectClick(card, event) {
+  if (dismantleMode) return false;
+  if (currentView !== 'level') return false;
+  const cards = getKeyboardSelectCards();
+  const index = cards.indexOf(card);
+  if (index < 0) return false;
+
+  event?.preventDefault();
+  event?.stopPropagation();
+
+  if (keyboardSelectMode && index === keyboardSelectIndex) {
+    setKeyboardSelectMode(false);
+    return true;
+  }
+
+  setKeyboardSelectMode(true, { startIndex: index });
+  return true;
+}
+
+function toggleKeyboardSelectMode() {
+  setKeyboardSelectMode(!keyboardSelectMode);
+}
+
+function syncKeyboardSelectAfterRender() {
+  if (!keyboardSelectMode) return;
+  if (currentView !== 'level' || !getKeyboardSelectCards().length) {
+    setKeyboardSelectMode(false);
+    return;
+  }
+  applyKeyboardSelectIndex(keyboardSelectIndex, { playSfx: false });
+}
+
+function stepKeyboardSelect(delta) {
+  if (!keyboardSelectMode) return;
+  const cards = getKeyboardSelectCards();
+  if (!cards.length) return;
+  applyKeyboardSelectIndex(keyboardSelectIndex + delta);
+}
+
+/** [] / 【】 同时按下 → 切到练习页；单键仍循环等级筛选（短延迟避开和弦） */
+const levelBracketDown = new Set();
+let levelBracketComboConsumed = false;
+let levelBracketFilterTimer = null;
+const LEVEL_BRACKET_FILTER_DELAY_MS = 70;
+
+function levelBracketSide(key) {
+  if (key === '[' || key === '【') return 'left';
+  if (key === ']' || key === '】') return 'right';
+  return null;
+}
+
+function clearLevelBracketFilterTimer() {
+  if (levelBracketFilterTimer == null) return;
+  clearTimeout(levelBracketFilterTimer);
+  levelBracketFilterTimer = null;
+}
+
+function onLevelBracketKeyUp(event) {
+  const side = levelBracketSide(event.key);
+  if (!side) return;
+  levelBracketDown.delete(side);
+  if (!levelBracketDown.size) levelBracketComboConsumed = false;
+}
+
+function scheduleLevelFilterCycle(delta) {
+  clearLevelBracketFilterTimer();
+  levelBracketFilterTimer = setTimeout(() => {
+    levelBracketFilterTimer = null;
+    if (levelBracketComboConsumed) return;
+    if (levelBracketDown.has('left') && levelBracketDown.has('right')) return;
+    cycleLevelFilter(delta);
+  }, LEVEL_BRACKET_FILTER_DELAY_MS);
+}
+
+function tryLevelBracketCombo(event) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return false;
+  const side = levelBracketSide(event.key);
+  if (!side) return false;
+  levelBracketDown.add(side);
+  if (!(levelBracketDown.has('left') && levelBracketDown.has('right'))) return false;
+  event.preventDefault();
+  clearLevelBracketFilterTimer();
+  if (!levelBracketComboConsumed) {
+    levelBracketComboConsumed = true;
+    goToPracticePage();
+  }
+  return true;
+}
+
+function onLevelHotkey(event) {
+  if (isLevelHotkeyBlocked()) return;
+
+  if (isPageToggleHotkey(event)) {
+    event.preventDefault();
+    goToPracticePage();
+    return;
+  }
+
+  if (tryLevelBracketCombo(event)) return;
+
+  if (currentView !== 'level') return;
+
+  // 空格：切换键盘选字模式（阻止默认整页滚动）
+  if (event.key === ' ' || event.code === 'Space') {
+    event.preventDefault();
+    toggleKeyboardSelectMode();
+    return;
+  }
+
+  if (keyboardSelectMode) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setKeyboardSelectMode(false);
+      return;
+    }
+    // 仅上下：同行从左到右，行末再下键进下一行（DOM 顺序）
+    if (event.key === 'ArrowUp' || event.key === 'k' || event.key === 'K') {
+      event.preventDefault();
+      stepKeyboardSelect(-1);
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'j' || event.key === 'J') {
+      event.preventDefault();
+      stepKeyboardSelect(1);
+      return;
+    }
+  }
+
+  if (event.key === '[' || event.key === '【') {
+    event.preventDefault();
+    scheduleLevelFilterCycle(-1);
+    return;
+  }
+  if (event.key === ']' || event.key === '】') {
+    event.preventDefault();
+    scheduleLevelFilterCycle(1);
   }
 }
 
@@ -4175,6 +6773,7 @@ async function boot() {
 }
 
 function init() {
+  if (typeof applyCaoAppVersionLabels === 'function') applyCaoAppVersionLabels();
   cardSfxVolume = loadCardSfxVolume();
   syncSfxVolumeUI();
   void prefetchCardSfxData();
@@ -4182,6 +6781,13 @@ function init() {
   const armSfxUnlock = () => unlockCardHoverSfx();
   document.addEventListener('pointerdown', armSfxUnlock, { capture: true, passive: true });
   document.addEventListener('keydown', armSfxUnlock, { capture: true });
+  document.addEventListener('keydown', onLevelHotkey);
+  document.addEventListener('keyup', onLevelBracketKeyUp);
+  window.addEventListener('blur', () => {
+    levelBracketDown.clear();
+    levelBracketComboConsumed = false;
+    clearLevelBracketFilterTimer();
+  });
 
   el.btnConnect.addEventListener('click', connectDirectory);
   el.btnRefresh.addEventListener('click', async () => {
@@ -4196,6 +6802,8 @@ function init() {
   el.levelNavOverview?.addEventListener('click', () => setLevelDisplayMode('overview'));
   el.levelNavUnique?.addEventListener('click', () => setLevelDisplayMode('unique'));
   el.levelNavLevels?.addEventListener('click', () => setLevelDisplayMode('levels'));
+  el.levelNavRecognize?.addEventListener('click', () => setLevelDisplayMode('recognize'));
+  el.levelNavSort?.addEventListener('click', () => setLevelDisplayMode('sort'));
   el.levelNavLast?.addEventListener('click', () => setLevelDisplayMode('lastSession'));
   el.levelNavInk?.addEventListener('click', () => setLevelDisplayMode('inkHistory'));
   el.inkHistoryHidePractice?.addEventListener('change', () => {
@@ -4206,7 +6814,12 @@ function init() {
   el.levelNavCard?.addEventListener('click', () => setLevelDisplayMode('cardFace'));
   el.levelNavGlyph?.addEventListener('click', () => setLevelDisplayMode('glyphImage'));
   el.levelNavShop?.addEventListener('click', () => setLevelDisplayMode('shop'));
+  el.levelNavAtlas?.addEventListener('click', () => setLevelDisplayMode('atlas'));
   el.levelNavSettings?.addEventListener('click', () => setLevelDisplayMode('settings'));
+  el.btnUnicodeCheck?.addEventListener('click', () => {
+    unlockCardHoverSfx();
+    runUnicodeConsistencyCheck();
+  });
   el.sfxVolume?.addEventListener('input', () => {
     saveCardSfxVolume(el.sfxVolume.value);
     syncSfxVolumeUI();
@@ -4244,12 +6857,27 @@ function init() {
       setDismantleMode(false);
       return;
     }
-    if (levelDisplayMode !== 'overview') setLevelDisplayMode('overview');
+    // 总览 / 独特都可分解；其它页仍回到总览
+    if (levelDisplayMode !== 'overview' && levelDisplayMode !== 'unique') {
+      setLevelDisplayMode('overview');
+    }
     setDismantleMode(true);
   });
   el.btnDismantleConfirm?.addEventListener('click', (event) => {
     event.stopPropagation();
     void confirmDismantleSelected();
+  });
+  el.btnPityDiamond?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (!el.btnPityDiamond?.classList.contains('is-ready')) return;
+    void openPityClaimOffer();
+  });
+  el.btnPityClaimClose?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    void confirmPityClaimObtain();
+  });
+  el.pityClaimOverlay?.addEventListener('click', (event) => {
+    if (event.target === el.pityClaimOverlay) closePityClaimOverlay({ obtained: false });
   });
   el.uniqueInjectCharFilter?.addEventListener('input', () => {
     rebuildUniqueInjectCharSelect(el.uniqueInjectCharFilter.value);

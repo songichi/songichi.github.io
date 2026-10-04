@@ -10,6 +10,7 @@
   <header class="header">
     <a class="back-link" href="../">练字</a>
     <h1 class="title">用户数据</h1>
+    <span class="app-version header-app-version" data-cao-version data-cao-version-prefix="v" aria-label="应用版本"></span>
     <div class="view-switch" role="group" aria-label="界面">
       <button type="button" class="view-switch-btn" id="view-stats" data-view="stats">统计</button>
       <button type="button" class="view-switch-btn is-active" id="view-level" data-view="level">等级</button>
@@ -68,6 +69,25 @@
               <span class="settings-volume-value" id="sfx-volume-value">70</span>
             </span>
           </label>
+          <div class="settings-row settings-app-version">
+            <div class="settings-row-label">应用版本</div>
+            <p class="settings-check-hint">当前系统版本号（与用户 JSON / 快照 schema 版本无关）。</p>
+            <div class="settings-row-control">
+              <span class="settings-version-value" data-cao-version data-cao-version-prefix="v" aria-label="应用版本"></span>
+            </div>
+          </div>
+          <div class="settings-row settings-unicode-check">
+            <div class="settings-row-label">字库 Unicode 检测</div>
+            <p class="settings-check-hint">
+              自动检测 <code>zi-catalog-cao.js</code> 里每条主字是否与其 <code>unicode</code> / <code>id</code> 码位一致，
+              并核对当前用户记录中的 id 能否在字库中找到。
+              只改正 unicode 标注通常不影响已有练习（id 由字形码位生成）。
+            </p>
+            <div class="settings-row-control">
+              <button type="button" class="btn-load" id="btn-unicode-check">检测字库</button>
+            </div>
+            <div class="settings-check-result hidden" id="unicode-check-result" aria-live="polite"></div>
+          </div>
         </div>
       </section>
 
@@ -105,11 +125,14 @@
       <button type="button" class="level-nav-btn is-active" id="level-nav-overview" data-level-mode="overview" role="tab" aria-selected="true">总览</button>
       <button type="button" class="level-nav-btn" id="level-nav-unique" data-level-mode="unique" role="tab" aria-selected="false">独特</button>
       <button type="button" class="level-nav-btn" id="level-nav-levels" data-level-mode="levels" role="tab" aria-selected="false">等级</button>
+      <button type="button" class="level-nav-btn" id="level-nav-recognize" data-level-mode="recognize" role="tab" aria-selected="false">识别</button>
+      <button type="button" class="level-nav-btn" id="level-nav-sort" data-level-mode="sort" role="tab" aria-selected="false">排序方式</button>
       <button type="button" class="level-nav-btn" id="level-nav-last" data-level-mode="lastSession" role="tab" aria-selected="false">记录历史</button>
       <button type="button" class="level-nav-btn" id="level-nav-ink" data-level-mode="inkHistory" role="tab" aria-selected="false">墨历史</button>
       <button type="button" class="level-nav-btn" id="level-nav-card" data-level-mode="cardFace" role="tab" aria-selected="false">卡面</button>
       <button type="button" class="level-nav-btn" id="level-nav-glyph" data-level-mode="glyphImage" role="tab" aria-selected="false">字形</button>
       <button type="button" class="level-nav-btn" id="level-nav-shop" data-level-mode="shop" role="tab" aria-selected="false">商店</button>
+      <button type="button" class="level-nav-btn" id="level-nav-atlas" data-level-mode="atlas" role="tab" aria-selected="false">图鉴</button>
       <button type="button" class="level-nav-btn" id="level-nav-settings" data-level-mode="settings" role="tab" aria-selected="false">设置</button>
     </nav>
   </aside>
@@ -177,6 +200,28 @@
     </div>
   </aside>
 
+  <div
+    id="uniques-mismatch-flag"
+    class="uniques-mismatch-flag hidden"
+    aria-hidden="true"
+    title="unique 库存与历史记录不一致"
+  >!</div>
+
+  <aside class="pity-tools hidden" id="pity-tools" aria-label="unique 保底">
+    <button
+      type="button"
+      class="pity-diamond"
+      id="btn-pity-diamond"
+      title="连续未获得 unique"
+      aria-label="unique 保底"
+    >
+      <svg class="pity-diamond-shape" viewBox="0 0 100 100" aria-hidden="true">
+        <polygon points="50,4 96,50 50,96 4,50" />
+      </svg>
+      <span class="pity-diamond-label" id="pity-diamond-label">0</span>
+    </button>
+  </aside>
+
   <aside class="dismantle-tools hidden" id="dismantle-tools" aria-label="分解 unique 卡">
     <button
       type="button"
@@ -186,6 +231,13 @@
       title="进入 / 退出分解模式"
     ><span class="dismantle-switch-label">分解</span></button>
   </aside>
+
+  <div class="pity-claim-overlay hidden" id="pity-claim-overlay" aria-hidden="true">
+    <div class="pity-claim-stage" role="dialog" aria-label="保底 unique">
+      <div class="pity-claim-card-slot" id="pity-claim-card-slot"></div>
+      <button type="button" class="pity-claim-close" id="btn-pity-claim-close" aria-label="获得">获得</button>
+    </div>
+  </div>
 
   <div class="dismantle-overlay hidden" id="dismantle-overlay" aria-hidden="true">
     <div class="dismantle-circle" role="dialog" aria-labelledby="dismantle-ink-value">
@@ -235,6 +287,7 @@
     </form>
   </dialog>
 
+  <script src="../js/version.js"></script>
   <script src="../js/card-style.js"></script>
   <script src="../js/card-color-schemes.js"></script>
   <script src="../js/card-bases.js"></script>

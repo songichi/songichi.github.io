@@ -10,6 +10,7 @@
   <div class="top-left-bar" id="top-left-bar">
     <span class="practice-user-id is-empty" id="practice-user-id" title="" hidden></span>
     <a class="btn-user-page" id="btn-user-page" href="user/index.html?view=level" title="打开用户界面">用户</a>
+    <span class="app-version" data-cao-version data-cao-version-prefix="v" aria-label="应用版本"></span>
   </div>
 
   <header class="header">
@@ -35,14 +36,9 @@
     <div class="mode-switch" role="group" aria-label="学习模式">
       <button class="mode-switch-btn is-active" id="mode-default" data-mode="default">默认</button>
       <button class="mode-switch-btn" id="mode-time" data-mode="time">时间</button>
+      <button class="mode-switch-btn" id="mode-recognize" data-mode="recognize" title="看草书，输入对应汉字">识字</button>
     </div>
     <button type="button" class="btn-session-action" id="btn-session-action" aria-label="结算">结算</button>
-    <button class="btn-icon" id="btn-snapshot-copy" aria-label="复制本轮快照" title="复制本轮快照">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <rect x="9" y="9" width="13" height="13" rx="2"/>
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-      </svg>
-    </button>
     <button class="btn-icon" id="btn-snapshot-view" aria-label="查看本轮快照" title="查看本轮快照">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -67,12 +63,6 @@
         <line x1="16.5" y1="16.5" x2="21" y2="21"/>
       </svg>
     </button>
-    <button class="btn-icon" id="btn-settings" aria-label="字库设置" title="字库设置">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-      </svg>
-    </button>
   </header>
 
   <main class="page">
@@ -82,6 +72,25 @@
           <div class="character-display" id="character-display">—</div>
           <img class="glyph-image hidden" id="glyph-image" src="" alt="字形">
           <p class="glyph-placeholder hidden" id="glyph-placeholder">字形图片尚未添加</p>
+        </div>
+        <div class="recognize-bar hidden" id="recognize-bar">
+          <input
+            class="recognize-input"
+            id="recognize-input"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            lang="zh-CN"
+            maxlength="8"
+            aria-label="输入这个草书对应的汉字"
+            placeholder="输入汉字"
+          >
+          <p class="recognize-answer hidden" id="recognize-answer">
+            <span class="recognize-answer-label">正确答案</span>
+            <span class="recognize-answer-char" id="recognize-answer-char"></span>
+          </p>
         </div>
         <div class="settlement-panel hidden" id="settlement-panel" aria-live="polite">
           <h2 class="settlement-title">本轮小结</h2>
@@ -134,7 +143,34 @@
     </div>
   </aside>
 
-  <p class="no-repeat-hint hidden" id="no-repeat-hint" aria-live="polite">禁止重复</p>
+  <div class="chance-panel hidden" id="chance-panel">
+    <div
+      class="unique-chance-dots"
+      id="unique-chance-dots"
+      role="img"
+      aria-label="unique 掉落门控"
+      title="unique 掉落门控：每满 2% 一颗橙点"
+    ></div>
+    <aside class="chance-rules" id="chance-rules" aria-label="默认模式抽字规则">
+      <p class="chance-rules-title">抽字几率</p>
+      <ul class="chance-rules-list" id="chance-rules-list"></ul>
+    </aside>
+  </div>
+
+  <button
+    type="button"
+    class="btn-unique-sfx-test hidden"
+    id="btn-unique-sfx-test"
+    title="试听 unique 掉落音效（仅测试用户）"
+    aria-label="试听 unique 掉落音效"
+    hidden
+  >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+    </svg>
+  </button>
 
   <!-- 浏览字库面板（只读） -->
   <dialog class="dialog dialog-browse" id="browse-dialog">
@@ -225,6 +261,7 @@
     </div>
   </dialog>
 
+  <script src="js/version.js"></script>
   <script src="js/card-style.js"></script>
   <script src="js/card-color-schemes.js"></script>
   <script src="js/card-bases.js"></script>
@@ -236,6 +273,7 @@
   <script src="js/session.js"></script>
   <script src="js/user-merge.js"></script>
   <script src="js/local-fs.js"></script>
+  <script src="js/default-mode-chance.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

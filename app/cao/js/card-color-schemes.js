@@ -88,4 +88,39 @@ registerColorSchemeLibrary([
     name: '黄玉',
     weight: 1,
   }),
+  createColorScheme({
+    id: 'cs010',
+    primaryColor: '#2b28bc',
+    secondaryColor: '#d1ea3d',
+    tertiaryColor: '#d4dd1d',
+    name: '熒光',
+    weight: 1,
+  }),
+
+
+
+  createColorScheme({
+    id: 'cs011',
+    primaryColor: '#ffffff',
+    secondaryColor: '#f7b7e5',
+    tertiaryColor: '#f7a9e5',
+    name: '珠粉',
+    weight: 1,
+  }),
+  createColorScheme({
+    id: 'cs012',
+    primaryColor: '#4c152c',
+    secondaryColor: '#bc0826',
+    tertiaryColor: '#a80428',
+    name: '血牙',
+    weight: 1,
+  }),
+  createColorScheme({
+    id: 'cs013',
+    primaryColor: '#a3c1aa',
+    secondaryColor: '#076022',
+    tertiaryColor: '#0b541e',
+    name: '森林',
+    weight: 1,
+  }),
 ]);

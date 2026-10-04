@@ -1,5 +1,7 @@
 # 本地练习账本（个人数据，默认不上传）
 
+应用版本：**v1.0.00**（见 `app/cao/js/version.js`；与本目录 JSON 的 schema `version` 无关）
+
 当前用户数据文件：**`user-yi.json`**
 
 本目录存放**本机**练习统计。网站默认不提交 `user-*.json`（见 `.gitignore`）。查看页：`app/cao/user/`。
@@ -20,7 +22,7 @@
 | `shopPurchases`（磁盘 `sp`） | 商店购买明细 | 可选明细；售罄以 `shopBuys` 为准 |
 | `shopBuys`（磁盘 `sb`） | 按日已购格位 | 如 `{ "2026-08-31": [1] }`；**售罄按用户**，与货架无关 |
 
-**掉落判定（练字）：** 完成某字并跳到下一字时，以 1/10 进入 unique 词条判定；词条全空则保底 +5 墨（记在 `stroke.inkDrop`）。单字综合墨掉落概率约 **189/3200 ≈ 5.91%**。右侧显示「X墨」与黑圆框提示；**账户入账须等结算写入**。
+**掉落判定（练字）：** 完成某字并跳到下一字时，以 **8%** 进入 unique 词条判定；本字若翻开过原型则门控 **+2%**。词条全空则保底 +5 墨（记在 `stroke.inkDrop`）。右侧显示「X墨」与黑圆框提示；**账户入账须等结算写入**。
 
 **磁盘格式 v3：** 落盘为**缩进 JSON**（便于阅读）；顶层短键（`v`/`u`/`at`/`sum`…）；`chars` 每字单行 `[字, 次数, first, last]`；`sessions[].s` 每笔单行 `[id, durationMs]`（unique 再跟 `{cs,cb,cm,d,ci}`）；`f`/`m`/`lib`/`cl`/`src` 收成一行。同 UTC 日的 `e` 只写时刻（如 `06:06:47.129Z`），跨日仍写完整 ISO。读写经 `packUserStatsForDisk` / `normalizeUserStats`（`user-merge.js`），内存仍用长键。旧版长键 pretty JSON 仍可读取。
 

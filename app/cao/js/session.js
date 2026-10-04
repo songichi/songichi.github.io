@@ -180,10 +180,11 @@ function applyDropJudgmentToStroke(stroke, drop) {
  * 掉落判定在此时进行（完成该字时），勿在 beginStroke 时判定。
  * @param {object} state
  * @param {number} [endAt]
- * @param {{ drop?: object|null, rng?: function, skipDrop?: boolean }} [options]
+ * @param {{ drop?: object|null, rng?: function, skipDrop?: boolean, glyphRevealed?: boolean }} [options]
  *   - drop: 显式传入判定结果（优先）
  *   - rng: 未传 drop 且未 skipDrop 时用于 rollDropJudgment
  *   - skipDrop: true 时不做掉落判定（极少用）
+ *   - glyphRevealed: 本字曾翻开原型，门控 +2%
  */
 function finalizeActiveStroke(state, endAt = Date.now(), options = {}) {
   if (!state?.activeStroke?.id) return;
@@ -196,16 +197,18 @@ function finalizeActiveStroke(state, endAt = Date.now(), options = {}) {
 
   let drop = options?.drop;
   if (drop === undefined && !options?.skipDrop) {
+    const dropOpts = { glyphRevealed: Boolean(options?.glyphRevealed) };
     if (typeof rollDropJudgment === 'function') {
-      drop = rollDropJudgment(options?.rng);
+      drop = rollDropJudgment(options?.rng, dropOpts);
     } else if (typeof rollCardStyleForAppearance === 'function') {
-      drop = { ...rollCardStyleForAppearance(options?.rng), inkDrop: 0 };
+      drop = { ...rollCardStyleForAppearance(options?.rng, dropOpts), inkDrop: 0 };
     }
   }
   applyDropJudgmentToStroke(stroke, drop || null);
 
   if (stroke.isUnique && stroke.cardStyle) {
     stroke.ciHao = (Array.isArray(state.strokes) ? state.strokes.length : 0) + 1;
+    if (typeof playUniqueDropSfx === 'function') playUniqueDropSfx();
   }
 
   state.strokes.push(stroke);
@@ -407,12 +410,20 @@ function formatStrokeDuration(ms) {
 }
 
 /**
- * 构建可扩展会话快照（export 时结束最后一字的计时）
+ * 构建会话快照。
+ * 默认不结束当前未完成的字（未结算不记入）。
+ * 仅结算时传 commitActive: true，把屏上这一字定稿进快照。
  */
 function buildSessionSnapshot(state, meta = {}) {
   const exportAt = Date.now();
-  const { dropRng, ...restMetaIn } = meta;
-  finalizeActiveStroke(state, exportAt, { rng: dropRng });
+  const { dropRng, commitActive = false, skipDrop = false, glyphRevealed = false, ...restMetaIn } = meta;
+  if (commitActive) {
+    finalizeActiveStroke(state, exportAt, {
+      rng: dropRng,
+      skipDrop: Boolean(skipDrop),
+      glyphRevealed: Boolean(glyphRevealed),
+    });
+  }
 
   const endedAt = new Date(exportAt).toISOString();
   const strokes = state.strokes.map((s) => (

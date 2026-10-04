@@ -12,4 +12,8 @@ registerCardBaseLibrary([
   createCardBase({ id: 'cb003', name: '方点', weight: 1 }),
   createCardBase({ id: 'cb004', name: '折线', weight: 1 }),
   createCardBase({ id: 'cb005', name: '圆形重叠', weight: 1 }),
+  createCardBase({ id: 'cb006', name: '正三角', weight: 1 }),
+  createCardBase({ id: 'cb007', name: '网格', weight: 1 }),
+  createCardBase({ id: 'cb008', name: '圆环', weight: 1 }),
+  createCardBase({ id: 'cb009', name: '结晶', weight: 1 }),
 ]);

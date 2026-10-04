@@ -12,7 +12,10 @@
  * 预览层叠（底→上）：secondary → cardBase(tertiary mask) → cardImage(primary mask) → cardModifier(sticker)
  */
 
-const CARD_UNIQUE_APPEARANCE_CHANCE = 1 / 10;
+/** 默认 unique 掉落门控（未翻开原型） */
+const CARD_UNIQUE_APPEARANCE_CHANCE = 0.08;
+/** 本字翻开过原型后，门控再加这一档 */
+const CARD_UNIQUE_GLYPH_REVEAL_BONUS = 0.02;
 /** unique 通过后：配色 check */
 const CARD_COLOR_SCHEME_APPEARANCE_CHANCE = 1 / 4;
 /** unique 通过后：底纹 check（与配色独立，可叠加） */
@@ -526,17 +529,47 @@ function rollUniqueTraitChecks(rng = Math.random) {
   return { isUnique: true, cardStyle };
 }
 
+function clampUniqueAppearanceChance(chance) {
+  const n = Number(chance);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(1, n);
+}
+
+function getUniqueGlyphRevealBonus() {
+  const n = Number(
+    typeof CARD_UNIQUE_GLYPH_REVEAL_BONUS === 'number' ? CARD_UNIQUE_GLYPH_REVEAL_BONUS : 0,
+  );
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** 当前字 unique 门控：默认 8%；本字翻开过原型则 +2% */
+function resolveUniqueAppearanceChance({ glyphRevealed = false, chance } = {}) {
+  const base = clampUniqueAppearanceChance(
+    chance == null
+      ? (typeof CARD_UNIQUE_APPEARANCE_CHANCE === 'number' ? CARD_UNIQUE_APPEARANCE_CHANCE : 0)
+      : chance,
+  );
+  if (!glyphRevealed) return base;
+  return clampUniqueAppearanceChance(base + getUniqueGlyphRevealBonus());
+}
+
 /**
  * 掉落判定（完成某字、跳到下一字时调用，勿在刚切换到该字时调用）
- * 1/10 进入 → unique 词条判定；词条全空则保底 5 墨（非即刻入账）
+ * 默认 8% 进入 unique 词条判定（翻开过原型则 10%）；词条全空则保底 5 墨（非即刻入账）
+ * @param {function} [rng]
+ * @param {{ glyphRevealed?: boolean, chance?: number }} [options]
  * @returns {{ isUnique: boolean, cardStyle: object|null, inkDrop: number }}
  */
-function rollDropJudgment(rng = Math.random) {
-  const next = typeof rng === 'function' ? rng : Math.random;
+function rollDropJudgment(rng = Math.random, options = {}) {
+  const extra = (rng && typeof rng === 'object') ? rng : (options || {});
+  const next = typeof rng === 'function'
+    ? rng
+    : (typeof extra.rng === 'function' ? extra.rng : Math.random);
   const empty = { isUnique: false, cardStyle: null, inkDrop: 0 };
+  const gate = resolveUniqueAppearanceChance(extra);
 
   // 掉落判定门控
-  if (next() >= CARD_UNIQUE_APPEARANCE_CHANCE) return empty;
+  if (next() >= gate) return empty;
 
   const traits = rollUniqueTraitChecks(next);
   if (traits.isUnique && traits.cardStyle) {
@@ -548,17 +581,45 @@ function rollDropJudgment(rng = Math.random) {
 }
 
 /**
- * 练字 / 商店：roll unique 卡背
- * 1/10 unique 门控 → 独立 1/4 配色 + 1/8 底纹 + 1/10 修饰（可叠加）
- * 任一通过 → isUnique；可任意子集组合
- * （不含墨掉落；练习掉落请用 rollDropJudgment）
+ * 保底领取：按 unique 词条正常几率出卡（不含掉落门控）
+ * 若词条全空则重试，仍空则强制默认配色
  * @returns {{ isUnique: boolean, cardStyle: object|null }}
  */
-function rollCardStyleForAppearance(rng = Math.random) {
+function rollPityUniqueCardStyle(rng = Math.random) {
   const next = typeof rng === 'function' ? rng : Math.random;
-  const empty = { isUnique: false, cardStyle: null };
+  for (let i = 0; i < 48; i += 1) {
+    const traits = rollUniqueTraitChecks(next);
+    if (traits.isUnique && traits.cardStyle) return traits;
+  }
+  const scheme = typeof pickRandomColorScheme === 'function' ? pickRandomColorScheme(next) : null;
+  const colorSchemeId = scheme?.id
+    || (typeof CARD_DEFAULT_COLOR_SCHEME_ID !== 'undefined' ? CARD_DEFAULT_COLOR_SCHEME_ID : null);
+  const cardStyle = typeof buildCardStyleRecord === 'function'
+    ? buildCardStyleRecord(colorSchemeId, null, null, null)
+    : { colorSchemeId, decorationId: null, cardBase: null, cardModifier: null, tags: [] };
+  return cardStyle
+    ? { isUnique: true, cardStyle }
+    : { isUnique: false, cardStyle: null };
+}
 
-  if (next() >= CARD_UNIQUE_APPEARANCE_CHANCE) return empty;
+/**
+ * 练字 / 商店：roll unique 卡背
+ * 默认 8% unique 门控（翻开过原型则 10%）→ 独立 1/4 配色 + 1/8 底纹 + 1/10 修饰（可叠加）
+ * 任一通过 → isUnique；可任意子集组合
+ * （不含墨掉落；练习掉落请用 rollDropJudgment）
+ * @param {function} [rng]
+ * @param {{ glyphRevealed?: boolean, chance?: number }} [options]
+ * @returns {{ isUnique: boolean, cardStyle: object|null }}
+ */
+function rollCardStyleForAppearance(rng = Math.random, options = {}) {
+  const extra = (rng && typeof rng === 'object') ? rng : (options || {});
+  const next = typeof rng === 'function'
+    ? rng
+    : (typeof extra.rng === 'function' ? extra.rng : Math.random);
+  const empty = { isUnique: false, cardStyle: null };
+  const gate = resolveUniqueAppearanceChance(extra);
+
+  if (next() >= gate) return empty;
 
   const traits = rollUniqueTraitChecks(next);
   if (!traits.isUnique || !traits.cardStyle) return empty;

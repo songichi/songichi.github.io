@@ -260,10 +260,11 @@ function buildTimeWeights(order) {
   return weights;
 }
 
-/** 读取学习模式：'default' | 'time' */
+/** 读取学习模式：'default' | 'time' | 'recognize' */
 function loadLearningMode() {
   const stored = localStorage.getItem(MODE_STORAGE_KEY);
-  return stored === 'time' ? 'time' : 'default';
+  if (stored === 'time' || stored === 'recognize') return stored;
+  return 'default';
 }
 
 /** 保存学习模式 */

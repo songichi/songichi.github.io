@@ -28,6 +28,208 @@ function hashSeedString(text) {
   return h >>> 0;
 }
 
+/** unique 掉落音效（音量与用户页「音效音量」共用） */
+const UNIQUE_DROP_SFX_URL = new URL('sound/sfx_uniqueDrop.mp3', window.location.href).href;
+const SFX_VOLUME_STORAGE_KEY = 'cao-card-sfx-volume';
+const SFX_VOLUME_DEFAULT = 70;
+/** 相对 sfx_card：源文件更轻，播放时额外增益（用户音量滑条仍生效） */
+const UNIQUE_DROP_SFX_GAIN = 5;
+
+/** @type {AudioContext | null} */
+let uniqueDropAudioCtx = null;
+/** @type {AudioBuffer | null} */
+let uniqueDropBuffer = null;
+/** @type {ArrayBuffer | null} */
+let uniqueDropRawData = null;
+/** @type {Promise<ArrayBuffer | null> | null} */
+let uniqueDropRawPromise = null;
+/** @type {Promise<AudioBuffer | null> | null} */
+let uniqueDropBufferPromise = null;
+
+function uniqueDropVolume() {
+  try {
+    const raw = localStorage.getItem(SFX_VOLUME_STORAGE_KEY);
+    // 未设置过时 getItem 为 null；Number(null) === 0，不能当成静音
+    if (raw == null || raw === '') return SFX_VOLUME_DEFAULT;
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n)) return SFX_VOLUME_DEFAULT;
+    return Math.min(100, Math.max(0, n));
+  } catch {
+    return SFX_VOLUME_DEFAULT;
+  }
+}
+
+/** 实际播放增益：滑条 0–100 × 额外增益。HTMLAudio 上限 1；Web Audio 可略超 1 */
+function uniqueDropPlaybackGain({ forHtmlAudio = false } = {}) {
+  const volume = uniqueDropVolume();
+  if (volume <= 0) return 0;
+  const gain = (volume / 100) * UNIQUE_DROP_SFX_GAIN;
+  if (forHtmlAudio) return Math.min(1, gain);
+  // 源峰值约 0.25，×5 ≈ 1.25；再封顶避免极端
+  return Math.min(2.5, gain);
+}
+
+function prefetchUniqueDropSfx() {
+  if (uniqueDropRawData) return Promise.resolve(uniqueDropRawData);
+  if (uniqueDropRawPromise) return uniqueDropRawPromise;
+  uniqueDropRawPromise = (async () => {
+    const response = await fetch(UNIQUE_DROP_SFX_URL);
+    if (!response.ok) throw new Error(`sfx http ${response.status}`);
+    uniqueDropRawData = await response.arrayBuffer();
+    return uniqueDropRawData;
+  })().catch((error) => {
+    console.warn('[cao] unique drop sfx fetch failed', error);
+    uniqueDropRawPromise = null;
+    return null;
+  });
+  return uniqueDropRawPromise;
+}
+
+function getUniqueDropAudioContext() {
+  if (uniqueDropAudioCtx) return uniqueDropAudioCtx;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  uniqueDropAudioCtx = new Ctx();
+  return uniqueDropAudioCtx;
+}
+
+function loadUniqueDropBuffer() {
+  if (uniqueDropBuffer) return Promise.resolve(uniqueDropBuffer);
+  if (uniqueDropBufferPromise) return uniqueDropBufferPromise;
+  uniqueDropBufferPromise = (async () => {
+    const ctx = getUniqueDropAudioContext();
+    if (!ctx) return null;
+    const data = await prefetchUniqueDropSfx();
+    if (!data) return null;
+    uniqueDropBuffer = await ctx.decodeAudioData(data.slice(0));
+    return uniqueDropBuffer;
+  })().catch((error) => {
+    console.warn('[cao] unique drop sfx decode failed', error);
+    uniqueDropBufferPromise = null;
+    return null;
+  });
+  return uniqueDropBufferPromise;
+}
+
+function startUniqueDropBuffer(buffer) {
+  const ctx = getUniqueDropAudioContext();
+  if (!ctx || ctx.state !== 'running' || !buffer) return false;
+  const gainValue = uniqueDropPlaybackGain();
+  if (gainValue <= 0) return true;
+  const source = ctx.createBufferSource();
+  const gain = ctx.createGain();
+  gain.gain.value = gainValue;
+  source.buffer = buffer;
+  source.connect(gain);
+  gain.connect(ctx.destination);
+  try {
+    source.start(0);
+  } catch {
+    source.start();
+  }
+  return true;
+}
+
+/** @type {HTMLAudioElement | null} */
+let uniqueDropAudio = null;
+let uniqueDropUnlocked = false;
+
+function getUniqueDropAudio() {
+  if (!uniqueDropAudio) {
+    uniqueDropAudio = new Audio(UNIQUE_DROP_SFX_URL);
+    uniqueDropAudio.preload = 'auto';
+  }
+  return uniqueDropAudio;
+}
+
+/** 在用户手势里解锁：resume AudioContext + 解码缓冲 + 丢弃式静音 play */
+function unlockUniqueDropSfx() {
+  const ctx = getUniqueDropAudioContext();
+  if (ctx && ctx.state !== 'running') {
+    const resumePromise = ctx.resume();
+    if (resumePromise && typeof resumePromise.catch === 'function') {
+      resumePromise.catch(() => {});
+    }
+  }
+  void loadUniqueDropBuffer();
+
+  // 预热共享元素，提高首次真正播放成功率
+  try {
+    getUniqueDropAudio().load();
+  } catch {
+    // ignore
+  }
+
+  if (uniqueDropUnlocked) return;
+  try {
+    const silent = new Audio(UNIQUE_DROP_SFX_URL);
+    silent.volume = 0;
+    const pending = silent.play();
+    if (pending && typeof pending.then === 'function') {
+      pending.then(() => {
+        uniqueDropUnlocked = true;
+        silent.pause();
+      }).catch(() => {});
+    } else {
+      uniqueDropUnlocked = true;
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function playUniqueDropSfxWebAudio() {
+  try {
+    const ctx = getUniqueDropAudioContext();
+    if (!ctx) return false;
+    const playReady = (buffer) => {
+      if (!buffer) return false;
+      if (ctx.state === 'running') return startUniqueDropBuffer(buffer);
+      const resumePromise = ctx.resume();
+      if (resumePromise && typeof resumePromise.then === 'function') {
+        resumePromise.then(() => {
+          if (ctx.state === 'running') startUniqueDropBuffer(buffer);
+        }).catch(() => {});
+      }
+      return false;
+    };
+    if (uniqueDropBuffer) return playReady(uniqueDropBuffer);
+    void loadUniqueDropBuffer().then(playReady);
+    return false;
+  } catch (error) {
+    console.warn('[cao] unique drop sfx play failed', error);
+    return false;
+  }
+}
+
+function playUniqueDropSfx() {
+  const volume = uniqueDropVolume();
+  if (volume <= 0) return;
+
+  // 1) 缓冲已就绪时：在点击栈内同步走 Web Audio（最稳，可 >1 增益）
+  if (uniqueDropBuffer && uniqueDropAudioCtx && uniqueDropAudioCtx.state === 'running') {
+    if (startUniqueDropBuffer(uniqueDropBuffer)) return;
+  }
+
+  // 2) 每次新建 Audio，避免和解锁用的静音 play 抢同一个元素
+  try {
+    const audio = new Audio(UNIQUE_DROP_SFX_URL);
+    audio.volume = uniqueDropPlaybackGain({ forHtmlAudio: true });
+    const pending = audio.play();
+    if (pending && typeof pending.then === 'function') {
+      pending.then(() => {
+        uniqueDropUnlocked = true;
+      }).catch(() => {
+        playUniqueDropSfxWebAudio();
+      });
+      return;
+    }
+  } catch (error) {
+    console.warn('[cao] unique drop sfx play failed', error);
+  }
+  playUniqueDropSfxWebAudio();
+}
+
 function parseSeedInput(raw) {
   const text = String(raw ?? '').trim();
   if (!text) return createRandomSeed();
@@ -46,14 +248,26 @@ let characters = filterLibrary(fullLibrary, scriptFilter);
 /** 当前条目 { char, script } */
 let currentEntry = null;
 let glyphVisible = false;
+/** 当前字是否曾翻开过原型（影响 unique 门控；切字时清零） */
+let currentGlyphRevealed = false;
 /** 当前字是否有答案字形图 */
 let glyphImageAvailable = false;
 let glyphAvailabilityToken = 0;
 /** 字形图是否存在缓存（键：id 或 char） */
 const glyphImageExistsCache = new Map();
 let learningMode = loadLearningMode();
+/** 识字模式：历史最近识别过的 id（新在前），默认剔除 50 个 */
+const RECOGNIZE_HISTORY_EXCLUDE = 50;
+let recognizeRecentIds = [];
+let recognizeAnswerRevealed = false;
+let recognizeShownAt = 0;
+let recognizeRoundToken = 0;
+/** @type {Promise<void> | null} */
+let recognizeGlyphPoolPromise = null;
 /** 最近显示过的条目键，最新在前，最多保留 2 个 */
 let recentHistory = [];
+/** 本轮已跳过的条目键（本轮内不再出现） */
+let sessionSkippedKeys = new Set();
 /** 切换汉字时的淡入定时器 */
 let showCharacterTimer = null;
 /** 本轮会话（含书体、次数、时间戳；可导出为 versioned JSON） */
@@ -93,6 +307,10 @@ const el = {
   display: document.getElementById('character-display'),
   glyphImage: document.getElementById('glyph-image'),
   glyphPlaceholder: document.getElementById('glyph-placeholder'),
+  recognizeBar: document.getElementById('recognize-bar'),
+  recognizeInput: document.getElementById('recognize-input'),
+  recognizeAnswer: document.getElementById('recognize-answer'),
+  recognizeAnswerChar: document.getElementById('recognize-answer-char'),
   btnShow: document.getElementById('btn-show'),
   btnRefresh: document.getElementById('btn-refresh'),
   btnSkip: document.getElementById('btn-skip'),
@@ -102,7 +320,11 @@ const el = {
   settlementPanel: document.getElementById('settlement-panel'),
   settlementMeta: document.getElementById('settlement-meta'),
   settlementChars: document.getElementById('settlement-chars'),
-  noRepeatHint: document.getElementById('no-repeat-hint'),
+  chancePanel: document.getElementById('chance-panel'),
+  chanceRules: document.getElementById('chance-rules'),
+  chanceRulesList: document.getElementById('chance-rules-list'),
+  uniqueChanceDots: document.getElementById('unique-chance-dots'),
+  btnUniqueSfxTest: document.getElementById('btn-unique-sfx-test'),
   btnScript: document.getElementById('btn-script'),
   scriptLabel: document.getElementById('script-label'),
   scriptMenu: document.getElementById('script-menu'),
@@ -135,6 +357,7 @@ const el = {
   btnCancel: document.getElementById('btn-cancel'),
   modeDefault: document.getElementById('mode-default'),
   modeTime: document.getElementById('mode-time'),
+  modeRecognize: document.getElementById('mode-recognize'),
   statsRows: [...document.querySelectorAll('.stats-row')],
   statsInkGain: document.getElementById('stats-ink-gain'),
   practiceUserId: document.getElementById('practice-user-id'),
@@ -142,17 +365,63 @@ const el = {
 
 /** 当前 local 用户 id（保存时用；null 表示未找到） */
 let practiceUserId = null;
+let practiceIsTestUser = false;
+
+function updateUniqueSfxTestButton() {
+  const btn = el.btnUniqueSfxTest;
+  if (!btn) return;
+  const show = Boolean(practiceIsTestUser);
+  btn.hidden = !show;
+  btn.classList.toggle('hidden', !show);
+  btn.setAttribute('aria-hidden', show ? 'false' : 'true');
+}
+
+/** testUser 左下角试听：强制可听，排查掉落静音问题 */
+function playUniqueDropSfxTest() {
+  unlockUniqueDropSfx();
+  const saved = uniqueDropVolume();
+  // 与正式掉落同一套增益；音量为 0 时临时按默认滑条算
+  const slider = saved <= 0 ? SFX_VOLUME_DEFAULT : saved;
+  try {
+    const audio = new Audio(UNIQUE_DROP_SFX_URL);
+    audio.volume = Math.min(1, (slider / 100) * UNIQUE_DROP_SFX_GAIN);
+    const pending = audio.play();
+    if (pending && typeof pending.then === 'function') {
+      pending.then(() => {
+        flashButtonTitle(
+          el.btnUniqueSfxTest,
+          saved <= 0
+            ? `已播放（音量原为 0，本次用 ${slider}×${UNIQUE_DROP_SFX_GAIN}）`
+            : `已播放 · ${slider}×${UNIQUE_DROP_SFX_GAIN}`,
+        );
+      }).catch((error) => {
+        playUniqueDropSfxWebAudio();
+        flashButtonTitle(el.btnUniqueSfxTest, `播放失败，已回退 WebAudio：${error?.message || error}`);
+      });
+      return;
+    }
+  } catch (error) {
+    console.warn('[cao] unique drop sfx test failed', error);
+  }
+  playUniqueDropSfxWebAudio();
+  flashButtonTitle(el.btnUniqueSfxTest, '已尝试播放');
+}
 
 async function refreshPracticeUserBadge() {
   const result = await resolveLocalPracticeUser();
   practiceUserId = result.userId;
-  if (!el.practiceUserId) return;
+  practiceIsTestUser = false;
+  if (!el.practiceUserId) {
+    updateUniqueSfxTestButton();
+    return;
+  }
   if (!result.userId) {
     el.practiceUserId.textContent = '';
     el.practiceUserId.title = '';
     el.practiceUserId.hidden = true;
     el.practiceUserId.classList.add('is-empty');
     el.practiceUserId.classList.remove('is-resolved');
+    updateUniqueSfxTestButton();
     return;
   }
   el.practiceUserId.hidden = false;
@@ -160,28 +429,127 @@ async function refreshPracticeUserBadge() {
   el.practiceUserId.textContent = result.display;
   el.practiceUserId.classList.add('is-resolved');
   el.practiceUserId.title = `local 用户：user-${result.userId}.json`;
+  updateUniqueSfxTestButton();
+}
+
+function clearRecognizeHistory() {
+  recognizeRecentIds = [];
+}
+
+/** 最近识别过的字（新在前），最多 40 个不重复 id */
+function loadRecognizeHistoryFromStats(stats) {
+  const ordered = [];
+  for (const session of stats?.sessions || []) {
+    if (session?.mode !== 'recognize') continue;
+    for (const stroke of session.strokes || []) {
+      if (stroke?.id) ordered.push(String(stroke.id));
+    }
+  }
+  const seen = new Set();
+  const recent = [];
+  for (let i = ordered.length - 1; i >= 0; i -= 1) {
+    const id = ordered[i];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    recent.push(id);
+    if (recent.length >= RECOGNIZE_HISTORY_EXCLUDE) break;
+  }
+  recognizeRecentIds = recent;
+}
+
+/** 从 local 用户账本加载默认模式所需的练习历史（lastSeen / 最近 50） */
+async function loadDefaultModeHistory() {
+  if (typeof defaultModeChance === 'undefined') {
+    clearRecognizeHistory();
+    practiceIsTestUser = false;
+    updateUniqueSfxTestButton();
+    return;
+  }
+
+  try {
+    if (!supportsLocalDirectoryPicker()) {
+      defaultModeChance.clearHistory();
+      clearRecognizeHistory();
+      practiceIsTestUser = false;
+      updateUniqueSfxTestButton();
+      return;
+    }
+
+    const handle = await loadLocalDirHandle();
+    if (!handle) {
+      defaultModeChance.clearHistory();
+      clearRecognizeHistory();
+      practiceIsTestUser = false;
+      updateUniqueSfxTestButton();
+      return;
+    }
+
+    const allowed = await ensureDirPermission(handle, 'read');
+    if (!allowed) {
+      defaultModeChance.clearHistory();
+      clearRecognizeHistory();
+      practiceIsTestUser = false;
+      updateUniqueSfxTestButton();
+      return;
+    }
+
+    const uid = practiceUserId || loadActiveUserId();
+    if (!uid) {
+      defaultModeChance.clearHistory();
+      clearRecognizeHistory();
+      practiceIsTestUser = false;
+      updateUniqueSfxTestButton();
+      return;
+    }
+
+    const raw = await readJsonFromDir(handle, userStatsFileName(uid));
+    if (!raw) {
+      defaultModeChance.clearHistory();
+      clearRecognizeHistory();
+      practiceIsTestUser = false;
+      updateUniqueSfxTestButton();
+      return;
+    }
+
+    const stats = typeof unpackUserStatsFromDisk === 'function'
+      ? unpackUserStatsFromDisk(raw, uid)
+      : (typeof normalizeUserStats === 'function' ? normalizeUserStats(raw, uid) : raw);
+    defaultModeChance.loadFromUserStats(stats);
+    loadRecognizeHistoryFromStats(stats);
+    practiceIsTestUser = Boolean(stats?.isTestUser);
+    updateUniqueSfxTestButton();
+  } catch {
+    defaultModeChance.clearHistory();
+    clearRecognizeHistory();
+    practiceIsTestUser = false;
+    updateUniqueSfxTestButton();
+  }
 }
 
 /** 重建当前练习库 */
 function rebuildCharacters() {
   fullLibrary = buildLibrary(editableCharacters);
   characters = filterLibrary(fullLibrary, scriptFilter);
+  recognizeGlyphPoolPromise = null;
 }
 
-/** 生成本轮快照对象 */
-function getCurrentSnapshot() {
+/** 生成本轮快照对象。仅结算时把当前未完成的字定稿写入。 */
+function getCurrentSnapshot({ commitActive = false } = {}) {
   return buildSessionSnapshot(session, {
     filter: scriptFilter,
     mode: learningMode,
     librarySize: characters.length,
     dropRng: random,
+    commitActive,
+    skipDrop: learningMode === 'recognize',
+    glyphRevealed: currentGlyphRevealed,
   });
 }
 
-/** 导出/复制用：已完成则用冻结快照 */
+/** 导出/复制用：未结算不生成可入账快照 */
 function getSnapshotForExport() {
   if (sessionCompleted && completedSnapshot) return completedSnapshot;
-  return getCurrentSnapshot();
+  return null;
 }
 
 /** 本轮是否已点「结算」（等待「结束」写入） */
@@ -206,6 +574,8 @@ function updateSessionActionButton() {
 function updateFooterForPhase() {
   if (!el.btnRefresh || !el.btnSkip) return;
   if (sessionCompleted) {
+    el.btnRefresh.disabled = false;
+    el.btnSkip.disabled = false;
     el.btnRefresh.textContent = '结束';
     el.btnRefresh.title = '写入本轮练习到 local JSON 并打开等级页';
     el.btnRefresh.setAttribute('aria-label', '结束');
@@ -217,7 +587,24 @@ function updateFooterForPhase() {
       el.btnSettlementCopy.textContent = '复制结果';
       el.btnSettlementCopy.disabled = false;
     }
+  } else if (learningMode === 'recognize') {
+    const hasEntry = Boolean(currentEntry);
+    el.btnRefresh.disabled = !hasEntry || recognizeAnswerRevealed;
+    el.btnRefresh.textContent = '检查';
+    el.btnRefresh.title = '检查输入是否为这个草书的汉字';
+    el.btnRefresh.setAttribute('aria-label', '检查');
+    el.btnSkip.disabled = !hasEntry;
+    el.btnSkip.textContent = '跳过';
+    el.btnSkip.title = recognizeAnswerRevealed ? '下一字' : '跳过当前字';
+    el.btnSkip.setAttribute('aria-label', '跳过');
+    if (el.btnSettlementCopy) {
+      el.btnSettlementCopy.classList.add('hidden');
+      el.btnSettlementCopy.textContent = '复制结果';
+      el.btnSettlementCopy.disabled = false;
+    }
   } else {
+    el.btnRefresh.disabled = false;
+    el.btnSkip.disabled = false;
     el.btnRefresh.textContent = '完成';
     el.btnRefresh.title = '完成当前字并进入下一个';
     el.btnRefresh.setAttribute('aria-label', '完成');
@@ -240,7 +627,9 @@ function renderSettlementPanel(snapshot) {
     && SCRIPT_FILTER_LABEL[snapshot?.meta?.filter])
     || snapshot?.meta?.filter
     || '—';
-  const modeLabel = snapshot?.meta?.mode === 'time' ? '时间' : '默认';
+  const modeLabel = snapshot?.meta?.mode === 'time'
+    ? '时间'
+    : (snapshot?.meta?.mode === 'recognize' ? '识字' : '默认');
   const durationLabel = typeof formatStrokeDuration === 'function'
     ? formatStrokeDuration(summary.totalDurationMs)
     : `${summary.totalDurationMs || 0}ms`;
@@ -262,7 +651,9 @@ function renderSettlementPanel(snapshot) {
   if (items.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'settlement-empty';
-    empty.textContent = '本轮还没有练过字';
+    empty.textContent = snapshot?.meta?.mode === 'recognize'
+      ? '本轮还没有识别过字'
+      : '本轮还没有练过字';
     el.settlementChars.appendChild(empty);
     return;
   }
@@ -300,7 +691,7 @@ function setSettlementView(active) {
   el.settlementPanel?.classList.toggle('hidden', !active);
   updateSessionActionButton();
   updateFooterForPhase();
-  updateNoRepeatHint();
+  updateModeUI();
 }
 
 function resetSessionPhase() {
@@ -315,6 +706,7 @@ function resetSessionPhase() {
 
 /** 重置本轮会话统计 */
 function resetSession() {
+  sessionSkippedKeys = new Set();
   resetSessionState(session);
   resetSessionPhase();
   updateStatsTable();
@@ -439,8 +831,6 @@ function updateStatsTable() {
       row.appendChild(charEl);
     }
   });
-
-  updateNoRepeatHint();
 }
 
 /** 均匀随机选取 */
@@ -472,14 +862,9 @@ function pickWeighted(pool, weights) {
   return items[items.length - 1].entry;
 }
 
-/** 字库大于此值时启用「禁止重复」选字 */
-const NO_REPEAT_LIBRARY_MIN = 50;
-/** 本轮已完成（含当前字）达到此数后允许重复 */
-const NO_REPEAT_UNTIL_COMPLETED = 50;
-
 /** 本轮已定稿字数超过此值时，刷新/关闭页面前确认 */
 const PRACTICE_UNLOAD_WARN_AFTER = 3;
-/** 允许离开（例如结算写入成功后跳转） */
+/** 允许离开（例如已结算 / 写入成功后跳转） */
 let allowPracticeUnload = false;
 
 /** 本轮已定稿（完成并进入下一字）的字数 */
@@ -491,7 +876,8 @@ function getFinalizedStrokeCount() {
 }
 
 function shouldWarnPracticeUnload() {
-  if (allowPracticeUnload) return false;
+  // 仅练字进行中拦截；已结算 / 允许离开时不提示
+  if (allowPracticeUnload || sessionCompleted) return false;
   return getFinalizedStrokeCount() > PRACTICE_UNLOAD_WARN_AFTER;
 }
 
@@ -501,15 +887,9 @@ function onPracticeBeforeUnload(event) {
   event.returnValue = '';
 }
 
-/** 本轮已完成字数：已定稿 strokes + 当前进行中的字 */
-function getSessionCompletedCount() {
-  const strokes = session?.strokes?.length || 0;
-  return strokes + (session?.activeStroke?.id ? 1 : 0);
-}
-
-/** 本轮已出现过的条目键（strokes + 当前字） */
+/** 本轮抽字排除键：已定稿 / 当前字 / 已跳过 */
 function getSessionSeenKeys() {
-  const seen = new Set();
+  const seen = new Set(sessionSkippedKeys);
   for (const stroke of session?.strokes || []) {
     if (stroke?.id) seen.add(String(stroke.id));
   }
@@ -517,65 +897,185 @@ function getSessionSeenKeys() {
   return seen;
 }
 
-/** 是否处于禁止重复选字状态 */
-function isNoRepeatMode() {
-  return characters.length > NO_REPEAT_LIBRARY_MIN
-    && getSessionCompletedCount() < NO_REPEAT_UNTIL_COMPLETED;
+/**
+ * 字库浏览里标灰的字：本轮已见/已跳过，以及默认模式因最近练过而剔除的字。
+ * 历史 50 把池子抽空、规则回退时，那些字实际仍会抽到，不标灰。
+ */
+function getBrowseExcludedKeys() {
+  const excluded = getSessionSeenKeys();
+  if (learningMode !== 'default') return excluded;
+  if (typeof defaultModeChance === 'undefined' || !defaultModeChance.getRecentHistoryExcludeSet) {
+    return excluded;
+  }
+  const history = defaultModeChance.getRecentHistoryExcludeSet();
+  if (!history.size) return excluded;
+  const pool = defaultModeChance.buildNormalFilteredPool(characters, excluded);
+  const poolKeys = new Set((pool || []).map((entry) => entryKey(entry)).filter(Boolean));
+  for (const key of history) {
+    if (key && !poolKeys.has(key)) excluded.add(key);
+  }
+  return excluded;
 }
 
-function updateNoRepeatHint() {
-  const active = isNoRepeatMode() && !sessionCompleted;
-  el.noRepeatHint?.classList.toggle('hidden', !active);
-}
-
-/** 构建候选池：排除最近两次；禁止重复模式下再排除本轮已出现的字 */
+/** 构建候选池（时间模式）：排除最近两次显示的字 + 本轮已跳过 */
 function getCandidatePool() {
   const excluded = new Set(recentHistory);
-  if (isNoRepeatMode()) {
-    for (const key of getSessionSeenKeys()) excluded.add(key);
-  }
+  for (const key of sessionSkippedKeys) excluded.add(key);
   const candidates = characters.filter((entry) => !excluded.has(entryKey(entry)));
-  if (candidates.length > 0) return candidates;
-  // 禁止重复把池抽空时回退到仅排除 recentHistory
-  if (isNoRepeatMode()) {
-    const soft = characters.filter((entry) => !recentHistory.includes(entryKey(entry)));
-    return soft.length > 0 ? soft : characters;
-  }
-  return characters;
+  return candidates.length > 0 ? candidates : characters;
 }
 
 /** 从字库中随机选取一个条目 */
 function pickRandom() {
   if (characters.length === 0) return null;
 
-  const pool = getCandidatePool();
-  if (learningMode === 'default') return pickUniform(pool);
+  if (typeof defaultModeChance !== 'undefined'
+    && (learningMode === 'default' || learningMode === 'time')) {
+    const result = defaultModeChance.pick({
+      library: characters,
+      sessionSeenKeys: getSessionSeenKeys(),
+      rng: random,
+      // 时间模式：10/10 强制近期（D）
+      ...(learningMode === 'time' ? { forceRuleId: 'D' } : {}),
+    });
+    updateActiveChanceRule(result?.ruleId || null, Boolean(result?.fellBack));
+    return result?.entry || pickUniform(characters);
+  }
 
-  const order = getDefaultOrder();
-  const weights = buildTimeWeights(order);
-  const headWeight = order.length > TIME_TAIL_COUNT
-    ? weights.get(order[0])
-    : 0;
-  weights.set('__other__', headWeight ?? 0);
+  updateActiveChanceRule(null, false);
+  return pickUniform(getCandidatePool());
+}
 
-  return pickWeighted(pool, weights);
+/** 当前抽中的规则（回退时仍标原规则，用虚线框） */
+let activeChanceRuleId = null;
+let activeChanceRuleFellBack = false;
+
+function updateActiveChanceRule(ruleId, fellBack = false) {
+  activeChanceRuleId = ruleId || null;
+  activeChanceRuleFellBack = Boolean(activeChanceRuleId) && Boolean(fellBack);
+  if (!el.chanceRulesList) return;
+  el.chanceRulesList.querySelectorAll('.chance-rule').forEach((item) => {
+    const on = Boolean(activeChanceRuleId) && item.dataset.rule === activeChanceRuleId;
+    item.classList.toggle('is-active', on);
+    item.classList.toggle('is-fallback', on && activeChanceRuleFellBack);
+    item.setAttribute('aria-current', on ? 'true' : 'false');
+  });
+}
+
+/** unique 掉落门控几率（默认 8%；本字翻开过原型则 +2%） */
+function getUniqueAppearanceChance() {
+  if (typeof resolveUniqueAppearanceChance === 'function') {
+    return resolveUniqueAppearanceChance({ glyphRevealed: currentGlyphRevealed });
+  }
+  const n = Number(
+    typeof CARD_UNIQUE_APPEARANCE_CHANCE === 'number' ? CARD_UNIQUE_APPEARANCE_CHANCE : NaN,
+  );
+  const base = Number.isFinite(n) && n >= 0 ? n : 0;
+  const bonus = Number(
+    typeof CARD_UNIQUE_GLYPH_REVEAL_BONUS === 'number' ? CARD_UNIQUE_GLYPH_REVEAL_BONUS : 0,
+  );
+  if (!currentGlyphRevealed || !Number.isFinite(bonus) || bonus <= 0) return base;
+  return Math.min(1, base + bonus);
+}
+
+/** 每满 2% 一颗点；不足 2% 的余数不计（11%→5，12%→6） */
+function uniqueChanceDotCount(chance = getUniqueAppearanceChance()) {
+  const pct = Math.max(0, Number(chance) || 0) * 100;
+  return Math.floor(pct / 2);
+}
+
+/** 抽字几率上方：按门控几率显示橙色点 */
+function renderUniqueChanceDotsUI() {
+  const host = el.uniqueChanceDots;
+  if (!host) return;
+  host.replaceChildren();
+  const chance = getUniqueAppearanceChance();
+  const count = uniqueChanceDotCount(chance);
+  const pctText = `${Math.round(chance * 1000) / 10}%`;
+  host.setAttribute('aria-label', `unique 掉落门控 ${pctText}，${count} 点`);
+  host.title = `unique 掉落门控 ${pctText}（每满 2% 一颗橙点）`;
+  for (let i = 0; i < count; i += 1) {
+    const dot = document.createElement('span');
+    dot.className = 'unique-chance-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    host.appendChild(dot);
+  }
+}
+
+/** 渲染抽字规则（默认：A/B/C/D；时间：仅强制近期 10/10） */
+function renderChanceRulesUI() {
+  renderUniqueChanceDotsUI();
+  if (!el.chanceRulesList) return;
+  el.chanceRulesList.replaceChildren();
+  if (typeof DefaultModeChance === 'undefined') return;
+
+  const sharesTotal = typeof DEFAULT_CHANCE_SHARES === 'number' ? DEFAULT_CHANCE_SHARES : 10;
+  const rules = learningMode === 'time'
+    ? [{
+      id: 'D',
+      label: '强制近期',
+      shares: sharesTotal,
+      detail: '时间模式：始终走强制近期。无视历史最近 50 字过滤，仅排除本轮已出现；从加入最晚的 10 字中选，触发几率 = 本轮尚未练到的近期字数 / 10。未触发时回退为默认随机。',
+    }]
+    : DefaultModeChance.getRulesMeta();
+
+  for (const rule of rules) {
+    const li = document.createElement('li');
+    li.className = 'chance-rule';
+    li.tabIndex = 0;
+    li.dataset.rule = rule.id;
+
+    const label = document.createElement('span');
+    label.className = 'chance-rule-label';
+    label.textContent = rule.label;
+
+    const rate = document.createElement('span');
+    rate.className = 'chance-rule-rate';
+    rate.textContent = `${rule.shares}/${sharesTotal}`;
+
+    const tip = document.createElement('span');
+    tip.className = 'chance-rule-tip';
+    tip.textContent = rule.detail;
+    tip.setAttribute('role', 'tooltip');
+
+    li.append(label, rate, tip);
+    el.chanceRulesList.appendChild(li);
+  }
+
+  updateActiveChanceRule(activeChanceRuleId, activeChanceRuleFellBack);
 }
 
 /** 更新学习模式 UI */
 function updateModeUI() {
   el.modeDefault.classList.toggle('is-active', learningMode === 'default');
   el.modeTime.classList.toggle('is-active', learningMode === 'time');
+  el.modeRecognize?.classList.toggle('is-active', learningMode === 'recognize');
+  document.body.classList.toggle('is-recognize-mode', learningMode === 'recognize');
+  const inRecognize = learningMode === 'recognize' && !sessionCompleted;
+  el.recognizeBar?.classList.toggle('hidden', !inRecognize);
+
+  renderChanceRulesUI();
+  const showChance = (learningMode === 'default' || learningMode === 'time') && !sessionCompleted;
+  if (el.chancePanel) {
+    el.chancePanel.classList.toggle('hidden', !showChance);
+    el.chancePanel.setAttribute('aria-hidden', showChance ? 'false' : 'true');
+  } else if (el.chanceRules) {
+    el.chanceRules.classList.toggle('hidden', !showChance);
+    el.chanceRules.setAttribute('aria-hidden', showChance ? 'false' : 'true');
+  }
 }
 
 /** 切换学习模式 */
 function setLearningMode(mode) {
+  if (mode !== 'default' && mode !== 'time' && mode !== 'recognize') return;
   if (mode === learningMode) return;
   learningMode = mode;
   saveLearningMode(mode);
   updateModeUI();
   recentHistory = [];
   resetSession();
-  refreshCharacter();
+  if (mode === 'recognize') beginRecognizeRound();
+  else refreshCharacter();
 }
 
 /** 更新书体筛选按钮与菜单 */
@@ -619,7 +1119,8 @@ function setScriptFilter(filter) {
   resetSession();
   updateScriptFilterUI();
   setScriptMenuOpen(false);
-  refreshCharacter();
+  if (learningMode === 'recognize') beginRecognizeRound();
+  else refreshCharacter();
 }
 
 /** 记录已显示的条目到历史 */
@@ -632,8 +1133,11 @@ function recordHistory(entry) {
 function showCharacter(entry) {
   if (sessionCompleted && entry) return;
 
+  const previousGlyphRevealed = currentGlyphRevealed;
   glyphImageAvailable = false;
+  currentGlyphRevealed = false;
   hideGlyph();
+  renderUniqueChanceDotsUI();
 
   if (showCharacterTimer) {
     clearTimeout(showCharacterTimer);
@@ -643,20 +1147,24 @@ function showCharacter(entry) {
   if (!entry) {
     currentEntry = null;
     // 清空展示时结束上一字：仍做掉落判定
-    finalizeActiveStroke(session, Date.now(), { rng: random });
+    finalizeActiveStroke(session, Date.now(), {
+      rng: random,
+      glyphRevealed: previousGlyphRevealed,
+    });
     el.display.textContent = '—';
     refreshGlyphAvailability(null);
     updateStatsTable();
     return;
   }
 
-  // 掉落判定在完成上一字（finalize）时进行，不在切换到新字时判定
+  // 掉落判定和音效必须留在这次点击/按键里。放进下面的淡入计时器会丢掉用户手势，浏览器会把声音静音。
+  currentEntry = entry;
+  recordHistory(currentEntry);
+  recordAppearance(currentEntry, { rng: random, glyphRevealed: previousGlyphRevealed });
   el.display.classList.add('fade');
   showCharacterTimer = setTimeout(() => {
     showCharacterTimer = null;
-    currentEntry = entry;
-    recordHistory(currentEntry);
-    recordAppearance(currentEntry, { rng: random });
+    if (currentEntry !== entry) return;
     el.display.textContent = currentEntry.char;
     el.display.classList.remove('fade');
     refreshGlyphAvailability(currentEntry);
@@ -666,6 +1174,13 @@ function showCharacter(entry) {
 /** 刷新显示一个新字 */
 function refreshCharacter() {
   if (sessionCompleted) return;
+  if (learningMode === 'recognize') {
+    void ensureRecognizeGlyphPool().then(() => {
+      if (learningMode !== 'recognize' || sessionCompleted) return;
+      refreshRecognizeCharacter();
+    });
+    return;
+  }
   if (characters.length === 0) {
     recentHistory = [];
     resetSession();
@@ -676,7 +1191,7 @@ function refreshCharacter() {
   showCharacter(pickRandom());
 }
 
-/** 跳过当前字：撤销本轮对它的一次记录，再刷新 */
+/** 跳过当前字：撤销本轮记录，本轮内不再抽到该字 */
 function skipCharacter() {
   if (sessionCompleted) return;
   const toUndo = currentEntry;
@@ -684,8 +1199,188 @@ function skipCharacter() {
     clearTimeout(showCharacterTimer);
     showCharacterTimer = null;
   }
-  if (toUndo) unrecordAppearance(toUndo);
+  if (toUndo) {
+    const key = entryKey(toUndo);
+    if (key) sessionSkippedKeys.add(key);
+    unrecordAppearance(toUndo);
+  }
   refreshCharacter();
+}
+
+function listCaoEntries() {
+  return (fullLibrary || []).filter((entry) => normalizeScript(entry?.script) === SCRIPT.cao);
+}
+
+function ensureRecognizeGlyphPool() {
+  if (recognizeGlyphPoolPromise) return recognizeGlyphPoolPromise;
+  const entries = listCaoEntries().filter((entry) => {
+    const key = glyphAvailabilityCacheKey(entry);
+    return key && !glyphImageExistsCache.has(key);
+  });
+  recognizeGlyphPoolPromise = (async () => {
+    const queue = entries.slice();
+    const workers = Math.min(6, queue.length);
+    if (workers === 0) return;
+    await Promise.all(Array.from({ length: workers }, async () => {
+      while (queue.length > 0) {
+        const entry = queue.shift();
+        if (!entry) break;
+        await probeGlyphImageExists(entry);
+      }
+    }));
+  })();
+  return recognizeGlyphPoolPromise;
+}
+
+function recognizeAnswerForms(entry) {
+  if (!entry) return [];
+  if (typeof glyphImageCharForms === 'function') {
+    return glyphImageCharForms(entry.char, entry);
+  }
+  return [entry.char, ...(entry.alternatives || [])].filter(Boolean);
+}
+
+function isRecognizeAnswerCorrect(entry, raw) {
+  const text = String(raw || '').trim().replace(/\s+/g, '');
+  if (!text || !entry) return false;
+  return recognizeAnswerForms(entry).some((form) => form === text);
+}
+
+function pickRecognizeEntry() {
+  const withGlyph = listCaoEntries().filter((entry) => {
+    const key = glyphAvailabilityCacheKey(entry);
+    return Boolean(key) && glyphImageExistsCache.get(key) === true;
+  });
+  if (withGlyph.length === 0) return { entry: null, reason: 'no-glyph' };
+
+  const historyExclude = new Set(recognizeRecentIds.slice(0, RECOGNIZE_HISTORY_EXCLUDE));
+  const sessionSeen = getSessionSeenKeys();
+  const fresh = withGlyph.filter((entry) => {
+    const key = entryKey(entry);
+    return key && !sessionSeen.has(key) && !historyExclude.has(key);
+  });
+  const pool = fresh.length > 0
+    ? fresh
+    : withGlyph.filter((entry) => {
+      const key = entryKey(entry);
+      return key && !sessionSeen.has(key);
+    });
+  if (pool.length === 0) return { entry: null, reason: 'exhausted' };
+  return { entry: pickUniform(pool), reason: '' };
+}
+
+function clearRecognizeAnswer() {
+  recognizeAnswerRevealed = false;
+  if (el.recognizeInput) {
+    el.recognizeInput.value = '';
+    el.recognizeInput.disabled = false;
+  }
+  el.recognizeAnswer?.classList.add('hidden');
+  if (el.recognizeAnswerChar) el.recognizeAnswerChar.textContent = '';
+}
+
+function showRecognizeCharacter(entry, reason = '') {
+  recognizeAnswerRevealed = false;
+  clearRecognizeAnswer();
+  currentEntry = entry || null;
+  recognizeShownAt = entry ? Date.now() : 0;
+  glyphImageAvailable = Boolean(entry);
+  if (el.display) el.display.textContent = '';
+  hideGlyph();
+
+  if (!entry) {
+    el.display.classList.remove('hidden');
+    el.display.textContent = reason === 'no-glyph'
+      ? '没有可用的草书字形'
+      : '本轮可识别的字已经用完';
+    updateFooterForPhase();
+    return;
+  }
+
+  el.display.textContent = '';
+  el.display.classList.add('hidden');
+  glyphVisible = true;
+  const scriptName = SCRIPT_NAME[normalizeScript(entry.script)] || '';
+  el.glyphImage.alt = `${entry.char} ${scriptName}`.trim();
+  loadGlyphImage(entry);
+  updateFooterForPhase();
+  el.recognizeInput?.focus();
+}
+
+function refreshRecognizeCharacter() {
+  if (sessionCompleted || learningMode !== 'recognize') return;
+  const picked = pickRecognizeEntry();
+  showRecognizeCharacter(picked.entry, picked.reason);
+}
+
+async function beginRecognizeRound() {
+  const token = ++recognizeRoundToken;
+  recognizeAnswerRevealed = false;
+  currentEntry = null;
+  clearRecognizeAnswer();
+  hideGlyph();
+  if (el.display) {
+    el.display.classList.remove('hidden');
+    el.display.textContent = '…';
+  }
+  updateModeUI();
+  updateFooterForPhase();
+  await ensureRecognizeGlyphPool();
+  if (token !== recognizeRoundToken || learningMode !== 'recognize' || sessionCompleted) return;
+  refreshRecognizeCharacter();
+}
+
+function commitRecognizeSuccess(entry) {
+  if (!entry?.id || !session?.items) return;
+  const startedAt = recognizeShownAt || Date.now();
+  session.strokes.push({
+    id: entry.id,
+    durationMs: Math.max(0, Date.now() - startedAt),
+  });
+  const now = new Date().toISOString();
+  const existing = session.items.get(entry.id);
+  if (existing) {
+    existing.count += 1;
+    existing.lastSeenAt = now;
+  } else {
+    session.items.set(entry.id, {
+      id: entry.id,
+      count: 1,
+      firstSeenAt: now,
+      lastSeenAt: now,
+    });
+  }
+  updateStatsTable();
+}
+
+function revealRecognizeAnswer() {
+  if (!currentEntry || recognizeAnswerRevealed) return;
+  recognizeAnswerRevealed = true;
+  if (el.recognizeAnswerChar) el.recognizeAnswerChar.textContent = currentEntry.char || '—';
+  el.recognizeAnswer?.classList.remove('hidden');
+  if (el.recognizeInput) {
+    el.recognizeInput.disabled = true;
+    el.recognizeInput.blur();
+  }
+  updateFooterForPhase();
+}
+
+function checkRecognizeAnswer() {
+  if (sessionCompleted || learningMode !== 'recognize' || !currentEntry || recognizeAnswerRevealed) return;
+  const raw = el.recognizeInput?.value || '';
+  if (isRecognizeAnswerCorrect(currentEntry, raw)) {
+    commitRecognizeSuccess(currentEntry);
+    refreshRecognizeCharacter();
+    return;
+  }
+  revealRecognizeAnswer();
+}
+
+function skipRecognizeCharacter() {
+  if (sessionCompleted || learningMode !== 'recognize' || !currentEntry) return;
+  const key = entryKey(currentEntry);
+  if (key) sessionSkippedKeys.add(key);
+  refreshRecognizeCharacter();
 }
 
 /** 渲染字库浏览列表 */
@@ -702,9 +1397,17 @@ function renderBrowseGrid() {
   }
 
   const currentKey = currentEntry ? entryKey(currentEntry) : null;
+  const excludedKeys = getBrowseExcludedKeys();
+  const newestKeys = new Set(
+    (typeof defaultModeChance !== 'undefined' && defaultModeChance.getRecentJoinEntries
+      ? defaultModeChance.getRecentJoinEntries(characters, 10)
+      : []
+    ).map((entry) => entryKey(entry)).filter(Boolean),
+  );
   const fragment = document.createDocumentFragment();
   for (const entry of characters) {
     const script = normalizeScript(entry.script);
+    const key = entryKey(entry);
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'char-grid-item';
@@ -718,7 +1421,12 @@ function renderBrowseGrid() {
       'aria-label',
       `显示「${entry.char}」${SCRIPT_NAME[script] || ''}`,
     );
-    if (entryKey(entry) === currentKey) btn.classList.add('is-current');
+    if (key && excludedKeys.has(key) && key !== currentKey) {
+      btn.classList.add('is-excluded');
+      btn.title = `${btn.title ? `${btn.title} · ` : ''}当前不会抽到`;
+    }
+    if (key === currentKey) btn.classList.add('is-current');
+    if (key && newestKeys.has(key)) btn.classList.add('is-newest');
     btn.addEventListener('click', () => selectCharacterFromBrowse(entry));
     fragment.appendChild(btn);
   }
@@ -734,6 +1442,7 @@ function openBrowse() {
 /** 从浏览列表选择条目并显示到练习区 */
 function selectCharacterFromBrowse(entry) {
   el.browseDialog.close();
+  if (learningMode === 'recognize') return;
   showCharacter(entry);
 }
 
@@ -792,6 +1501,10 @@ function showGlyph() {
   if (!currentEntry || !glyphImageAvailable) return;
 
   glyphVisible = true;
+  if (!currentGlyphRevealed) {
+    currentGlyphRevealed = true;
+    renderUniqueChanceDotsUI();
+  }
   el.display.classList.add('hidden');
   const scriptName = SCRIPT_NAME[normalizeScript(currentEntry.script)] || '';
   el.glyphImage.alt = `${currentEntry.char} ${scriptName}`;
@@ -926,11 +1639,13 @@ function saveSettings() {
   resetSession();
   saveCharacters(editableCharacters);
   el.settingsDialog.close();
-  refreshCharacter();
+  if (learningMode === 'recognize') beginRecognizeRound();
+  else refreshCharacter();
 }
 
 /** 短暂反馈按钮状态 */
 function flashButtonTitle(button, message, restoreMs = 1500) {
+  if (!button) return;
   const prev = button.title;
   button.title = message;
   button.classList.add('is-flash');
@@ -940,9 +1655,14 @@ function flashButtonTitle(button, message, restoreMs = 1500) {
   }, restoreMs);
 }
 
-/** 复制本轮快照 JSON 到剪贴板 */
+/** 复制本轮快照 JSON 到剪贴板（仅已结算） */
 async function copySessionSnapshot(button) {
-  const text = snapshotToJSON(getSnapshotForExport());
+  const snapshot = getSnapshotForExport();
+  if (!snapshot) {
+    alert('请先结算。未结算的练习不会记入快照。');
+    return;
+  }
+  const text = snapshotToJSON(snapshot);
   try {
     await navigator.clipboard.writeText(text);
     if (button) flashButtonTitle(button, '已复制快照');
@@ -956,11 +1676,8 @@ async function copySessionSnapshot(button) {
  * （含 strokes 时长、unique 卡面、inkDrop；本机 node merge 入账）
  */
 function buildInboxMergeSnapshot() {
-  let snapshot = completedSnapshot;
-  if (!snapshot || !sessionHasPracticeData(snapshot)) {
-    snapshot = getSnapshotForExport();
-  }
-  if (!snapshot || !sessionHasPracticeData(snapshot)) return null;
+  const snapshot = completedSnapshot;
+  if (!sessionCompleted || !snapshot || !sessionHasPracticeData(snapshot)) return null;
 
   if (typeof annotateSnapshotCommit === 'function') {
     return annotateSnapshotCommit(snapshot, {
@@ -1012,7 +1729,7 @@ function sessionHasPracticeData(snapshot) {
 /** 结算：冻结快照并显示小结（不写入数据） */
 function enterSettlement() {
   if (sessionCompleted) return;
-  const snapshot = getCurrentSnapshot();
+  const snapshot = getCurrentSnapshot({ commitActive: true });
   if (!sessionHasPracticeData(snapshot)) {
     alert('本轮还没有练过字');
     return;
@@ -1020,6 +1737,8 @@ function enterSettlement() {
 
   sessionCompleted = true;
   completedSnapshot = snapshot;
+  // 已进入结算态：离开 / 刷新不再提示
+  allowPracticeUnload = true;
   renderSettlementPanel(snapshot);
   updateStatsTable();
   setSettlementView(true);
@@ -1030,6 +1749,7 @@ function exitSettlement() {
   if (!sessionCompleted) return;
   sessionCompleted = false;
   completedSnapshot = null;
+  allowPracticeUnload = false;
   setSettlementView(false);
   updateStatsTable();
 }
@@ -1041,6 +1761,9 @@ async function finishSettlementAndGoToLevel() {
     alert('请先结算本轮练习');
     return;
   }
+
+  // 主动结束练习：导航前不再触发离开提示
+  allowPracticeUnload = true;
 
   if (!supportsLocalDirectoryPicker()) {
     alert('当前浏览器不支持文件夹访问。请用结算页「复制结果」→ 粘贴进 local/inbox.json → node merge');
@@ -1065,7 +1788,6 @@ async function finishSettlementAndGoToLevel() {
     const uid = practiceUserId || loadActiveUserId() || USER_MERGE_DEFAULT_USER_ID;
     await savePracticeSessionToLocal(handle, snapshot, uid);
     void refreshPracticeUserBadge();
-    allowPracticeUnload = true;
     navigateToUserLevelPage();
     navigated = true;
   } catch (error) {
@@ -1097,7 +1819,10 @@ function onSessionActionClick() {
 function onPrimaryFooterClick() {
   if (sessionCompleted) {
     finishSettlementAndGoToLevel();
+  } else if (learningMode === 'recognize') {
+    checkRecognizeAnswer();
   } else {
+    unlockUniqueDropSfx();
     refreshCharacter();
   }
 }
@@ -1105,6 +1830,8 @@ function onPrimaryFooterClick() {
 function onSecondaryFooterClick() {
   if (sessionCompleted) {
     exitSettlement();
+  } else if (learningMode === 'recognize') {
+    skipRecognizeCharacter();
   } else {
     skipCharacter();
   }
@@ -1121,12 +1848,87 @@ function isPracticeHotkeyBlocked() {
   return false;
 }
 
+function isPageToggleHotkey(event) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return false;
+  const key = event.key;
+  return key === 'Tab' || key === 'q' || key === 'Q';
+}
+
+function isGlyphHotkey(event) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return false;
+  const key = event.key;
+  return key === 'f' || key === 'F' || key === 'd' || key === 'D';
+}
+
+/** [] / 【】 同时按下 → 切到用户页（与 Tab 相同） */
+const practiceBracketDown = new Set();
+let practiceBracketComboConsumed = false;
+
+function practiceBracketSide(key) {
+  if (key === '[' || key === '【') return 'left';
+  if (key === ']' || key === '】') return 'right';
+  return null;
+}
+
+function goToUserPage() {
+  window.location.href = getUserLevelPageUrlRelative();
+}
+
+function onPracticeBracketKeyUp(event) {
+  const side = practiceBracketSide(event.key);
+  if (!side) return;
+  practiceBracketDown.delete(side);
+  if (!practiceBracketDown.size) practiceBracketComboConsumed = false;
+}
+
+function tryPracticeBracketCombo(event) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return false;
+  const side = practiceBracketSide(event.key);
+  if (!side) return false;
+  practiceBracketDown.add(side);
+  if (!(practiceBracketDown.has('left') && practiceBracketDown.has('right'))) return false;
+  event.preventDefault();
+  if (!practiceBracketComboConsumed) {
+    practiceBracketComboConsumed = true;
+    goToUserPage();
+  }
+  return true;
+}
+
 function onPracticeHotkey(event) {
   if (isPracticeHotkeyBlocked()) return;
-  // 结算态：快捷键仅用于练字进行中
-  if (sessionCompleted) return;
 
   const key = event.key;
+
+  if (tryPracticeBracketCombo(event)) return;
+
+  if (isPageToggleHotkey(event)) {
+    event.preventDefault();
+    goToUserPage();
+    return;
+  }
+
+  // 结算态：Enter = 结束，j/k = 返回
+  if (sessionCompleted) {
+    if (key === 'Enter') {
+      event.preventDefault();
+      onPrimaryFooterClick();
+      return;
+    }
+    if (key === 'j' || key === 'J' || key === 'k' || key === 'K') {
+      event.preventDefault();
+      onSecondaryFooterClick();
+    }
+    return;
+  }
+
+  if (isGlyphHotkey(event)) {
+    if (learningMode === 'recognize') return;
+    event.preventDefault();
+    toggleGlyph();
+    return;
+  }
+
   if (key === ' ') {
     event.preventDefault();
     onPrimaryFooterClick();
@@ -1145,7 +1947,9 @@ function onPracticeHotkey(event) {
 
 /** 打开快照查看面板 */
 function openSnapshotView() {
-  const snapshot = getSnapshotForExport();
+  const snapshot = (sessionCompleted && completedSnapshot)
+    ? completedSnapshot
+    : getCurrentSnapshot({ commitActive: false });
   el.snapshotReadable.textContent = snapshotToReadable(snapshot);
   el.snapshotJson.textContent = snapshotToJSON(snapshot);
   el.snapshotDialog.showModal();
@@ -1168,13 +1972,26 @@ function applySeedFromDialog() {
 }
 
 // 事件绑定
+void prefetchUniqueDropSfx();
+const armUniqueDropSfx = () => unlockUniqueDropSfx();
+document.addEventListener('pointerdown', armUniqueDropSfx, { capture: true, passive: true });
+document.addEventListener('keydown', armUniqueDropSfx, { capture: true });
 el.btnRefresh.addEventListener('click', onPrimaryFooterClick);
 el.btnSkip.addEventListener('click', onSecondaryFooterClick);
+el.btnUniqueSfxTest?.addEventListener('click', () => {
+  playUniqueDropSfxTest();
+});
+el.btnUniqueSfxTest?.addEventListener('pointerdown', unlockUniqueDropSfx, { passive: true });
 el.btnSettlementCopy?.addEventListener('click', () => {
   void copySettlementResult(el.btnSettlementCopy);
 });
 el.btnSessionAction?.addEventListener('click', onSessionActionClick);
 document.addEventListener('keydown', onPracticeHotkey);
+document.addEventListener('keyup', onPracticeBracketKeyUp);
+window.addEventListener('blur', () => {
+  practiceBracketDown.clear();
+  practiceBracketComboConsumed = false;
+});
 window.addEventListener('beforeunload', onPracticeBeforeUnload);
 el.btnShow.addEventListener('click', toggleGlyph);
 el.btnScript.addEventListener('click', (event) => {
@@ -1191,7 +2008,6 @@ document.addEventListener('click', (event) => {
     setScriptMenuOpen(false);
   }
 });
-el.btnSnapshotCopy.addEventListener('click', () => copySessionSnapshot(el.btnSnapshotCopy));
 el.btnSnapshotView.addEventListener('click', openSnapshotView);
 el.btnSnapshotClose.addEventListener('click', () => el.snapshotDialog.close());
 el.btnSnapshotDialogClose.addEventListener('click', () => el.snapshotDialog.close());
@@ -1224,12 +2040,18 @@ el.btnBrowseClose.addEventListener('click', () => el.browseDialog.close());
 el.browseDialog.addEventListener('click', (event) => {
   if (event.target === el.browseDialog) el.browseDialog.close();
 });
-el.btnSettings.addEventListener('click', openSettings);
-el.btnSave.addEventListener('click', saveSettings);
+el.btnSave?.addEventListener('click', saveSettings);
 el.btnCancel.addEventListener('click', () => el.settingsDialog.close());
 el.charactersInput.addEventListener('input', updateCharCount);
 el.modeDefault.addEventListener('click', () => setLearningMode('default'));
 el.modeTime.addEventListener('click', () => setLearningMode('time'));
+el.modeRecognize?.addEventListener('click', () => setLearningMode('recognize'));
+el.recognizeInput?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' || event.isComposing) return;
+  event.preventDefault();
+  if (recognizeAnswerRevealed) skipRecognizeCharacter();
+  else checkRecognizeAnswer();
+});
 
 // 初始化书体菜单选项（若 HTML 已写好则只同步状态）
 if (!el.scriptMenu.querySelector('[data-filter]')) {
@@ -1246,11 +2068,20 @@ if (!el.scriptMenu.querySelector('[data-filter]')) {
   el.scriptMenu.appendChild(fragment);
 }
 
-// 初始化
+// 初始化：先拉用户历史，再抽首字（默认模式依赖 lastSeen / 近 40）
+renderChanceRulesUI();
 updateSessionActionButton();
 updateFooterForPhase();
 updateModeUI();
 updateScriptFilterUI();
 updateStatsTable();
-refreshCharacter();
-void refreshPracticeUserBadge();
+
+async function initPracticePage() {
+  if (typeof applyCaoAppVersionLabels === 'function') applyCaoAppVersionLabels();
+  await refreshPracticeUserBadge();
+  await loadDefaultModeHistory();
+  if (learningMode === 'recognize') beginRecognizeRound();
+  else refreshCharacter();
+}
+
+void initPracticePage();
