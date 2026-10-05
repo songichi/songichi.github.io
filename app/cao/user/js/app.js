@@ -106,6 +106,8 @@ let currentView = 'level';
 let levelDisplayMode = 'overview';
 /** 排序方式子选项：joined = 加入时间（字库顺序），recency = 练习顺序 */
 let sortByMode = 'joined';
+/** unique 页：放大镜聚焦的字 id（列出该字全部 unique） */
+let uniqueFocusId = null;
 /** 记录历史当前下标；null 表示自动落到最近一次 */
 let historySessionIndex = null;
 
@@ -1023,6 +1025,8 @@ let keyboardSelectMode = false;
 let keyboardSelectIndex = 0;
 /** @type {HTMLElement | null} 选中字下方操作钮 */
 let kbSelectActionsEl = null;
+/** @type {HTMLElement | null} unique 页选中卡上方：共 X 张卡 + 放大镜 */
+let uniqueFocusBarEl = null;
 /** @type {WeakMap<Element, { char: string, script: string, id: string, uniquePreview: object|null }>} */
 const levelCardPreviewByEl = new WeakMap();
 /** @type {object|null} 当前商店日 session */
@@ -1139,6 +1143,21 @@ function resolveCardPrimaryColor(cardStyle = null) {
 function setKeyboardSelectRingColor(card, cardStyle = null) {
   if (!card) return;
   card.style.setProperty('--kb-select-ring', resolveCardPrimaryColor(cardStyle));
+}
+
+function resolveCardSecondaryColor(cardStyle = null) {
+  const fallbackId = typeof CARD_DEFAULT_COLOR_SCHEME_ID !== 'undefined'
+    ? CARD_DEFAULT_COLOR_SCHEME_ID
+    : DEFAULT_COLOR_SCHEME_ID;
+  const schemeId = cardStyle?.colorSchemeId || fallbackId;
+  const scheme = typeof getColorSchemeById === 'function'
+    ? getColorSchemeById(schemeId)
+    : null;
+  if (scheme?.secondaryColor) return scheme.secondaryColor;
+  const fallback = typeof getColorSchemeById === 'function'
+    ? getColorSchemeById(fallbackId)
+    : null;
+  return fallback?.secondaryColor || '#848484';
 }
 
 function refreshLevelViewForStyleTools() {
@@ -3749,6 +3768,7 @@ function setLevelDisplayMode(mode) {
   else if (mode === 'settings') levelDisplayMode = 'settings';
   else levelDisplayMode = 'overview';
   persistLevelDisplayMode(levelDisplayMode);
+  if (prevMode === 'unique' && levelDisplayMode !== 'unique') uniqueFocusId = null;
   if (prevMode === 'shop' && levelDisplayMode !== 'shop') stopShopCountdown();
   applyLevelNavUI();
   hideCardPreview();
@@ -5004,7 +5024,7 @@ function renderLevelSummary(chars, data = null) {
     ['等级', levelSum],
     ['经验', xpSum],
     ['次数', countSum],
-    ['总时间', formatLongDuration(sumSessionsDurationMs(data))],
+    ['总时间', formatHoursDuration(sumSessionsDurationMs(data))],
   ];
 
   el.levelSummary.replaceChildren();
@@ -5145,8 +5165,16 @@ function renderLevelView(entry, {
   if (uniqueOnly) {
     const topBlock = document.createElement('div');
     topBlock.className = 'level-top-block';
+    const ink = typeof resolveInk === 'function' ? resolveInk(data) : (Number(data?.ink) || 0);
+    const focusItems = uniqueFocusId
+      ? collectUniqueItemsForFocus(uniqueItems, uniqueFocusId)
+      : [];
+    if (uniqueFocusId && focusItems.length === 0) uniqueFocusId = null;
+    if (focusItems.length > 0) {
+      topBlock.appendChild(buildUniqueFocusSection(focusItems, { ink }));
+    }
     topBlock.appendChild(buildUniqueSection(uniqueItems, {
-      ink: typeof resolveInk === 'function' ? resolveInk(data) : (Number(data?.ink) || 0),
+      ink,
       groupByAffix: true,
     }));
     fragment.appendChild(topBlock);
@@ -5695,6 +5723,17 @@ function formatLongDuration(ms) {
   if (days > 0) {
     return `${days}天${hours}时${minutes}分${seconds}秒`;
   }
+  return `${hours}时${minutes}分${seconds}秒`;
+}
+
+/** 总览总时间：最大单位为时（超过 24 小时仍换算成小时，不显示天） */
+function formatHoursDuration(ms) {
+  const totalMs = Math.max(0, Math.floor(Number(ms) || 0));
+  const hourMs = 60 * 60 * 1000;
+  const minMs = 60 * 1000;
+  const hours = Math.floor(totalMs / hourMs);
+  const minutes = Math.floor((totalMs % hourMs) / minMs);
+  const seconds = Math.floor((totalMs % minMs) / 1000);
   return `${hours}时${minutes}分${seconds}秒`;
 }
 
@@ -6349,6 +6388,7 @@ function findTopVisibleKeyboardSelectIndex(cards) {
 
 function clearKeyboardSelectHighlight() {
   detachKbSelectActions();
+  detachUniqueFocusBar();
   el.levelList?.querySelectorAll('.level-card.is-kb-selected').forEach((node) => {
     node.classList.remove('is-kb-selected');
   });
@@ -6435,6 +6475,166 @@ function syncKbSelectStarButton(card) {
   if (svg) svg.setAttribute('fill', starred ? 'currentColor' : 'none');
 }
 
+function countUniqueCardsForZiId(ziId) {
+  const id = String(ziId || '');
+  if (!id) return 0;
+  const entry = fileEntries.find((item) => item.id === activeId);
+  const items = collectUniqueCardAppearances(entry?.data || {});
+  return items.filter((item) => String(item?.id || '') === id).length;
+}
+
+function buildUniqueFocusBar() {
+  const wrap = document.createElement('div');
+  wrap.className = 'unique-focus-bar';
+  wrap.setAttribute('role', 'group');
+  wrap.setAttribute('aria-label', '该字 unique 张数');
+
+  const countEl = document.createElement('span');
+  countEl.className = 'unique-focus-bar-count';
+  countEl.textContent = '共0张卡';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'kb-select-action unique-focus-bar-btn';
+  btn.dataset.action = 'magnify';
+  btn.setAttribute('aria-label', '列出该字全部 unique');
+  btn.title = '列出该字全部 unique';
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><line x1="16" y1="16" x2="20.5" y2="20.5"/></svg>';
+  btn.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    focusUniqueCardsFromKbSelect();
+  });
+
+  wrap.append(countEl, btn);
+  wrap.addEventListener('mousedown', (event) => {
+    event.stopPropagation();
+  });
+  wrap.addEventListener('click', (event) => {
+    event.stopPropagation();
+  });
+  return wrap;
+}
+
+function ensureUniqueFocusBar() {
+  if (!uniqueFocusBarEl) uniqueFocusBarEl = buildUniqueFocusBar();
+  return uniqueFocusBarEl;
+}
+
+function detachUniqueFocusBar() {
+  uniqueFocusBarEl?.remove();
+}
+
+function syncUniqueFocusBar(card) {
+  const bar = uniqueFocusBarEl;
+  if (!bar) return;
+  const countEl = bar.querySelector('.unique-focus-bar-count');
+  const btn = bar.querySelector('[data-action="magnify"]');
+  const preview = levelCardPreviewByEl.get(card);
+  const id = preview?.id ? String(preview.id) : '';
+  const onUniquePage = currentView === 'level' && levelDisplayMode === 'unique';
+  if (!onUniquePage || !id) {
+    detachUniqueFocusBar();
+    return;
+  }
+
+  const count = countUniqueCardsForZiId(id);
+  if (countEl) countEl.textContent = `共${count}张卡`;
+
+  const style = preview?.uniquePreview?.cardStyle || null;
+  const primary = resolveCardPrimaryColor(style);
+  const secondary = resolveCardSecondaryColor(style);
+  bar.style.backgroundColor = secondary;
+  bar.style.color = primary;
+  if (btn) {
+    btn.style.borderColor = primary;
+    btn.style.color = primary;
+    btn.style.backgroundColor = secondary;
+  }
+
+  const active = uniqueFocusId === id;
+  btn?.classList.toggle('is-active', active);
+  btn?.setAttribute('aria-pressed', active ? 'true' : 'false');
+  if (btn) {
+    btn.title = active ? '关闭该字聚焦' : '列出该字全部 unique';
+    btn.setAttribute('aria-label', btn.title);
+    if (active) {
+      btn.style.backgroundColor = primary;
+      btn.style.color = secondary;
+    }
+  }
+}
+
+function collectUniqueItemsForFocus(items, ziId) {
+  const id = String(ziId || '');
+  if (!id) return [];
+  return (items || []).filter((item) => String(item?.id || '') === id);
+}
+
+function buildUniqueFocusSection(items, { ink = 0 } = {}) {
+  const first = items?.[0];
+  const label = first?.char || first?.id || '—';
+  const section = document.createElement('section');
+  section.className = 'level-section level-section-unique level-section-unique-focus';
+  section.dataset.level = 'unique-focus';
+  section.dataset.focusId = String(first?.id || '');
+
+  const head = document.createElement('div');
+  head.className = 'level-section-head';
+
+  const titleRow = document.createElement('div');
+  titleRow.className = 'level-section-title-row unique-title-row';
+
+  const title = document.createElement('div');
+  title.className = 'level-section-title';
+  title.textContent = `「${label}」 ${items.length}`;
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.className = 'unique-focus-clear';
+  clearBtn.textContent = '关闭';
+  clearBtn.title = '关闭该字聚焦';
+  clearBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    uniqueFocusId = null;
+    const entry = fileEntries.find((item) => item.id === activeId);
+    if (entry?.data && currentView === 'level' && levelDisplayMode === 'unique') {
+      renderActiveView(entry);
+    }
+  });
+
+  titleRow.append(title, clearBtn);
+
+  const rule = document.createElement('div');
+  rule.className = 'level-section-rule';
+  head.append(titleRow, rule);
+  section.appendChild(head);
+
+  const group = document.createElement('div');
+  group.className = 'level-group unique-group';
+  appendUniqueCards(group, sortUniqueItemsByAcquiredAt(items));
+  section.appendChild(group);
+  return section;
+}
+
+function focusUniqueCardsFromKbSelect() {
+  const card = uniqueFocusBarEl?.closest('.level-card')
+    || kbSelectActionsEl?.closest('.level-card');
+  const preview = card ? levelCardPreviewByEl.get(card) : null;
+  const id = preview?.id ? String(preview.id) : '';
+  if (!id || currentView !== 'level' || levelDisplayMode !== 'unique') return;
+
+  uniqueFocusId = uniqueFocusId === id ? null : id;
+  const entry = fileEntries.find((item) => item.id === activeId);
+  if (!entry?.data) return;
+  renderActiveView(entry);
+  el.levelList?.querySelector('.level-section-unique-focus')?.scrollIntoView({
+    block: 'start',
+    behavior: 'smooth',
+  });
+}
+
 async function toggleUniqueStarFromKbSelect() {
   const card = kbSelectActionsEl?.closest('.level-card');
   const selection = readUniqueSelectionFromCard(card);
@@ -6515,6 +6715,7 @@ function detachKbSelectActions() {
 function attachKbSelectActions(card) {
   if (!card?.classList.contains('unique-card')) {
     detachKbSelectActions();
+    detachUniqueFocusBar();
     return;
   }
   const actions = ensureKbSelectActions();
@@ -6522,6 +6723,15 @@ function attachKbSelectActions(card) {
     card.appendChild(actions);
   }
   syncKbSelectStarButton(card);
+
+  const onUniquePage = currentView === 'level' && levelDisplayMode === 'unique';
+  if (onUniquePage) {
+    const bar = ensureUniqueFocusBar();
+    if (bar.parentElement !== card) card.appendChild(bar);
+    syncUniqueFocusBar(card);
+  } else {
+    detachUniqueFocusBar();
+  }
 }
 
 /** 空格选中跟随滚动：上下预留边距，避免贴边 */

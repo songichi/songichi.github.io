@@ -1998,6 +1998,31 @@ body.is-dismantle-mode .dismantle-tools .dismantle-switch-label {
   letter-spacing: 0.14em;
 }
 
+.level-section-unique-focus .level-section-title {
+  letter-spacing: 0.08em;
+  text-transform: none;
+}
+
+.unique-focus-clear {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.7rem;
+  border: 1.5px solid #1a1a1a;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.unique-focus-clear:hover {
+  background: #1a1a1a;
+  color: #fff;
+}
+
 .level-filter-stats {
   display: flex;
   align-items: baseline;
@@ -2258,6 +2283,33 @@ body.is-dismantle-mode .level-section-unique {
   pointer-events: auto;
 }
 
+.unique-focus-bar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.4rem);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.28rem 0.18rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  z-index: 6;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.unique-focus-bar-count {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.unique-focus-bar-btn {
+  flex: 0 0 auto;
+}
+
 .kb-select-action {
   box-sizing: border-box;
   width: 1.75rem;
@@ -2295,6 +2347,20 @@ body.is-dismantle-mode .level-section-unique {
 .kb-select-action.is-starred:hover {
   background: #333;
   color: #fff;
+}
+
+.kb-select-action.is-active {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.kb-select-action.is-active:hover {
+  background: #333;
+  color: #fff;
+}
+
+.kb-select-action[hidden] {
+  display: none;
 }
 
 .kb-select-action svg {
