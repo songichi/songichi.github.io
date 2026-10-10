@@ -39,7 +39,7 @@ function buildCatalogMapsFromZiGroups(groups) {
 function buildCatalogMapsInBrowser() {
   const groups = [];
   if (typeof DEFAULT_ZI_CAO !== 'undefined') groups.push(DEFAULT_ZI_CAO);
-  if (typeof DEFAULT_ZI_KAI !== 'undefined') groups.push(DEFAULT_ZI_KAI);
+  if (typeof DEFAULT_ZI_ZHEN !== 'undefined') groups.push(DEFAULT_ZI_ZHEN);
   return buildCatalogMapsFromZiGroups(groups);
 }
 
@@ -81,9 +81,74 @@ function emptyUserStats(userId) {
      * 磁盘短键 `upp`
      */
     uniquePityPending: null,
+    /** 真书练习：{ "06C38+zk001": { count, seals: { common, rare, absolute } } } */
+    zhen: {},
     chars: {},
     sessions: [],
   };
+}
+
+/** 规范化 data.zhen 映射 */
+function normalizeZhenMap(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const k = String(key || '').trim();
+    if (!k) continue;
+    out[k] = typeof normalizeZhenRecord === 'function'
+      ? normalizeZhenRecord(value)
+      : (typeof value === 'number'
+        ? { count: Math.max(0, Math.floor(value)), seals: { common: 0, rare: 0, absolute: 0 } }
+        : value);
+  }
+  return out;
+}
+
+function packZhenMapForDisk(zhen) {
+  const map = normalizeZhenMap(zhen);
+  const out = {};
+  for (const [key, rec] of Object.entries(map)) {
+    const count = Math.max(0, Math.floor(Number(rec?.count) || 0));
+    const seals = rec?.seals || {};
+    const common = Math.max(0, Math.floor(Number(seals.common) || 0));
+    const rare = Math.max(0, Math.floor(Number(seals.rare) || 0));
+    const absolute = Math.max(0, Math.floor(Number(seals.absolute) || 0));
+    if (count <= 0 && common <= 0 && rare <= 0 && absolute <= 0) continue;
+    out[key] = {
+      n: count,
+      se: { c: common, r: rare, a: absolute },
+    };
+  }
+  return out;
+}
+
+function unpackZhenMapFromDisk(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const k = String(key || '').trim();
+    if (!k) continue;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      out[k] = normalizeZhenRecord(value);
+      continue;
+    }
+    if (!value || typeof value !== 'object') continue;
+    // 紧凑：{ n, se: { c, r, a } }；或已是内存形 { count, seals }
+    if (value.seals || value.count != null) {
+      out[k] = normalizeZhenRecord(value);
+      continue;
+    }
+    const se = value.se && typeof value.se === 'object' ? value.se : {};
+    out[k] = normalizeZhenRecord({
+      count: value.n ?? value.count,
+      seals: {
+        common: se.c ?? se.common,
+        rare: se.r ?? se.rare,
+        absolute: se.a ?? se.absolute,
+      },
+    });
+  }
+  return out;
 }
 
 /** 规范化保底 unique 领取记录 */
@@ -583,6 +648,11 @@ function packStrokeForDisk(stroke) {
   const inkDrop = Math.floor(Number(stroke?.inkDrop) || 0);
   if (inkDrop > 0) extra.ink = inkDrop;
 
+  const seal = typeof normalizeZhenSeal === 'function'
+    ? normalizeZhenSeal(stroke?.seal)
+    : (stroke?.seal || null);
+  if (seal) extra.se = seal;
+
   if (Object.keys(extra).length > 0) row.push(extra);
   return row;
 }
@@ -617,6 +687,10 @@ function unpackStrokeFromDisk(raw) {
     }
     const inkDrop = Math.floor(Number(extra.ink ?? extra.inkDrop) || 0);
     if (inkDrop > 0) out.inkDrop = inkDrop;
+    const seal = typeof normalizeZhenSeal === 'function'
+      ? normalizeZhenSeal(extra.se ?? extra.seal)
+      : (extra.se || extra.seal || null);
+    if (seal) out.seal = seal;
     return out;
   }
 
@@ -636,6 +710,10 @@ function unpackStrokeFromDisk(raw) {
   }
   const inkDrop = Math.floor(Number(raw.inkDrop ?? raw.ink) || 0);
   if (inkDrop > 0) out.inkDrop = inkDrop;
+  const seal = typeof normalizeZhenSeal === 'function'
+    ? normalizeZhenSeal(raw.seal ?? raw.se)
+    : (raw.seal || raw.se || null);
+  if (seal) out.seal = seal;
   return out;
 }
 
@@ -1136,6 +1214,7 @@ function unpackUserStatsFromDisk(data, userId) {
     uniquePityPending,
     uniques,
     _hadUniquesKey: hadUniquesKey,
+    zhen: unpackZhenMapFromDisk(data.zhen ?? data.zh),
     chars,
     sessions,
   };
@@ -1188,6 +1267,8 @@ function packUserStatsForDisk(data) {
     stats.uniques = [];
   }
   delete stats._hadUniquesKey;
+  // 落盘前从 sessions 重算，保证 zhen 与历史一致
+  refreshZhenFromHistory(stats);
   const chars = {};
   for (const [id, item] of Object.entries(stats.chars || {})) {
     chars[id] = packCharForDisk(item);
@@ -1200,6 +1281,7 @@ function packUserStatsForDisk(data) {
   const uniquesPacked = (stats.uniques || [])
     .map((item) => packUniqueInventoryItemForDisk(item))
     .filter(Boolean);
+  const zhenPacked = packZhenMapForDisk(stats.zhen);
   return {
     v: USER_STATS_DISK_VERSION,
     u: stats.user,
@@ -1218,6 +1300,7 @@ function packUserStatsForDisk(data) {
     ...(pityPacked.length ? { upc: pityPacked } : {}),
     ...(pityPendingPacked ? { upp: pityPendingPacked } : {}),
     uq: uniquesPacked,
+    ...(Object.keys(zhenPacked).length ? { zhen: zhenPacked } : {}),
     chars,
     sessions: (stats.sessions || []).map((session) => packSessionForDisk(session)),
   };
@@ -1489,6 +1572,8 @@ function normalizeUserStats(data, userId) {
     stats.uniques = [];
   }
   refreshUniquesMismatchFlag(stats);
+  // 真书次数 / 印记：始终从 sessions 历史 compile（与 unique 库存重建同策略）
+  refreshZhenFromHistory(stats);
   stats.user = userId || stats.user || USER_MERGE_DEFAULT_USER_ID;
   return stats;
 }
@@ -1601,6 +1686,15 @@ function snapshotToPracticeSession(snapshot) {
             ...(Math.floor(Number(s.inkDrop) || 0) > 0
               ? { inkDrop: Math.floor(Number(s.inkDrop)) }
               : {}),
+            ...((typeof normalizeZhenSeal === 'function'
+              ? normalizeZhenSeal(s.seal)
+              : s.seal)
+              ? {
+                seal: (typeof normalizeZhenSeal === 'function'
+                  ? normalizeZhenSeal(s.seal)
+                  : s.seal),
+              }
+              : {}),
           }
       ));
   } else if (Array.isArray(snapshot.items)) {
@@ -1695,6 +1789,88 @@ function applyPracticeInkDropsFromSnapshot(stats, snapshot) {
   return stats;
 }
 
+function emptyZhenSealCounts() {
+  return { common: 0, rare: 0, absolute: 0 };
+}
+
+function normalizeZhenRecord(raw) {
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return {
+      count: Math.max(0, Math.floor(raw)),
+      seals: emptyZhenSealCounts(),
+    };
+  }
+  if (!raw || typeof raw !== 'object') {
+    return { count: 0, seals: emptyZhenSealCounts() };
+  }
+  const sealsIn = raw.seals && typeof raw.seals === 'object' ? raw.seals : {};
+  return {
+    count: Math.max(0, Math.floor(Number(raw.count) || 0)),
+    seals: {
+      common: Math.max(0, Math.floor(Number(sealsIn.common) || 0)),
+      rare: Math.max(0, Math.floor(Number(sealsIn.rare) || 0)),
+      absolute: Math.max(0, Math.floor(Number(sealsIn.absolute) || 0)),
+    },
+  };
+}
+
+/**
+ * 从 sessions 历史 compile 真书次数与印记（与 unique 的 rebuildUniquesFromHistory 同思路）
+ * 源数据：各 stroke；真书条目按 zhenPracticeKey(unicode, styleId) 聚合
+ * @returns {{ [key: string]: { count: number, seals: { common, rare, absolute } } }}
+ */
+function rebuildZhenFromHistory(stats) {
+  const out = {};
+  if (typeof findZiEntry !== 'function' || typeof zhenPracticeKey !== 'function') {
+    return out;
+  }
+
+  const sessions = Array.isArray(stats?.sessions) ? stats.sessions : [];
+  for (const session of sessions) {
+    const strokes = Array.isArray(session?.strokes) ? session.strokes : [];
+    for (const stroke of strokes) {
+      if (!stroke?.id) continue;
+      const entry = findZiEntry(stroke.id);
+      if (!entry) continue;
+      const script = typeof normalizeScript === 'function'
+        ? normalizeScript(entry.script || entry.style)
+        : entry.script;
+      const isZhen = script === 'zhen'
+        || (typeof SCRIPT !== 'undefined' && script === SCRIPT.zhen);
+      if (!isZhen) continue;
+
+      const key = zhenPracticeKey(entry.unicode || entry.char, entry.styleId);
+      if (!key) continue;
+
+      const rec = normalizeZhenRecord(out[key]);
+      rec.count += 1;
+      const seal = typeof normalizeZhenSeal === 'function'
+        ? normalizeZhenSeal(stroke.seal)
+        : stroke.seal;
+      if (seal && Object.prototype.hasOwnProperty.call(rec.seals, seal)) {
+        rec.seals[seal] += 1;
+      }
+      out[key] = rec;
+    }
+  }
+  return out;
+}
+
+/** 用 sessions 重算并写回 stats.zhen（展示缓存；权威仍是历史 strokes） */
+function refreshZhenFromHistory(stats) {
+  if (!stats || typeof stats !== 'object') return stats;
+  stats.zhen = rebuildZhenFromHistory(stats);
+  return stats;
+}
+
+/**
+ * @deprecated 真书不再增量写入；请用 refreshZhenFromHistory（从 sessions compile）
+ * 保留空壳以免外部旧调用报错
+ */
+function applyZhenPracticeFromSnapshot(stats, _snapshot) {
+  return refreshZhenFromHistory(stats);
+}
+
 function applySnapshotToUserStats(stats, snapshot, maps) {
   // 政策：新练习永远只追加 sessions；chars 为旧数据兼容冻结层，禁止日常 merge 写入
   // 仅当 meta.committedToLevels === true（显式、遗留）时才改 chars
@@ -1706,6 +1882,8 @@ function applySnapshotToUserStats(stats, snapshot, maps) {
   // Unique / 墨掉落均随结算写入；墨同时记 inkHistory；库存同步追加
   appendUniquesFromSession(stats, stats.sessions.length - 1);
   applyPracticeInkDropsFromSnapshot(stats, snapshot);
+  // 真书次数 / 印记：只追加 session strokes，再从历史 compile
+  refreshZhenFromHistory(stats);
   return stats;
 }
 

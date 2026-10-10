@@ -41,6 +41,10 @@ class PracticeStroke {
     }
     const inkDrop = Math.floor(Number(this.inkDrop) || 0);
     if (inkDrop > 0) out.inkDrop = inkDrop;
+    const seal = typeof normalizeZhenSeal === 'function'
+      ? normalizeZhenSeal(this.seal)
+      : (this.seal || null);
+    if (seal) out.seal = seal;
     return out;
   }
 
@@ -209,6 +213,31 @@ function finalizeActiveStroke(state, endAt = Date.now(), options = {}) {
   if (stroke.isUnique && stroke.cardStyle) {
     stroke.ciHao = (Array.isArray(state.strokes) ? state.strokes.length : 0) + 1;
     if (typeof playUniqueDropSfx === 'function') playUniqueDropSfx();
+  }
+
+  // 真书印记：与 unique 无关；skipDrop 只跳过 unique/墨
+  if (!options?.skipZhenSeal && typeof rollZhenSealJudgment === 'function') {
+    const catalog = typeof findZiEntry === 'function' ? findZiEntry(stroke.id) : null;
+    const script = catalog
+      ? (typeof normalizeScript === 'function'
+        ? normalizeScript(catalog.script || catalog.style)
+        : catalog.script)
+      : '';
+    const isZhen = script === 'zhen'
+      || (typeof SCRIPT !== 'undefined' && script === SCRIPT.zhen);
+    if (isZhen) {
+      let sealDrop = options?.sealDrop;
+      if (sealDrop === undefined) {
+        sealDrop = rollZhenSealJudgment(options?.rng);
+      }
+      const seal = typeof normalizeZhenSeal === 'function'
+        ? normalizeZhenSeal(sealDrop?.seal)
+        : (sealDrop?.seal || null);
+      if (seal) {
+        stroke.seal = seal;
+        if (typeof playUniqueDropSfx === 'function') playUniqueDropSfx();
+      }
+    }
   }
 
   state.strokes.push(stroke);
@@ -393,13 +422,10 @@ function computeStrokesSummary(strokes) {
   };
 }
 
-/** 条目展示标签（草体仅汉字，其他附短标签） */
+/** 条目展示标签（右侧统计只显示汉字，不加「X真」等后缀） */
 function formatSessionItemLabel(item) {
   if (!item) return '';
-  const char = resolveSessionItemChar(item);
-  const script = resolveSessionItemScript(item);
-  const tag = SCRIPT_LABEL[script] || '';
-  return tag ? `${char}${tag}` : char;
+  return resolveSessionItemChar(item);
 }
 
 function formatStrokeDuration(ms) {
@@ -450,6 +476,11 @@ function buildSessionSnapshot(state, meta = {}) {
         ...(Math.floor(Number(s.inkDrop) || 0) > 0
           ? { inkDrop: Math.floor(Number(s.inkDrop)) }
           : {}),
+        ...((typeof normalizeZhenSeal === 'function'
+          ? normalizeZhenSeal(s.seal)
+          : s.seal)
+          ? { seal: (typeof normalizeZhenSeal === 'function' ? normalizeZhenSeal(s.seal) : s.seal) }
+          : {}),
       }
   ));
 
@@ -494,7 +525,13 @@ function snapshotToJSON(snapshot) {
  */
 function snapshotToReadable(snapshot) {
   const filterLabel = SCRIPT_FILTER_LABEL[snapshot.meta?.filter] || snapshot.meta?.filter || '—';
-  const modeLabel = snapshot.meta?.mode === 'time' ? '时间' : '默认';
+  const modeLabel = typeof formatLearningModeLabel === 'function'
+    ? formatLearningModeLabel(snapshot.meta?.mode)
+    : (snapshot.meta?.mode === 'time'
+      ? '时间'
+      : (snapshot.meta?.mode === 'recognize'
+        ? '识字'
+        : (snapshot.meta?.mode === 'random' ? '随机' : '默认')));
   const strokes = normalizeSnapshotStrokes(snapshot);
   const summary = snapshot.summary || computeStrokesSummary(strokes);
 

@@ -2,6 +2,7 @@
  * 卡面样式 — colorScheme / decoration / cardBase / cardModifier 工具与随机逻辑
  *
  * 配色数据见 card-color-schemes.js；底纹见 card-bases.js；修饰见 card-modifiers.js
+ * unique 掉落几率 / 门控 / 保底墨见 unique-drop-rates.js（须先于本文件加载）
  * colorScheme 死 id：csNNN；class：card-scheme-{id}、card-deco-{id}、card-base-{id}、card-mod-{id}
  *
  * 色值语义：
@@ -11,21 +12,6 @@
  *
  * 预览层叠（底→上）：secondary → cardBase(tertiary mask) → cardImage(primary mask) → cardModifier(sticker)
  */
-
-/** 默认 unique 掉落门控（未翻开原型） */
-const CARD_UNIQUE_APPEARANCE_CHANCE = 0.08;
-/** 本字翻开过原型后，门控再加这一档 */
-const CARD_UNIQUE_GLYPH_REVEAL_BONUS = 0.02;
-/** unique 通过后：配色 check */
-const CARD_COLOR_SCHEME_APPEARANCE_CHANCE = 1 / 4;
-/** unique 通过后：底纹 check（与配色独立，可叠加） */
-const CARD_BASE_APPEARANCE_CHANCE = 1 / 8;
-/** unique 通过后：修饰 check（与配色/底纹独立，可叠加） */
-const CARD_MODIFIER_APPEARANCE_CHANCE = 1 / 10;
-/**
- * 掉落判定已进入、但 unique 词条全空时的保底墨奖励（记在 stroke，结算后入账）
- */
-const CARD_INK_DROP_AMOUNT = 5;
 
 /** 默认卡色 id（unique 随机池排除） */
 const CARD_DEFAULT_COLOR_SCHEME_ID = 'cs000';
@@ -638,6 +624,10 @@ function serializeStrokeForSnapshot(stroke) {
   }
   const inkDrop = Math.floor(Number(stroke.inkDrop) || 0);
   if (inkDrop > 0) out.inkDrop = inkDrop;
+  const seal = typeof normalizeZhenSeal === 'function'
+    ? normalizeZhenSeal(stroke.seal)
+    : (stroke.seal || null);
+  if (seal) out.seal = seal;
   return out;
 }
 

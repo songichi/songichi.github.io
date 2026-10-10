@@ -253,8 +253,6 @@ let currentGlyphRevealed = false;
 /** 当前字是否有答案字形图 */
 let glyphImageAvailable = false;
 let glyphAvailabilityToken = 0;
-/** 字形图是否存在缓存（键：id 或 char） */
-const glyphImageExistsCache = new Map();
 let learningMode = loadLearningMode();
 /** 识字模式：历史最近识别过的 id（新在前），默认剔除 50 个 */
 const RECOGNIZE_HISTORY_EXCLUDE = 50;
@@ -268,6 +266,8 @@ let recognizeGlyphPoolPromise = null;
 let recentHistory = [];
 /** 本轮已跳过的条目键（本轮内不再出现） */
 let sessionSkippedKeys = new Set();
+/** 本轮字库已全部完成/跳过：底部双钮变为「结算」 */
+let libraryExhausted = false;
 /** 切换汉字时的淡入定时器 */
 let showCharacterTimer = null;
 /** 本轮会话（含书体、次数、时间戳；可导出为 versioned JSON） */
@@ -293,13 +293,9 @@ function applySeed(seed, { refresh = true } = {}) {
   }
 }
 
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
-
 const SCRIPT_FILTER_OPTIONS = [
   SCRIPT_FILTER.cao,
-  SCRIPT_FILTER.kai,
-  SCRIPT_FILTER.ming,
-  SCRIPT_FILTER.hei,
+  SCRIPT_FILTER.zhen,
   SCRIPT_FILTER.all,
 ];
 
@@ -312,6 +308,10 @@ const el = {
   recognizeAnswer: document.getElementById('recognize-answer'),
   recognizeAnswerChar: document.getElementById('recognize-answer-char'),
   btnShow: document.getElementById('btn-show'),
+  zhenPracticeMeta: document.getElementById('zhen-practice-meta'),
+  zhenPracticeForm: document.getElementById('zhen-practice-form'),
+  zhenPracticeVariation: document.getElementById('zhen-practice-variation'),
+  zhenStageBg: document.getElementById('zhen-stage-bg'),
   btnRefresh: document.getElementById('btn-refresh'),
   btnSkip: document.getElementById('btn-skip'),
   btnSettlementCopy: document.getElementById('btn-settlement-copy'),
@@ -349,6 +349,7 @@ const el = {
   browseDialog: document.getElementById('browse-dialog'),
   charGrid: document.getElementById('char-grid'),
   browseCount: document.getElementById('browse-count'),
+  browseExcludeCount: document.getElementById('browse-exclude-count'),
   btnSettings: document.getElementById('btn-settings'),
   settingsDialog: document.getElementById('settings-dialog'),
   charactersInput: document.getElementById('characters-input'),
@@ -356,6 +357,7 @@ const el = {
   btnSave: document.getElementById('btn-save'),
   btnCancel: document.getElementById('btn-cancel'),
   modeDefault: document.getElementById('mode-default'),
+  modeRandom: document.getElementById('mode-random'),
   modeTime: document.getElementById('mode-time'),
   modeRecognize: document.getElementById('mode-recognize'),
   statsRows: [...document.querySelectorAll('.stats-row')],
@@ -526,11 +528,30 @@ async function loadDefaultModeHistory() {
   }
 }
 
-/** 重建当前练习库 */
-function rebuildCharacters() {
+/** 重建当前练习库（真书仅保留有字形图的条目） */
+let rebuildCharactersToken = 0;
+
+async function rebuildCharacters() {
+  const token = ++rebuildCharactersToken;
   fullLibrary = buildLibrary(editableCharacters);
-  characters = filterLibrary(fullLibrary, scriptFilter);
+  const filtered = filterLibrary(fullLibrary, scriptFilter);
+  const withGlyph = typeof filterPracticeEntriesByGlyph === 'function'
+    ? await filterPracticeEntriesByGlyph(filtered)
+    : filtered;
+  if (token !== rebuildCharactersToken) return;
+  characters = withGlyph;
   recognizeGlyphPoolPromise = null;
+}
+
+/** 真书练习：无 unique / 墨掉落（与识字一样跳过掉落判定） */
+function isZhenPracticeEntry(entry) {
+  if (!entry) return false;
+  return typeof normalizeScript === 'function'
+    && normalizeScript(entry.script) === SCRIPT.zhen;
+}
+
+function shouldSkipDropForEntry(entry) {
+  return learningMode === 'recognize' || isZhenPracticeEntry(entry);
 }
 
 /** 生成本轮快照对象。仅结算时把当前未完成的字定稿写入。 */
@@ -541,7 +562,7 @@ function getCurrentSnapshot({ commitActive = false } = {}) {
     librarySize: characters.length,
     dropRng: random,
     commitActive,
-    skipDrop: learningMode === 'recognize',
+    skipDrop: shouldSkipDropForEntry(currentEntry),
     glyphRevealed: currentGlyphRevealed,
   });
 }
@@ -587,6 +608,20 @@ function updateFooterForPhase() {
       el.btnSettlementCopy.textContent = '复制结果';
       el.btnSettlementCopy.disabled = false;
     }
+  } else if (libraryExhausted) {
+    el.btnRefresh.disabled = false;
+    el.btnSkip.disabled = false;
+    el.btnRefresh.textContent = '结算';
+    el.btnRefresh.title = '结算本轮练习（不写入数据）';
+    el.btnRefresh.setAttribute('aria-label', '结算');
+    el.btnSkip.textContent = '结算';
+    el.btnSkip.title = '结算本轮练习（不写入数据）';
+    el.btnSkip.setAttribute('aria-label', '结算');
+    if (el.btnSettlementCopy) {
+      el.btnSettlementCopy.classList.add('hidden');
+      el.btnSettlementCopy.textContent = '复制结果';
+      el.btnSettlementCopy.disabled = false;
+    }
   } else if (learningMode === 'recognize') {
     const hasEntry = Boolean(currentEntry);
     el.btnRefresh.disabled = !hasEntry || recognizeAnswerRevealed;
@@ -627,9 +662,13 @@ function renderSettlementPanel(snapshot) {
     && SCRIPT_FILTER_LABEL[snapshot?.meta?.filter])
     || snapshot?.meta?.filter
     || '—';
-  const modeLabel = snapshot?.meta?.mode === 'time'
-    ? '时间'
-    : (snapshot?.meta?.mode === 'recognize' ? '识字' : '默认');
+  const modeLabel = typeof formatLearningModeLabel === 'function'
+    ? formatLearningModeLabel(snapshot?.meta?.mode)
+    : (snapshot?.meta?.mode === 'time'
+      ? '时间'
+      : (snapshot?.meta?.mode === 'recognize'
+        ? '识字'
+        : (snapshot?.meta?.mode === 'random' ? '随机' : '默认')));
   const durationLabel = typeof formatStrokeDuration === 'function'
     ? formatStrokeDuration(summary.totalDurationMs)
     : `${summary.totalDurationMs || 0}ms`;
@@ -662,19 +701,39 @@ function renderSettlementPanel(snapshot) {
   for (const stroke of snapshot?.strokes || []) {
     if (stroke?.isUnique && stroke.id) uniqueIds.add(String(stroke.id));
   }
+  const sealsById = collectRevealedSeals({ strokes: snapshot?.strokes || [] });
 
   for (const item of items) {
     const wrap = document.createElement('span');
     wrap.className = 'settlement-char';
     if (item?.id && uniqueIds.has(String(item.id))) wrap.classList.add('is-unique');
 
-    const label = document.createElement('span');
-    label.className = 'settlement-char-label';
-    label.textContent = typeof formatSessionItemLabel === 'function'
+    const labelText = typeof formatSessionItemLabel === 'function'
       ? formatSessionItemLabel(item)
       : (item.char || item.id || '—');
+    const seal = item?.id ? sealsById.get(String(item.id)) : null;
+    const normalizedSeal = typeof normalizeZhenSeal === 'function'
+      ? normalizeZhenSeal(seal)
+      : seal;
 
-    wrap.appendChild(label);
+    if (normalizedSeal) {
+      wrap.classList.add('has-seal', `has-seal-${normalizedSeal}`);
+      const sealLabel = (typeof ZHEN_SEAL_LABEL !== 'undefined' && ZHEN_SEAL_LABEL[normalizedSeal])
+        || normalizedSeal;
+      wrap.title = sealLabel;
+      const sealFrame = createStatsSealFrameSvg(normalizedSeal);
+      if (sealFrame) wrap.appendChild(sealFrame);
+      const glyph = document.createElement('span');
+      glyph.className = 'settlement-char-label settlement-seal-glyph';
+      glyph.textContent = labelText;
+      wrap.appendChild(glyph);
+    } else {
+      const label = document.createElement('span');
+      label.className = 'settlement-char-label';
+      label.textContent = labelText;
+      wrap.appendChild(label);
+    }
+
     if ((item.count || 0) > 1) {
       const countEl = document.createElement('span');
       countEl.className = 'settlement-char-count';
@@ -698,6 +757,7 @@ function resetSessionPhase() {
   sessionCompleted = false;
   completedSnapshot = null;
   allowPracticeUnload = false;
+  libraryExhausted = false;
   setSettlementView(false);
   if (el.btnSessionAction) el.btnSessionAction.disabled = false;
   if (el.btnRefresh) el.btnRefresh.disabled = false;
@@ -707,9 +767,91 @@ function resetSessionPhase() {
 /** 重置本轮会话统计 */
 function resetSession() {
   sessionSkippedKeys = new Set();
+  libraryExhausted = false;
   resetSessionState(session);
   resetSessionPhase();
   updateStatsTable();
+}
+
+/** 当前模式用的字库（识字仅含有字形图的草体） */
+function getPracticeLibraryEntries() {
+  if (learningMode === 'recognize') {
+    return listCaoEntries().filter((entry) => {
+      const key = glyphAvailabilityCacheKey(entry);
+      return Boolean(key) && glyphImageExistsCache.get(key) === true;
+    });
+  }
+  return Array.isArray(characters) ? characters : [];
+}
+
+/** 本轮已消耗键：已定稿 + 已跳过；可选把当前字也算进去 */
+function getConsumedSessionKeys({ includeCurrent = false } = {}) {
+  const consumed = new Set(sessionSkippedKeys);
+  for (const stroke of session?.strokes || []) {
+    if (stroke?.id) consumed.add(String(stroke.id));
+  }
+  if (includeCurrent) {
+    if (session?.activeStroke?.id) consumed.add(String(session.activeStroke.id));
+    const currentKey = entryKey(currentEntry);
+    if (currentKey) consumed.add(currentKey);
+  }
+  return consumed;
+}
+
+function getRemainingLibraryEntries({ includeCurrent = false } = {}) {
+  const consumed = getConsumedSessionKeys({ includeCurrent });
+  return getPracticeLibraryEntries().filter((entry) => {
+    const key = entryKey(entry);
+    return Boolean(key) && !consumed.has(key);
+  });
+}
+
+/**
+ * 当前字完成后若字库已空：定稿本字、提示耗尽，底部双钮变为「结算」
+ * @returns {boolean} 是否已进入耗尽态
+ */
+function tryEnterLibraryExhausted(message) {
+  const library = getPracticeLibraryEntries();
+  if (library.length === 0) return false;
+  if (getRemainingLibraryEntries({ includeCurrent: true }).length > 0) return false;
+
+  const previousGlyphRevealed = currentGlyphRevealed;
+  if (showCharacterTimer) {
+    clearTimeout(showCharacterTimer);
+    showCharacterTimer = null;
+  }
+
+  if (session?.activeStroke?.id) {
+    finalizeActiveStroke(session, Date.now(), {
+      rng: random,
+      glyphRevealed: previousGlyphRevealed,
+      skipDrop: shouldSkipDropForEntry(currentEntry),
+    });
+  }
+
+  currentEntry = null;
+  currentGlyphRevealed = false;
+  glyphImageAvailable = false;
+  recognizeAnswerRevealed = false;
+  hideGlyph();
+  if (typeof updateZhenPracticeMeta === 'function') updateZhenPracticeMeta(null);
+  if (el.display) {
+    el.display.classList.remove('hidden', 'fade');
+    el.display.textContent = message
+      || (learningMode === 'recognize' ? '本轮可识别的字已经用完' : '本轮字库已练完');
+  }
+  if (el.recognizeAnswer) el.recognizeAnswer.classList.add('hidden');
+  if (el.recognizeInput) {
+    el.recognizeInput.value = '';
+    el.recognizeInput.disabled = true;
+  }
+
+  libraryExhausted = true;
+  updateStatsTable();
+  updateShowButton();
+  renderUniqueChanceDotsUI();
+  updateFooterForPhase();
+  return true;
 }
 
 /** 记录条目出现 */
@@ -780,7 +922,66 @@ function collectRevealedInkDrops(state) {
   return { ids, total };
 }
 
-/** 更新右侧统计列表（unique / 墨：定稿进 strokes 后才显示；账户仍待结算写入） */
+/** 已定稿真书印记：每 id 取最高稀有度 */
+function collectRevealedSeals(state) {
+  const byId = new Map();
+  const rank = (typeof ZHEN_SEAL_RANK !== 'undefined' && ZHEN_SEAL_RANK)
+    ? ZHEN_SEAL_RANK
+    : { common: 1, rare: 2, absolute: 3 };
+  for (const stroke of state?.strokes || []) {
+    if (!stroke?.id || !stroke.seal) continue;
+    const seal = typeof normalizeZhenSeal === 'function'
+      ? normalizeZhenSeal(stroke.seal)
+      : stroke.seal;
+    if (!seal) continue;
+    const id = String(stroke.id);
+    const prev = byId.get(id);
+    if (!prev || (rank[seal] || 0) > (rank[prev] || 0)) byId.set(id, seal);
+  }
+  return byId;
+}
+
+/** 右侧统计 / 结算：印记红框（普通单层 · 稀有双层 · 绝对三层） */
+function createStatsSealFrameSvg(seal) {
+  if (typeof createZhenSealFrameSvg === 'function') {
+    return createZhenSealFrameSvg(seal, {
+      size: 52,
+      className: 'zhen-seal-frame stats-seal-frame',
+    });
+  }
+  return null;
+}
+
+function createStatsCharEl(label, {
+  isUnique = false,
+  hasInkDrop = false,
+  seal = null,
+} = {}) {
+  const charEl = document.createElement('span');
+  charEl.className = 'stats-char';
+  if (isUnique) charEl.classList.add('is-unique');
+  if (hasInkDrop) charEl.classList.add('has-ink-drop');
+  const normalizedSeal = typeof normalizeZhenSeal === 'function'
+    ? normalizeZhenSeal(seal)
+    : seal;
+  if (normalizedSeal) {
+    charEl.classList.add('has-seal', `has-seal-${normalizedSeal}`);
+    const labelText = (typeof ZHEN_SEAL_LABEL !== 'undefined' && ZHEN_SEAL_LABEL[normalizedSeal])
+      || normalizedSeal;
+    charEl.title = labelText;
+    const frame = createStatsSealFrameSvg(normalizedSeal);
+    if (frame) charEl.appendChild(frame);
+    const glyph = document.createElement('span');
+    glyph.className = 'stats-seal-glyph';
+    glyph.textContent = label;
+    charEl.appendChild(glyph);
+  } else {
+    charEl.textContent = label;
+  }
+  return charEl;
+}
+
+/** 更新右侧统计列表（unique / 墨 / 印记：定稿进 strokes 后才显示；账户仍待结算写入） */
 function updateStatsTable() {
   const items = [...session.items.values()].sort(
     (a, b) => b.count - a.count
@@ -788,6 +989,7 @@ function updateStatsTable() {
   );
   const uniqueIds = collectRevealedUniqueIds(session);
   const inkDrops = collectRevealedInkDrops(session);
+  const sealsById = collectRevealedSeals(session);
   const rows = buildStatsRows(items, uniqueIds);
 
   if (el.statsInkGain) {
@@ -809,11 +1011,11 @@ function updateStatsTable() {
 
     if (data.type === 'counted') {
       row.classList.add('stats-row-counted');
-      const charEl = document.createElement('span');
-      charEl.className = 'stats-char';
-      if (data.isUnique) charEl.classList.add('is-unique');
-      if (data.id && inkDrops.ids.has(String(data.id))) charEl.classList.add('has-ink-drop');
-      charEl.textContent = data.label;
+      const charEl = createStatsCharEl(data.label, {
+        isUnique: data.isUnique,
+        hasInkDrop: Boolean(data.id && inkDrops.ids.has(String(data.id))),
+        seal: data.id ? sealsById.get(String(data.id)) : null,
+      });
       const countEl = document.createElement('span');
       countEl.className = 'stats-count';
       countEl.textContent = String(data.count);
@@ -823,12 +1025,11 @@ function updateStatsTable() {
 
     row.classList.add('stats-row-pack');
     for (const entry of data.entries) {
-      const charEl = document.createElement('span');
-      charEl.className = 'stats-char';
-      if (entry.isUnique) charEl.classList.add('is-unique');
-      if (entry.id && inkDrops.ids.has(String(entry.id))) charEl.classList.add('has-ink-drop');
-      charEl.textContent = entry.label;
-      row.appendChild(charEl);
+      row.appendChild(createStatsCharEl(entry.label, {
+        isUnique: entry.isUnique,
+        hasInkDrop: Boolean(entry.id && inkDrops.ids.has(String(entry.id))),
+        seal: entry.id ? sealsById.get(String(entry.id)) : null,
+      }));
     }
   });
 }
@@ -898,16 +1099,38 @@ function getSessionSeenKeys() {
 }
 
 /**
+ * 当前练习字库中，因「近期做过」而被剔除的字数（与抽字规则一致；无剔除时为 0）
+ */
+function countRecentHistoryExcludedInLibrary(library = characters) {
+  const list = Array.isArray(library) ? library : [];
+  if (!list.length || typeof defaultModeChance === 'undefined') return 0;
+  if (typeof resolveRecentHistoryExcludeCount === 'function'
+    && resolveRecentHistoryExcludeCount(list.length) <= 0) {
+    return 0;
+  }
+  if (!defaultModeChance.getRecentHistoryExcludeSet) return 0;
+  const history = defaultModeChance.getRecentHistoryExcludeSet(list.length);
+  if (!history.size) return 0;
+  let n = 0;
+  for (const entry of list) {
+    const key = entryKey(entry);
+    if (key && history.has(key)) n += 1;
+  }
+  return n;
+}
+
+/**
  * 字库浏览里标灰的字：本轮已见/已跳过，以及默认模式因最近练过而剔除的字。
- * 历史 50 把池子抽空、规则回退时，那些字实际仍会抽到，不标灰。
+ * 近期剔除把池子抽空、规则回退时，那些字实际仍会抽到，不标灰。
  */
 function getBrowseExcludedKeys() {
   const excluded = getSessionSeenKeys();
-  if (learningMode !== 'default') return excluded;
+  // 默认 / 随机都走近期剔除过滤；时间（历史）与识字不在此标灰
+  if (learningMode !== 'default' && learningMode !== 'random') return excluded;
   if (typeof defaultModeChance === 'undefined' || !defaultModeChance.getRecentHistoryExcludeSet) {
     return excluded;
   }
-  const history = defaultModeChance.getRecentHistoryExcludeSet();
+  const history = defaultModeChance.getRecentHistoryExcludeSet(characters.length);
   if (!history.size) return excluded;
   const pool = defaultModeChance.buildNormalFilteredPool(characters, excluded);
   const poolKeys = new Set((pool || []).map((entry) => entryKey(entry)).filter(Boolean));
@@ -930,12 +1153,15 @@ function pickRandom() {
   if (characters.length === 0) return null;
 
   if (typeof defaultModeChance !== 'undefined'
-    && (learningMode === 'default' || learningMode === 'time')) {
+    && (learningMode === 'default' || learningMode === 'random' || learningMode === 'time')) {
     const result = defaultModeChance.pick({
       library: characters,
       sessionSeenKeys: getSessionSeenKeys(),
       rng: random,
-      // 时间模式：10/10 强制近期（D）
+      profile: learningMode === 'random'
+        ? 'random'
+        : (learningMode === 'time' ? 'time' : 'default'),
+      // 时间模式（历史/隐藏）：10/10 强制近期（D）
       ...(learningMode === 'time' ? { forceRuleId: 'D' } : {}),
     });
     updateActiveChanceRule(result?.ruleId || null, Boolean(result?.fellBack));
@@ -984,11 +1210,22 @@ function uniqueChanceDotCount(chance = getUniqueAppearanceChance()) {
   return Math.floor(pct / 2);
 }
 
-/** 抽字几率上方：按门控几率显示橙色点 */
+/** 抽字几率上方：按门控几率显示橙色点（真书 / 识字无 unique 掉落，不显示） */
 function renderUniqueChanceDotsUI() {
   const host = el.uniqueChanceDots;
   if (!host) return;
   host.replaceChildren();
+  if (
+    learningMode === 'recognize'
+    || isZhenPracticeEntry(currentEntry)
+    || scriptFilter === SCRIPT_FILTER.zhen
+  ) {
+    host.setAttribute('aria-label', '真书/识字无 unique 掉落');
+    host.removeAttribute('title');
+    host.setAttribute('aria-hidden', 'true');
+    return;
+  }
+  host.setAttribute('aria-hidden', 'false');
   const chance = getUniqueAppearanceChance();
   const count = uniqueChanceDotCount(chance);
   const pctText = `${Math.round(chance * 1000) / 10}%`;
@@ -1002,7 +1239,7 @@ function renderUniqueChanceDotsUI() {
   }
 }
 
-/** 渲染抽字规则（默认：A/B/C/D；时间：仅强制近期 10/10） */
+/** 渲染抽字规则（默认 A/B/C/D；随机 B7/A3；时间仅 D） */
 function renderChanceRulesUI() {
   renderUniqueChanceDotsUI();
   if (!el.chanceRulesList) return;
@@ -1010,14 +1247,21 @@ function renderChanceRulesUI() {
   if (typeof DefaultModeChance === 'undefined') return;
 
   const sharesTotal = typeof DEFAULT_CHANCE_SHARES === 'number' ? DEFAULT_CHANCE_SHARES : 10;
-  const rules = learningMode === 'time'
-    ? [{
+  let rules;
+  if (learningMode === 'time') {
+    rules = [{
       id: 'D',
       label: '强制近期',
       shares: sharesTotal,
-      detail: '时间模式：始终走强制近期。无视历史最近 50 字过滤，仅排除本轮已出现；从加入最晚的 10 字中选，触发几率 = 本轮尚未练到的近期字数 / 10。未触发时回退为默认随机。',
-    }]
-    : DefaultModeChance.getRulesMeta();
+      detail: '时间模式：始终走强制近期。无视历史最近 N 字过滤，仅排除本轮已出现；从加入最晚的 10 字中选，触发几率 = 本轮尚未练到的近期字数 / 10。未触发时回退为默认随机。',
+    }];
+  } else if (learningMode === 'random') {
+    rules = typeof DefaultModeChance.getRandomModeRulesMeta === 'function'
+      ? DefaultModeChance.getRandomModeRulesMeta()
+      : DefaultModeChance.getRulesMeta().filter((r) => r.id === 'B' || r.id === 'A');
+  } else {
+    rules = DefaultModeChance.getRulesMeta();
+  }
 
   for (const rule of rules) {
     const li = document.createElement('li');
@@ -1047,15 +1291,20 @@ function renderChanceRulesUI() {
 
 /** 更新学习模式 UI */
 function updateModeUI() {
-  el.modeDefault.classList.toggle('is-active', learningMode === 'default');
-  el.modeTime.classList.toggle('is-active', learningMode === 'time');
+  el.modeDefault?.classList.toggle('is-active', learningMode === 'default');
+  el.modeRandom?.classList.toggle('is-active', learningMode === 'random');
+  el.modeTime?.classList.toggle('is-active', learningMode === 'time');
   el.modeRecognize?.classList.toggle('is-active', learningMode === 'recognize');
   document.body.classList.toggle('is-recognize-mode', learningMode === 'recognize');
   const inRecognize = learningMode === 'recognize' && !sessionCompleted;
   el.recognizeBar?.classList.toggle('hidden', !inRecognize);
 
   renderChanceRulesUI();
-  const showChance = (learningMode === 'default' || learningMode === 'time') && !sessionCompleted;
+  const showChance = (
+    learningMode === 'default'
+    || learningMode === 'random'
+    || learningMode === 'time'
+  ) && !sessionCompleted;
   if (el.chancePanel) {
     el.chancePanel.classList.toggle('hidden', !showChance);
     el.chancePanel.setAttribute('aria-hidden', showChance ? 'false' : 'true');
@@ -1065,9 +1314,12 @@ function updateModeUI() {
   }
 }
 
-/** 切换学习模式 */
+/** 切换学习模式（时间模式入口已隐藏，不可再切入；历史 session.mode=time 仍可读） */
 function setLearningMode(mode) {
-  if (mode !== 'default' && mode !== 'time' && mode !== 'recognize') return;
+  const allowed = typeof LEARNING_MODE_SELECTABLE !== 'undefined'
+    ? LEARNING_MODE_SELECTABLE
+    : ['default', 'random', 'recognize'];
+  if (!allowed.includes(mode)) return;
   if (mode === learningMode) return;
   learningMode = mode;
   saveLearningMode(mode);
@@ -1105,7 +1357,7 @@ function toggleScriptMenu() {
 }
 
 /** 切换书体筛选 */
-function setScriptFilter(filter) {
+async function setScriptFilter(filter) {
   if (!Object.values(SCRIPT_FILTER).includes(filter)) return;
   if (filter === scriptFilter) {
     setScriptMenuOpen(false);
@@ -1114,7 +1366,7 @@ function setScriptFilter(filter) {
 
   scriptFilter = filter;
   saveScriptFilter(filter);
-  rebuildCharacters();
+  await rebuildCharacters();
   recentHistory = [];
   resetSession();
   updateScriptFilterUI();
@@ -1134,10 +1386,11 @@ function showCharacter(entry) {
   if (sessionCompleted && entry) return;
 
   const previousGlyphRevealed = currentGlyphRevealed;
+  const previousEntry = currentEntry;
+  const skipDrop = shouldSkipDropForEntry(previousEntry);
   glyphImageAvailable = false;
   currentGlyphRevealed = false;
   hideGlyph();
-  renderUniqueChanceDotsUI();
 
   if (showCharacterTimer) {
     clearTimeout(showCharacterTimer);
@@ -1146,21 +1399,31 @@ function showCharacter(entry) {
 
   if (!entry) {
     currentEntry = null;
-    // 清空展示时结束上一字：仍做掉落判定
+    // 清空展示时结束上一字（真书 / 识字跳过掉落判定）
     finalizeActiveStroke(session, Date.now(), {
       rng: random,
       glyphRevealed: previousGlyphRevealed,
+      skipDrop,
     });
     el.display.textContent = '—';
+    updateZhenPracticeMeta(null);
     refreshGlyphAvailability(null);
+    renderUniqueChanceDotsUI();
     updateStatsTable();
     return;
   }
 
   // 掉落判定和音效必须留在这次点击/按键里。放进下面的淡入计时器会丢掉用户手势，浏览器会把声音静音。
+  // skipDrop 针对上一字（正在 finalize 的那笔）；真书字永不进 unique / 墨掉落。
   currentEntry = entry;
   recordHistory(currentEntry);
-  recordAppearance(currentEntry, { rng: random, glyphRevealed: previousGlyphRevealed });
+  recordAppearance(currentEntry, {
+    rng: random,
+    glyphRevealed: previousGlyphRevealed,
+    skipDrop,
+  });
+  updateZhenPracticeMeta(currentEntry);
+  renderUniqueChanceDotsUI();
   el.display.classList.add('fade');
   showCharacterTimer = setTimeout(() => {
     showCharacterTimer = null;
@@ -1188,6 +1451,9 @@ function refreshCharacter() {
     return;
   }
 
+  if (tryEnterLibraryExhausted('本轮字库已练完')) return;
+
+  libraryExhausted = false;
   showCharacter(pickRandom());
 }
 
@@ -1290,13 +1556,20 @@ function showRecognizeCharacter(entry, reason = '') {
 
   if (!entry) {
     el.display.classList.remove('hidden');
-    el.display.textContent = reason === 'no-glyph'
-      ? '没有可用的草书字形'
-      : '本轮可识别的字已经用完';
+    if (reason === 'exhausted') {
+      libraryExhausted = true;
+      el.display.textContent = '本轮可识别的字已经用完';
+    } else {
+      libraryExhausted = false;
+      el.display.textContent = reason === 'no-glyph'
+        ? '没有可用的草书字形'
+        : '本轮可识别的字已经用完';
+    }
     updateFooterForPhase();
     return;
   }
 
+  libraryExhausted = false;
   el.display.textContent = '';
   el.display.classList.add('hidden');
   glyphVisible = true;
@@ -1309,6 +1582,7 @@ function showRecognizeCharacter(entry, reason = '') {
 
 function refreshRecognizeCharacter() {
   if (sessionCompleted || learningMode !== 'recognize') return;
+  if (tryEnterLibraryExhausted('本轮可识别的字已经用完')) return;
   const picked = pickRecognizeEntry();
   showRecognizeCharacter(picked.entry, picked.reason);
 }
@@ -1387,6 +1661,9 @@ function skipRecognizeCharacter() {
 function renderBrowseGrid() {
   el.charGrid.replaceChildren();
   el.browseCount.textContent = characters.length;
+  if (el.browseExcludeCount) {
+    el.browseExcludeCount.textContent = String(countRecentHistoryExcludedInLibrary(characters));
+  }
 
   if (characters.length === 0) {
     const empty = document.createElement('p');
@@ -1411,15 +1688,26 @@ function renderBrowseGrid() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'char-grid-item';
-    if (script !== SCRIPT.cao) {
+    if (script === SCRIPT.zhen) {
+      btn.classList.add('script-zhen');
+      const form = typeof normalizeZhenForm === 'function'
+        ? normalizeZhenForm(entry.form || entry.script)
+        : '';
+      if (form) btn.classList.add(`script-${form}`);
+    } else if (script !== SCRIPT.cao) {
       btn.classList.add(`script-${script}`);
     }
     btn.textContent = entry.char;
-    btn.title = SCRIPT_NAME[script] || '';
+    const scriptTitle = script === SCRIPT.zhen && typeof ZHEN_FORM_LABEL !== 'undefined'
+      ? (ZHEN_FORM_LABEL[typeof normalizeZhenForm === 'function'
+        ? normalizeZhenForm(entry.form || entry.script)
+        : ZHEN_FORM.kai] || SCRIPT_NAME[script] || '')
+      : (SCRIPT_NAME[script] || '');
+    btn.title = scriptTitle;
     btn.setAttribute('role', 'listitem');
     btn.setAttribute(
       'aria-label',
-      `显示「${entry.char}」${SCRIPT_NAME[script] || ''}`,
+      `显示「${entry.char}」${scriptTitle}`,
     );
     if (key && excludedKeys.has(key) && key !== currentKey) {
       btn.classList.add('is-excluded');
@@ -1444,28 +1732,6 @@ function selectCharacterFromBrowse(entry) {
   el.browseDialog.close();
   if (learningMode === 'recognize') return;
   showCharacter(entry);
-}
-
-/** 获取字形图片候选路径（主字优先，再 alternatives；按书体分目录） */
-function getGlyphImageCandidates(entry) {
-  const script = normalizeScript(entry.script);
-  const dir = SCRIPT_IMAGE_DIR[script] || SCRIPT_IMAGE_DIR[SCRIPT.cao];
-  const forms = typeof glyphImageCharForms === 'function'
-    ? glyphImageCharForms(entry.char, entry)
-    : [entry.char, ...(entry.alternatives || [])].filter(Boolean);
-  const paths = [];
-  const seen = new Set();
-  for (const form of forms) {
-    const ch = String(form || '').trim();
-    if (!ch) continue;
-    for (const ext of IMAGE_EXTENSIONS) {
-      const path = `${dir}/${ch}.${ext}`;
-      if (seen.has(path)) continue;
-      seen.add(path);
-      paths.push(path);
-    }
-  }
-  return paths;
 }
 
 /** 按扩展名顺序尝试加载字形图片 */
@@ -1512,49 +1778,6 @@ function showGlyph() {
   updateShowButton();
 }
 
-function glyphAvailabilityCacheKey(entry) {
-  if (!entry) return '';
-  return entry.id || `${normalizeScript(entry.script)}:${entry.char}`;
-}
-
-/** 探测当前字是否有答案字形图（主字 + alternatives） */
-function probeGlyphImageExists(entry) {
-  const key = glyphAvailabilityCacheKey(entry);
-  if (!key) return Promise.resolve(false);
-  if (glyphImageExistsCache.has(key)) {
-    return Promise.resolve(glyphImageExistsCache.get(key));
-  }
-
-  const candidates = getGlyphImageCandidates(entry);
-  if (candidates.length === 0) {
-    glyphImageExistsCache.set(key, false);
-    return Promise.resolve(false);
-  }
-
-  return new Promise((resolve) => {
-    let index = 0;
-    const tryNext = () => {
-      if (index >= candidates.length) {
-        glyphImageExistsCache.set(key, false);
-        resolve(false);
-        return;
-      }
-      const probe = new Image();
-      probe.onload = () => {
-        glyphImageExistsCache.set(key, true);
-        resolve(true);
-      };
-      probe.onerror = () => {
-        index += 1;
-        tryNext();
-      };
-      probe.src = candidates[index];
-      index += 1;
-    };
-    tryNext();
-  });
-}
-
 function refreshGlyphAvailability(entry) {
   const token = ++glyphAvailabilityToken;
   if (!entry) {
@@ -1573,6 +1796,61 @@ function refreshGlyphAvailability(entry) {
     glyphImageAvailable = hasImage;
     updateShowButton();
   });
+}
+
+/** 真书练习：眼睛图标下居中显示「X体」+ variation */
+function zhenFormTiLabel(form) {
+  const key = typeof normalizeZhenForm === 'function' ? normalizeZhenForm(form) : form;
+  const base = (typeof ZHEN_FORM_LABEL !== 'undefined' && ZHEN_FORM_LABEL[key]) || '';
+  if (!base) return '';
+  if (base.endsWith('体')) return base;
+  if (base.endsWith('书')) return `${base.slice(0, -1)}体`;
+  return `${base}体`;
+}
+
+function isZhenPracticeEntry(entry) {
+  return Boolean(entry)
+    && typeof normalizeScript === 'function'
+    && typeof SCRIPT !== 'undefined'
+    && normalizeScript(entry.script) === SCRIPT.zhen;
+}
+
+/** 真书练习：格线底图 + 字形叠在上面 */
+function updateZhenStageBackground(entry) {
+  const show = isZhenPracticeEntry(entry)
+    || (
+      !entry
+      && scriptFilter === SCRIPT_FILTER.zhen
+      && learningMode !== 'recognize'
+    );
+  el.zhenStageBg?.classList.toggle('hidden', !show);
+  el.characterStage?.classList.toggle('has-zhen-bg', show);
+}
+
+function updateZhenPracticeMeta(entry) {
+  updateZhenStageBackground(entry);
+
+  const meta = el.zhenPracticeMeta;
+  const formEl = el.zhenPracticeForm;
+  const varEl = el.zhenPracticeVariation;
+  if (!meta || !formEl || !varEl) return;
+
+  const isZhen = isZhenPracticeEntry(entry);
+
+  if (!isZhen) {
+    meta.classList.add('hidden');
+    formEl.textContent = '';
+    varEl.textContent = '';
+    varEl.classList.add('hidden');
+    return;
+  }
+
+  const formLabel = zhenFormTiLabel(entry.form);
+  const variation = String(entry.variation || entry.work || '').trim();
+  formEl.textContent = formLabel;
+  varEl.textContent = variation;
+  varEl.classList.toggle('hidden', !variation);
+  meta.classList.toggle('hidden', !formLabel && !variation);
 }
 
 /** 更新显示按钮状态 */
@@ -1627,14 +1905,14 @@ function updateCharCount() {
 }
 
 /** 保存字库 */
-function saveSettings() {
+async function saveSettings() {
   const parsed = parseCharacters(el.charactersInput.value);
   if (parsed.length === 0) {
     alert('请至少输入一个汉字');
     return;
   }
   editableCharacters = parsed;
-  rebuildCharacters();
+  await rebuildCharacters();
   recentHistory = [];
   resetSession();
   saveCharacters(editableCharacters);
@@ -1802,14 +2080,19 @@ async function finishSettlementAndGoToLevel() {
   }
 }
 
-function getUserLevelPageUrlRelative() {
-  return `user/index.html?view=level`;
+/** @param {{ overview?: boolean }} [options] 结算后强制总览 tab */
+function getUserLevelPageUrlRelative({ overview = false } = {}) {
+  return overview
+    ? 'user/index.html?view=level&mode=overview'
+    : 'user/index.html?view=level';
 }
 
 function navigateToUserLevelPage() {
   // 异步保存后用户手势已失效，合成 <a>.click() 常被拦截；用 location 跳转更稳
-  window.location.href = getUserLevelPageUrlRelative();
-  return getUserLevelPageUrlRelative();
+  // 结算结束一律进总览，避免停在真书/独特等上次 tab
+  const url = getUserLevelPageUrlRelative({ overview: true });
+  window.location.href = url;
+  return url;
 }
 
 function onSessionActionClick() {
@@ -1819,6 +2102,8 @@ function onSessionActionClick() {
 function onPrimaryFooterClick() {
   if (sessionCompleted) {
     finishSettlementAndGoToLevel();
+  } else if (libraryExhausted) {
+    enterSettlement();
   } else if (learningMode === 'recognize') {
     checkRecognizeAnswer();
   } else {
@@ -1830,6 +2115,8 @@ function onPrimaryFooterClick() {
 function onSecondaryFooterClick() {
   if (sessionCompleted) {
     exitSettlement();
+  } else if (libraryExhausted) {
+    enterSettlement();
   } else if (learningMode === 'recognize') {
     skipRecognizeCharacter();
   } else {
@@ -2043,9 +2330,10 @@ el.browseDialog.addEventListener('click', (event) => {
 el.btnSave?.addEventListener('click', saveSettings);
 el.btnCancel.addEventListener('click', () => el.settingsDialog.close());
 el.charactersInput.addEventListener('input', updateCharCount);
-el.modeDefault.addEventListener('click', () => setLearningMode('default'));
-el.modeTime.addEventListener('click', () => setLearningMode('time'));
+el.modeDefault?.addEventListener('click', () => setLearningMode('default'));
+el.modeRandom?.addEventListener('click', () => setLearningMode('random'));
 el.modeRecognize?.addEventListener('click', () => setLearningMode('recognize'));
+// 时间模式入口已隐藏；历史 session.mode=time 仍可读
 el.recognizeInput?.addEventListener('keydown', (event) => {
   if (event.key !== 'Enter' || event.isComposing) return;
   event.preventDefault();
@@ -2080,6 +2368,7 @@ async function initPracticePage() {
   if (typeof applyCaoAppVersionLabels === 'function') applyCaoAppVersionLabels();
   await refreshPracticeUserBadge();
   await loadDefaultModeHistory();
+  await rebuildCharacters();
   if (learningMode === 'recognize') beginRecognizeRound();
   else refreshCharacter();
 }

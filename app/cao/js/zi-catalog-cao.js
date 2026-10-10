@@ -175,7 +175,7 @@ const DEFAULT_ZI_CAO = createZiList([
   caoZi('遙', { unicode: 'U+9059',  alternatives: ['遥'], calligrapher: '趙孟頫', work: '真草千字文卷'}),
   
   caoZi('稱', { unicode: 'U+7A31',  alternatives: ['称'], calligrapher: '孫過庭', work: '書譜'}),
-  caoZi('貫', { unicode: 'U+8D2F',  alternatives: ['贯'], calligrapher: '孫過庭', work: '書譜'}),
+  caoZi('貫', { unicode: 'U+8CAB',  alternatives: ['贯'], calligrapher: '孫過庭', work: '書譜'}),
   caoZi('門', { unicode: 'U+9580',  alternatives: ['门'], calligrapher: '孫過庭', work: '書譜'}),
   caoZi('藏', { unicode: 'U+85CF',  calligrapher: '孫過庭', work: '書譜'}),
   caoZi('衡', { unicode: 'U+8861',  calligrapher: '趙孟頫', work: '歸去來兮並序'}),
@@ -183,9 +183,16 @@ const DEFAULT_ZI_CAO = createZiList([
   caoZi('體', { unicode: 'U+9AD4',  calligrapher: '孫過庭', work: '書譜'}),
   caoZi('却', { unicode: 'U+5374',  alternatives: ['卻'], calligrapher: '趙孟頫', work: '致民瞻書札'}),
   caoZi('考', { unicode: 'U+8003',  calligrapher: '孫過庭', work: '書譜'}),
-  caoZi('類', { unicode: 'U+8003',  alternatives: ['类'], calligrapher: '孫過庭', work: '書譜'}),
+  caoZi('類', { unicode: 'U+985E',  alternatives: ['类'], calligrapher: '孫過庭', work: '書譜'}),
   
   caoZi('居', { unicode: 'U+5C45',  calligrapher: '孫過庭', work: '書譜'}),
+  caoZi('齊', { unicode: 'U+9F4A',  alternatives: ['齐'], calligrapher: '孫過庭', work: '書譜'}),
+  caoZi('營', { unicode: 'U+71DF',  alternatives: ['营'], calligrapher: '懷素', work: '懷素草書千字文'}),
+  caoZi('駭', { unicode: 'U+99ED',  alternatives: ['骇'], calligrapher: '孫過庭', work: '書譜'}),
+  caoZi('書', { unicode: 'U+66F8',  alternatives: ['书'], calligrapher: '孫過庭', work: '書譜'}),
+  caoZi('意', { unicode: 'U+610F',  calligrapher: '孫過庭', work: '書譜'}),
+  caoZi('要', { unicode: 'U+8981',  calligrapher: '孫過庭', work: '書譜'}),
+  caoZi('反', { unicode: 'U+53CD',  calligrapher: '孫過庭', work: '書譜'}),
 
 
 ]);

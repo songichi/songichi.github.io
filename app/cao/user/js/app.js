@@ -28,6 +28,7 @@ const el = {
   levelNavOverview: document.getElementById('level-nav-overview'),
   levelNavUnique: document.getElementById('level-nav-unique'),
   levelNavLevels: document.getElementById('level-nav-levels'),
+  levelNavZhen: document.getElementById('level-nav-zhen'),
   levelNavRecognize: document.getElementById('level-nav-recognize'),
   levelNavSort: document.getElementById('level-nav-sort'),
   levelNavLast: document.getElementById('level-nav-last'),
@@ -49,6 +50,7 @@ const el = {
   sfxVolume: document.getElementById('sfx-volume'),
   sfxVolumeValue: document.getElementById('sfx-volume-value'),
   btnUnicodeCheck: document.getElementById('btn-unicode-check'),
+  btnUnicodeCheckCopy: document.getElementById('btn-unicode-check-copy'),
   unicodeCheckResult: document.getElementById('unicode-check-result'),
   cardPreviewSlot: document.getElementById('card-preview-slot'),
   cardPreview: document.getElementById('card-preview'),
@@ -102,19 +104,32 @@ let activeId = null;
 let historyFilter = 'week';
 /** 当前界面：stats | level */
 let currentView = 'level';
-/** 等级子视图：overview | unique | levels | recognize | sort | lastSession | inkHistory | cardFace | glyphImage | shop | atlas | settings */
+/** 等级子视图：overview | unique | levels | zhen | recognize | sort | lastSession | inkHistory | cardFace | glyphImage | shop | atlas | settings */
 let levelDisplayMode = 'overview';
 /** 排序方式子选项：joined = 加入时间（字库顺序），recency = 练习顺序 */
 let sortByMode = 'joined';
 /** unique 页：放大镜聚焦的字 id（列出该字全部 unique） */
 let uniqueFocusId = null;
-/** 记录历史当前下标；null 表示自动落到最近一次 */
-let historySessionIndex = null;
+/** 记录历史三栏各自下标；null 表示自动落到最近一次 */
+const HISTORY_LANES = [
+  { key: 'cao', label: '草' },
+  { key: 'zhen', label: '真' },
+  { key: 'recognize', label: '识别' },
+];
+const historyLaneIndex = {
+  cao: null,
+  zhen: null,
+  recognize: null,
+};
+
+function resetHistoryLaneIndexes() {
+  historyLaneIndex.cao = null;
+  historyLaneIndex.zhen = null;
+  historyLaneIndex.recognize = null;
+}
 
 /** 卡面图是否存在（键：script:id） */
 const cardImageExistsCache = new Map();
-/** 草书字形图是否存在（键：char，目录 images/characters） */
-const glyphImageExistsCache = new Map();
 
 let imageFilterToken = 0;
 
@@ -378,14 +393,14 @@ function collectUserZiIdRefs(data) {
   return refs;
 }
 
-/** 直接扫描 zi-catalog-cao.js 的 DEFAULT_ZI_CAO（含可选 kai） */
+/** 直接扫描 zi-catalog-cao.js / zi-catalog-zhen.js */
 function getCatalogZiGroupsForUnicodeCheck() {
   const groups = [];
   if (typeof DEFAULT_ZI_CAO !== 'undefined' && Array.isArray(DEFAULT_ZI_CAO)) {
     groups.push({ label: 'cao', list: DEFAULT_ZI_CAO });
   }
-  if (typeof DEFAULT_ZI_KAI !== 'undefined' && Array.isArray(DEFAULT_ZI_KAI)) {
-    groups.push({ label: 'kai', list: DEFAULT_ZI_KAI });
+  if (typeof DEFAULT_ZI_ZHEN !== 'undefined' && Array.isArray(DEFAULT_ZI_ZHEN)) {
+    groups.push({ label: 'zhen', list: DEFAULT_ZI_ZHEN });
   }
   return groups;
 }
@@ -495,18 +510,89 @@ function countCatalogZiEntries() {
   return getCatalogZiGroupsForUnicodeCheck().reduce((sum, g) => sum + (g.list?.length || 0), 0);
 }
 
+/** 最近一次 unicode 检测结果（供「复制错误 log」） */
+let lastUnicodeCheckLog = '';
+
+function formatUnicodeCheckLog(issues, summary) {
+  const lines = [
+    '字库 Unicode 检测错误 log（供 AI agent 修复）',
+    `时间：${new Date().toISOString()}`,
+    `用户：${summary.hasUser ? (activeId || '已加载') : '未加载'}`,
+    `扫描：字库 ${summary.catalogCount} 条；用户 id ${summary.userIdCount} 个`,
+    `问题：共 ${issues.length} 处（字库 ${summary.catalogIssueCount} / 用户 ${summary.userIssueCount}）`,
+    '',
+    '请根据下列问题修正 app/cao/js/zi-catalog-cao.js / zi-catalog-zhen.js 中的 unicode / id / codePoint，使主字与码位一致。',
+    '',
+  ];
+  issues.forEach((issue, index) => {
+    const scope = issue.kind === 'catalog' ? '字库' : '用户';
+    lines.push(`${index + 1}. [${scope}] id=${issue.id}`);
+    lines.push(`   ${issue.detail}`);
+  });
+  return lines.join('\n');
+}
+
+function syncUnicodeCheckCopyButton(hasErrors) {
+  const btn = el.btnUnicodeCheckCopy;
+  if (!btn) return;
+  btn.disabled = !hasErrors;
+  btn.title = hasErrors
+    ? '复制错误 log，可粘贴给 AI agent'
+    : '先检测；有错误时可复制给 AI agent';
+}
+
+async function copyUnicodeCheckErrorLog() {
+  const text = String(lastUnicodeCheckLog || '').trim();
+  if (!text) {
+    if (typeof showShopToast === 'function') {
+      showShopToast('没有可复制的错误 log', { error: true, durationMs: 1800 });
+    }
+    return;
+  }
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    if (el.btnUnicodeCheckCopy) {
+      const prev = el.btnUnicodeCheckCopy.textContent;
+      el.btnUnicodeCheckCopy.textContent = '已复制';
+      setTimeout(() => {
+        if (el.btnUnicodeCheckCopy) el.btnUnicodeCheckCopy.textContent = prev || '复制错误 log';
+      }, 1400);
+    }
+  } catch (err) {
+    console.warn('copy unicode check log failed', err);
+    if (typeof showShopToast === 'function') {
+      showShopToast('复制失败', { error: true, durationMs: 1800 });
+    }
+  }
+}
+
 function runUnicodeConsistencyCheck() {
   const entry = fileEntries.find((item) => item.id === activeId);
   const catalogIssues = checkCatalogUnicodeConsistency();
   const userIssues = checkUserCatalogMatch(entry?.data);
   const issues = catalogIssues.concat(userIssues);
-  renderUnicodeCheckResult(issues, {
+  const summary = {
     catalogCount: countCatalogZiEntries(),
     catalogIssueCount: catalogIssues.length,
     userIdCount: entry?.data ? collectUserZiIdRefs(entry.data).size : 0,
     userIssueCount: userIssues.length,
     hasUser: Boolean(entry?.data),
-  });
+  };
+  lastUnicodeCheckLog = issues.length ? formatUnicodeCheckLog(issues, summary) : '';
+  syncUnicodeCheckCopyButton(issues.length > 0);
+  renderUnicodeCheckResult(issues, summary);
 }
 
 function renderUnicodeCheckResult(issues, summary) {
@@ -981,13 +1067,15 @@ const MAX_CHAR_LEVEL = 10;
 const CARD_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 const CARD_IMAGE_DIR = {
   cao: '../images/cardImages/cao',
+  zhen: '../images/cardImages/zhen',
   kai: '../images/cardImages/kai',
   ming: '../images/cardImages/ming',
   hei: '../images/cardImages/hei',
 };
-/** 练字页草书字形图（characters 下默认草体，文件名为汉字） */
-const GLYPH_IMAGE_DIR = '../images/characters';
-const GLYPH_IMAGE_EXTENSIONS = CARD_IMAGE_EXTENSIONS;
+/** 相对 app/cao/ 的资源前缀（供 database.getGlyphImageCandidates 使用） */
+const CAO_ASSET_PREFIX = '../';
+/** 练字页草书字形图（characters/cao，文件名为汉字） */
+const GLYPH_IMAGE_DIR = '../images/characters/cao';
 
 let cardPreviewLoadToken = 0;
 let cardPreviewFadeTimer = null;
@@ -1446,7 +1534,7 @@ function fillSelectOptions(selectEl, options, selectedId) {
 function rebuildUniqueInjectCharSelect(filterText = '') {
   const q = String(filterText || '').trim().toLowerCase();
   const entries = getLibraryEntries()
-    .filter((entry) => entry?.id && entry?.char)
+    .filter((entry) => entry?.id && entry?.char && !isZhenCharItem(entry))
     .slice()
     .sort((a, b) => String(a.char).localeCompare(String(b.char), 'zh')
       || String(a.id).localeCompare(String(b.id)));
@@ -2071,12 +2159,21 @@ function validateUserData(data) {
 }
 
 function normalizeItemScript(script) {
+  if (typeof normalizeScript === 'function') return normalizeScript(script);
   if (!script || script === 'cursive' || script === 'cao') return 'cao';
-  if (script === 'song') return 'ming';
+  if (
+    script === 'zhen'
+    || script === 'kai'
+    || script === 'ming'
+    || script === 'hei'
+    || script === 'song'
+    || script === 'print-kai'
+    || script === 'printKai'
+  ) return 'zhen';
   return script;
 }
 
-const ZI_ID_PATTERN = /^[ck]\.[0-9A-F]{5}\.\d{2}$/i;
+const ZI_ID_PATTERN = /^[ckz]\.[0-9A-F]{5}\.\d{2}$/i;
 
 function getCatalogById() {
   const map = new Map();
@@ -2172,6 +2269,7 @@ function collectRecognizeChars(data) {
   for (const [id, count] of counts) {
     if (byId.has(id)) continue;
     const catalog = catalogById.get(id);
+    if (isZhenCharItem(catalog)) continue;
     byId.set(id, {
       id,
       char: catalog?.char || id,
@@ -2211,6 +2309,17 @@ function getSessionTimeBoundsById(data) {
  * 展示用有效字表：count = chars 冻结基数 + sessions 现场合计
  * @param {{ includeLibraryZeros?: boolean }} options
  */
+function isZhenCharItem(item) {
+  if (!item) return false;
+  const script = normalizeItemScript(item.script);
+  if (script === 'zhen') return true;
+  if (typeof SCRIPT !== 'undefined' && script === SCRIPT.zhen) return true;
+  if (item.styleId && typeof parseZhenStyleId === 'function' && parseZhenStyleId(item.styleId)) {
+    return true;
+  }
+  return false;
+}
+
 function collectEffectiveChars(data, { includeLibraryZeros = false } = {}) {
   const byId = new Map();
   const sessionCounts = countSessionStrokesById(data);
@@ -2218,6 +2327,7 @@ function collectEffectiveChars(data, { includeLibraryZeros = false } = {}) {
   const catalogById = getCatalogById();
 
   for (const item of iterateUserChars(data)) {
+    if (isZhenCharItem(item) || isZhenCharItem(catalogById.get(item.id))) continue;
     const sessionCount = sessionCounts.get(item.id) || 0;
     sessionCounts.delete(item.id);
     const candidatesFirst = [item.firstSeenAt, firstById.get(item.id)].filter(Boolean);
@@ -2236,6 +2346,7 @@ function collectEffectiveChars(data, { includeLibraryZeros = false } = {}) {
 
   for (const [id, sessionCount] of sessionCounts) {
     const catalog = catalogById.get(id);
+    if (isZhenCharItem(catalog)) continue;
     byId.set(id, {
       id,
       char: catalog?.char || id,
@@ -2250,7 +2361,7 @@ function collectEffectiveChars(data, { includeLibraryZeros = false } = {}) {
 
   if (includeLibraryZeros) {
     for (const entry of getLibraryEntries()) {
-      if (!entry.id || byId.has(entry.id)) continue;
+      if (!entry.id || byId.has(entry.id) || isZhenCharItem(entry)) continue;
       byId.set(entry.id, {
         id: entry.id,
         char: entry.char,
@@ -2262,7 +2373,7 @@ function collectEffectiveChars(data, { includeLibraryZeros = false } = {}) {
     }
   }
 
-  return [...byId.values()];
+  return [...byId.values()].filter((item) => !isZhenCharItem(item));
 }
 
 /** 等级页：chars + sessions，并补全字库未练过的字为 0 */
@@ -2379,6 +2490,271 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
+/** 真书次数色：0 米灰；1–40 黄→红；41–120 红→紫；>120 保持紫 */
+const ZHEN_COUNT_COLOR_0 = '#c4b99b';
+const ZHEN_COUNT_COLOR_YELLOW = '#e6c35c';
+const ZHEN_COUNT_COLOR_RED = '#c62828';
+const ZHEN_COUNT_COLOR_PURPLE = '#781aaa';
+const ZHEN_COUNT_COLOR_MID = 40;
+const ZHEN_COUNT_COLOR_CAP = 120;
+
+function hexToRgb(hex) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return [74, 74, 74];
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+function parseCssColorToRgb(color) {
+  const raw = String(color || '').trim();
+  if (raw.startsWith('#')) return hexToRgb(raw);
+  const m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(raw);
+  if (m) {
+    return [Number(m[1]), Number(m[2]), Number(m[3])];
+  }
+  return hexToRgb(ZHEN_COUNT_COLOR_0);
+}
+
+function rgbToCss(rgb) {
+  const r = Math.round(rgb[0]);
+  const g = Math.round(rgb[1]);
+  const b = Math.round(rgb[2]);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function rgbToHsl(r, g, b) {
+  const rr = r / 255;
+  const gg = g / 255;
+  const bb = b / 255;
+  const max = Math.max(rr, gg, bb);
+  const min = Math.min(rr, gg, bb);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === rr) h = ((gg - bb) / d + (gg < bb ? 6 : 0)) / 6;
+  else if (max === gg) h = ((bb - rr) / d + 2) / 6;
+  else h = ((rr - gg) / d + 4) / 6;
+  return [h, s, l];
+}
+
+function hslToRgb(h, s, l) {
+  if (s <= 0) {
+    const v = l * 255;
+    return [v, v, v];
+  }
+  const hue2rgb = (p, q, t) => {
+    let tt = t;
+    if (tt < 0) tt += 1;
+    if (tt > 1) tt -= 1;
+    if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+    if (tt < 1 / 2) return q;
+    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+    return p;
+  };
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  return [
+    hue2rgb(p, q, h + 1 / 3) * 255,
+    hue2rgb(p, q, h) * 255,
+    hue2rgb(p, q, h - 1 / 3) * 255,
+  ];
+}
+
+/** 按比例保留饱和度（0–1），色相/明度不变 */
+function scaleColorSaturation(cssColor, satFactor) {
+  const rgb = parseCssColorToRgb(cssColor);
+  const [h, s, l] = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+  const factor = Math.max(0, Math.min(1, Number(satFactor) || 0));
+  return rgbToCss(hslToRgb(h, s * factor, l));
+}
+
+function lerpCssColor(fromCss, toCss, t) {
+  const from = parseCssColorToRgb(fromCss);
+  const to = parseCssColorToRgb(toCss);
+  const u = Math.max(0, Math.min(1, Number(t) || 0));
+  return rgbToCss([
+    lerp(from[0], to[0], u),
+    lerp(from[1], to[1], u),
+    lerp(from[2], to[2], u),
+  ]);
+}
+
+/**
+ * 真书次数色
+ * - 0：#c4b99b
+ * - 1…40：黄 → 红
+ * - 41…120：红 → #781aaa 紫
+ * - >120：保持紫色
+ */
+function zhenCountColor(count) {
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  if (n <= 0) return ZHEN_COUNT_COLOR_0;
+  if (n > ZHEN_COUNT_COLOR_CAP) return ZHEN_COUNT_COLOR_PURPLE;
+  if (n <= ZHEN_COUNT_COLOR_MID) {
+    const t = (n - 1) / (ZHEN_COUNT_COLOR_MID - 1);
+    return lerpCssColor(ZHEN_COUNT_COLOR_YELLOW, ZHEN_COUNT_COLOR_RED, t);
+  }
+  const t = (n - ZHEN_COUNT_COLOR_MID) / (ZHEN_COUNT_COLOR_CAP - ZHEN_COUNT_COLOR_MID);
+  return lerpCssColor(ZHEN_COUNT_COLOR_RED, ZHEN_COUNT_COLOR_PURPLE, t);
+}
+
+/** 真书展示：从 sessions 历史 compile（不信任单独累加的缓存） */
+function compileZhenMapFromHistory(data) {
+  if (typeof rebuildZhenFromHistory === 'function') {
+    return rebuildZhenFromHistory(data);
+  }
+  return (data?.zhen && typeof data.zhen === 'object') ? data.zhen : {};
+}
+
+function emptyZhenDisplayRecord() {
+  return typeof emptyZhenSealCounts === 'function'
+    ? { count: 0, seals: emptyZhenSealCounts() }
+    : { count: 0, seals: { common: 0, rare: 0, absolute: 0 } };
+}
+
+/** 在已 compile 的 zhen map 上解析单条（供真书 tab 批量查询） */
+function resolveZhenRecordFromMap(zhenMap, entry) {
+  const styleId = entry?.styleId || '';
+  const unicode = entry?.unicode || '';
+  const char = entry?.char || '';
+  const keys = [];
+  if (typeof zhenPracticeKey === 'function') {
+    if (unicode) keys.push(zhenPracticeKey(unicode, styleId));
+    if (char) keys.push(zhenPracticeKey(char, styleId));
+  }
+  const zhen = zhenMap && typeof zhenMap === 'object' ? zhenMap : {};
+  for (const key of keys) {
+    if (!key || !(key in zhen)) continue;
+    const raw = zhen[key];
+    if (typeof normalizeZhenRecord === 'function') return normalizeZhenRecord(raw);
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      return {
+        count: Math.max(0, Math.floor(raw)),
+        seals: { common: 0, rare: 0, absolute: 0 },
+      };
+    }
+    if (raw && typeof raw === 'object') {
+      const seals = raw.seals && typeof raw.seals === 'object' ? raw.seals : {};
+      return {
+        count: Math.max(0, Math.floor(Number(raw.count) || 0)),
+        seals: {
+          common: Math.max(0, Math.floor(Number(seals.common) || 0)),
+          rare: Math.max(0, Math.floor(Number(seals.rare) || 0)),
+          absolute: Math.max(0, Math.floor(Number(seals.absolute) || 0)),
+        },
+      };
+    }
+  }
+  return emptyZhenDisplayRecord();
+}
+
+function resolveZhenRecord(data, entry) {
+  return resolveZhenRecordFromMap(compileZhenMapFromHistory(data), entry);
+}
+
+function getZhenPracticeCount(data, entry) {
+  return resolveZhenRecord(data, entry).count;
+}
+
+function getZhenSealCounts(data, entry) {
+  return resolveZhenRecord(data, entry).seals;
+}
+
+function formatZhenSealCountsLabel(seals) {
+  const s = seals || {};
+  return [
+    Math.max(0, Math.floor(Number(s.common) || 0)),
+    Math.max(0, Math.floor(Number(s.rare) || 0)),
+    Math.max(0, Math.floor(Number(s.absolute) || 0)),
+  ].join(' - ');
+}
+
+/** 真书 tab：下方三印记圆，背景为 cell 色饱和度 40% / 80% / 100% */
+function buildZhenSealCountsEl(seals, cellColor) {
+  const sealEl = document.createElement('div');
+  sealEl.className = 'zhen-seal-counts';
+  sealEl.title = '普通印记 · 稀有印记 · 绝对印记';
+  const s = seals || {};
+  const items = [
+    ['common', '普通印记', s.common, 0.4],
+    ['rare', '稀有印记', s.rare, 0.8],
+    ['absolute', '绝对印记', s.absolute, 1],
+  ];
+  const base = cellColor || ZHEN_COUNT_COLOR_0;
+  for (const [key, label, raw, sat] of items) {
+    const dot = document.createElement('span');
+    dot.className = 'zhen-seal-dot';
+    dot.dataset.seal = key;
+    dot.title = label;
+    dot.textContent = String(Math.max(0, Math.floor(Number(raw) || 0)));
+    dot.style.backgroundColor = scaleColorSaturation(base, sat);
+    sealEl.appendChild(dot);
+  }
+  return sealEl;
+}
+
+/** 与 .level-frame.script-* 的 border-radius 对齐 */
+function resolveLevelFrameBorderRadiusPx(frame) {
+  if (!frame) return 8;
+  if (frame.classList.contains('script-cao')) return 21;
+  if (
+    frame.classList.contains('script-zhen')
+    || frame.classList.contains('script-kai')
+    || frame.classList.contains('script-ming')
+    || frame.classList.contains('script-song')
+    || frame.classList.contains('script-hei')
+    || frame.classList.contains('script-print-kai')
+  ) {
+    return 6;
+  }
+  return 8;
+}
+
+/** 给字卡挂上印记红框（贴 cell 边框；单层 / 双层 / 三层） */
+function applyZhenSealFrameToCard(card, seal) {
+  if (!card) return;
+  const normalized = typeof normalizeZhenSeal === 'function'
+    ? normalizeZhenSeal(seal)
+    : seal;
+  if (!normalized) return;
+
+  card.classList.add('has-zhen-seal', `has-zhen-seal-${normalized}`);
+  const label = (typeof ZHEN_SEAL_LABEL !== 'undefined' && ZHEN_SEAL_LABEL[normalized])
+    || normalized;
+  if (label) {
+    card.title = card.title && !card.title.includes(label)
+      ? `${card.title} · ${label}`
+      : (card.title || label);
+  }
+
+  const frame = card.querySelector('.level-frame');
+  if (!frame) return;
+  frame.querySelectorAll('.zhen-seal-frame, .stats-seal-frame').forEach((el) => el.remove());
+  const radius = resolveLevelFrameBorderRadiusPx(frame);
+  let overlay = null;
+  if (typeof createZhenSealFrameOverlay === 'function') {
+    overlay = createZhenSealFrameOverlay(normalized, {
+      className: 'zhen-seal-frame',
+      radius,
+      layerGap: 3.5,
+      strokeWidth: 1.9,
+    });
+  } else if (typeof createZhenSealFrameSvg === 'function') {
+    overlay = createZhenSealFrameSvg(normalized, {
+      size: 44,
+      className: 'zhen-seal-frame',
+      radius,
+      onBorder: true,
+    });
+  }
+  if (overlay) frame.appendChild(overlay);
+}
+
 /** 0 深灰；1–5 绿→蓝，5–10 蓝→红 */
 function levelFrameColor(level) {
   if (level <= 0) return '#4a4a4a';
@@ -2407,8 +2783,10 @@ function updateLevelOverlays() {
   const showDismantle = showLevel && !isSettings && !isShop && !isInkHistory && !isAtlas
     && levelDisplayMode !== 'levels'
     && levelDisplayMode !== 'sort'
-    && levelDisplayMode !== 'recognize';
-  const showPreview = showLevel && !isSettings && !isShop && !isInkHistory;
+    && levelDisplayMode !== 'recognize'
+    && levelDisplayMode !== 'zhen';
+  const showPreview = showLevel && !isSettings && !isShop && !isInkHistory
+    && levelDisplayMode !== 'zhen';
   el.cardPreviewSlot?.classList.toggle('hidden', !showPreview);
   el.cardStyleTools?.classList.toggle('hidden', !showStyleTools);
   el.dismantleTools?.classList.toggle('hidden', !showDismantle);
@@ -2419,6 +2797,7 @@ function updateLevelOverlays() {
   document.body.classList.toggle('is-dismantle-mode', showDismantle && dismantleMode);
   document.body.classList.toggle('is-shop-view', showLevel && isShop);
   document.body.classList.toggle('is-atlas-view', showLevel && isAtlas);
+  document.body.classList.toggle('is-zhen-view', showLevel && levelDisplayMode === 'zhen');
   document.body.classList.toggle(
     'is-catalog-sort-view',
     showLevel && levelDisplayMode === 'sort',
@@ -2464,8 +2843,6 @@ function syncDismantleModeButton() {
   if (label) label.textContent = dismantleMode ? '取消' : '分解';
 }
 
-/** 连续未获得 unique 达到此数可领取保底 */
-const UNIQUE_PITY_STREAK_THRESHOLD = 32;
 /** 写盘触发页面刷新时，用 sessionStorage 恢复中央领取卡 */
 const PITY_REVEAL_STORAGE_KEY = 'cao-pity-claim-reveal';
 
@@ -2597,11 +2974,13 @@ function getLastUniqueBreakIso(data) {
 }
 
 /**
- * 实时计算：最近一次 unique/保底领取之后，连续练习字数（无 unique）
+ * 实时计算：最近一次 unique/保底领取之后，连续草体练习字数（无 unique）
+ * 真书无 unique 掉落，不计入 32 次保底连击（识字/商店 session 已由 getPracticeSessions 排除）
  */
 function computeUniqueDryStreak(data) {
   const breakAt = getLastUniqueBreakIso(data);
   const sessions = getPracticeSessions(data);
+  const catalogById = typeof getCatalogById === 'function' ? getCatalogById() : null;
   let streak = 0;
   for (let si = sessions.length - 1; si >= 0; si -= 1) {
     const session = sessions[si];
@@ -2611,6 +2990,10 @@ function computeUniqueDryStreak(data) {
       const strokeAt = estimateStrokeTimeIso(session, i);
       if (breakAt && strokeAt && strokeAt <= breakAt) {
         return streak;
+      }
+      // 真书笔画：跳过，不增加也不打断保底计数
+      if (catalogById && isZhenCharItem(catalogById.get(String(stroke?.id || '')))) {
+        continue;
       }
       const isUnique = typeof strokeHasUniqueCardStyle === 'function'
         ? strokeHasUniqueCardStyle(stroke)
@@ -2653,7 +3036,7 @@ async function collectCatalogWithCardFace() {
 
   pityCardFaceCatalogPromise = (async () => {
     const entries = typeof getLibraryEntries === 'function'
-      ? getLibraryEntries().filter((zi) => zi?.id && zi?.char)
+      ? getLibraryEntries().filter((zi) => zi?.id && zi?.char && !isZhenCharItem(zi))
       : [];
     const out = [];
     const batchSize = 12;
@@ -3750,10 +4133,11 @@ function setLevelDisplayMode(mode) {
   const prevMode = levelDisplayMode;
   if (mode === 'lastSession') {
     levelDisplayMode = 'lastSession';
-    historySessionIndex = null;
+    resetHistoryLaneIndexes();
   } else if (mode === 'unique') levelDisplayMode = 'unique';
   else if (mode === 'levels') levelDisplayMode = 'levels';
   else if (mode === 'recognize') levelDisplayMode = 'recognize';
+  else if (mode === 'zhen') levelDisplayMode = 'zhen';
   else if (mode === 'sort' || mode === 'catalog' || mode === 'recency') {
     levelDisplayMode = 'sort';
     if (mode === 'catalog') sortByMode = 'joined';
@@ -3814,13 +4198,17 @@ function setView(view) {
 function getCardImageCandidates(char, script, id) {
   const ch = String(char || '').trim();
   const scriptNorm = normalizeItemScript(script);
-  const dir = CARD_IMAGE_DIR[scriptNorm] || CARD_IMAGE_DIR.cao;
 
   let catalog = null;
   if (id) catalog = getCatalogById().get(String(id)) || null;
   if (!catalog && typeof findZiEntry === 'function') {
     catalog = findZiEntry(id || ch, scriptNorm) || null;
   }
+
+  const subdir = typeof cardImageSubdir === 'function'
+    ? cardImageSubdir(scriptNorm, catalog?.form)
+    : scriptNorm;
+  const dir = CARD_IMAGE_DIR[subdir] || CARD_IMAGE_DIR.zhen || CARD_IMAGE_DIR.cao;
 
   let basenames = [];
   if (catalog && typeof cardImageBasenamesForEntry === 'function') {
@@ -3935,7 +4323,8 @@ function probeCardPngExists(char, script, id) {
   });
 }
 
-function getGlyphImageCandidates(char, id = null) {
+/** 用户页「字形」filter：草体 characters/cao/{字}.*（与真书 id_字 探测分开，避免覆盖 database 入口） */
+function getCaoGlyphImageCandidates(char, id = null) {
   let catalog = null;
   if (id) catalog = getCatalogById().get(String(id)) || null;
   if (!catalog && typeof findZiEntry === 'function') {
@@ -3949,7 +4338,7 @@ function getGlyphImageCandidates(char, id = null) {
   const paths = [];
   const seen = new Set();
   for (const form of forms) {
-    for (const ext of GLYPH_IMAGE_EXTENSIONS) {
+    for (const ext of CARD_IMAGE_EXTENSIONS) {
       const path = `${GLYPH_IMAGE_DIR}/${form}.${ext}`;
       if (seen.has(path)) continue;
       seen.add(path);
@@ -3959,17 +4348,17 @@ function getGlyphImageCandidates(char, id = null) {
   return paths;
 }
 
-function glyphImageCacheKey(char, id = null) {
-  return `glyph:${id || String(char || '').trim()}`;
+function caoGlyphImageCacheKey(char, id = null) {
+  return `cao-glyph:${id || String(char || '').trim()}`;
 }
 
-function probeGlyphImageExists(char, id = null) {
-  const key = glyphImageCacheKey(char, id);
+function probeCaoGlyphImageExists(char, id = null) {
+  const key = caoGlyphImageCacheKey(char, id);
   if (glyphImageExistsCache.has(key)) {
     return Promise.resolve(glyphImageExistsCache.get(key));
   }
 
-  const candidates = getGlyphImageCandidates(char, id);
+  const candidates = getCaoGlyphImageCandidates(char, id);
   if (candidates.length === 0) {
     glyphImageExistsCache.set(key, false);
     return Promise.resolve(false);
@@ -3983,17 +4372,14 @@ function probeGlyphImageExists(char, id = null) {
         resolve(false);
         return;
       }
+      const path = candidates[index++];
       const probe = new Image();
       probe.onload = () => {
         glyphImageExistsCache.set(key, true);
         resolve(true);
       };
-      probe.onerror = () => {
-        index += 1;
-        tryNext();
-      };
-      probe.src = candidates[index];
-      index += 1;
+      probe.onerror = tryNext;
+      probe.src = path;
     };
     tryNext();
   });
@@ -4054,16 +4440,16 @@ function applyCardFaceFilterToCard(card, item, token) {
   });
 }
 
-/** 字形 tab：检查 images/characters/{字}.*（主字优先，再 alternatives） */
+/** 字形 tab：检查 images/characters/cao/{字}.*（主字优先，再 alternatives） */
 function applyGlyphImageFilterToCard(card, item, token) {
-  const key = glyphImageCacheKey(item.char, item.id);
+  const key = caoGlyphImageCacheKey(item.char, item.id);
 
   if (glyphImageExistsCache.has(key)) {
     finishImageFilterOnCard(card, Boolean(glyphImageExistsCache.get(key)));
     return;
   }
 
-  probeGlyphImageExists(item.char, item.id).then((hasImage) => {
+  probeCaoGlyphImageExists(item.char, item.id).then((hasImage) => {
     if (token !== imageFilterToken || !card.isConnected) return;
     finishImageFilterOnCard(card, hasImage);
   });
@@ -4079,7 +4465,7 @@ function probeItemMatchesImageFilter(item, imageFilter) {
     return probeCardImageExists(item.char, normalizeItemScript(item.script), item.id);
   }
   if (imageFilter === 'glyph') {
-    return probeGlyphImageExists(item.char, item.id);
+    return probeCaoGlyphImageExists(item.char, item.id);
   }
   return Promise.resolve(false);
 }
@@ -4144,6 +4530,10 @@ function cardPreviewIdentityKey(char, script, id, uniquePreview = null) {
  */
 function showCardPreview(char, script, id, uniquePreview = null, options = {}) {
   if (!el.cardPreview) return;
+  if (levelDisplayMode === 'zhen') {
+    hideCardPreview();
+    return;
+  }
 
   // 分解已选中：禁止 hover 等路径换卡；仅 pin 入口可更新
   if (dismantleMode && dismantleSelection && !options.allowWhenPinned) return;
@@ -4387,6 +4777,7 @@ function fadeOutCardPreview() {
 function onLevelCardEnter(char, script, id, uniquePreview = null) {
   if (keyboardSelectMode) return;
   if (dismantleMode && dismantleSelection) return;
+  if (levelDisplayMode === 'zhen') return;
   playCardHoverSfx();
   cardPreviewHoverAt = Date.now();
   showCardPreview(char, script, id, uniquePreview);
@@ -4445,6 +4836,7 @@ function renderActiveView(entry) {
     el.inkHistoryPanel?.classList.add('hidden');
     if (levelDisplayMode === 'lastSession') renderLastSessionView(entry);
     else if (levelDisplayMode === 'recognize') renderRecognizeView(entry);
+    else if (levelDisplayMode === 'zhen') renderZhenView(entry);
     else if (levelDisplayMode === 'unique') renderLevelView(entry, { uniqueOnly: true });
     else if (levelDisplayMode === 'levels') renderLevelView(entry, { levelsOnly: true });
     else if (levelDisplayMode === 'sort') {
@@ -4466,13 +4858,13 @@ function renderActiveView(entry) {
 
 const RECORD_UNIQUE_FRAME_COLOR = '#e87822';
 
-function createLevelCard(item, info, color, { recordMode = false, badgeText = null, xpText = null } = {}) {
+function createLevelCard(item, info, color, { recordMode = false, countMode = false, badgeText = null, xpText = null } = {}) {
   const script = normalizeItemScript(item.script);
   const card = document.createElement('div');
   card.className = 'level-card';
   if (recordMode) card.classList.add('is-record');
+  if (countMode) card.classList.add('is-count');
   if (recordMode && item.isUnique) card.classList.add('is-record-unique');
-  if (recordMode && item.isPityUnique) card.classList.add('is-record-pity');
   if (recordMode && item.isPityUnique) card.classList.add('is-record-pity');
 
   const frame = document.createElement('div');
@@ -4517,7 +4909,7 @@ function createLevelCard(item, info, color, { recordMode = false, badgeText = nu
     applyCardModifierToUniqueFrame(frame, displayStyle.cardModifier);
   }
 
-  if (!recordMode) {
+  if (!recordMode && !countMode) {
     const track = document.createElement('div');
     track.className = 'level-track';
 
@@ -4703,8 +5095,8 @@ function sortUniqueItemsByAcquiredAt(items) {
   });
 }
 
-/** 最近获得的 unique（新→旧），默认取 5 张 */
-function collectNewestUniqueItems(items, limit = 5) {
+/** 最近获得的 unique（新→旧），默认取 6 张 */
+function collectNewestUniqueItems(items, limit = 6) {
   const n = Math.max(0, Math.floor(Number(limit) || 0));
   if (n <= 0) return [];
   return sortUniqueItemsByAcquiredAt(items).reverse().slice(0, n);
@@ -4862,6 +5254,24 @@ function appendUniqueCards(group, items, imageFilter, imageFilterToken) {
   }
 }
 
+function buildUniqueInkEl(ink, uniqueItems, { withPotential = false } = {}) {
+  const inkEl = document.createElement('div');
+  inkEl.className = 'unique-ink';
+  inkEl.title = withPotential ? '当前墨（当前+仓库全部 unique 价值）' : '墨';
+  const inkValue = document.createElement('span');
+  inkValue.className = 'unique-ink-value';
+  inkValue.textContent = withPotential
+    ? formatUniqueInkDisplay(ink, uniqueItems)
+    : String(
+      typeof resolveInk === 'function' ? resolveInk({ ink }) : Math.max(0, Math.floor(Number(ink) || 0)),
+    );
+  const inkUnit = document.createElement('span');
+  inkUnit.className = 'unique-ink-unit';
+  inkUnit.textContent = '墨';
+  inkEl.append(inkValue, inkUnit);
+  return inkEl;
+}
+
 function buildUniqueSection(uniqueItems, {
   imageFilter = null,
   imageFilterToken = 0,
@@ -4882,20 +5292,7 @@ function buildUniqueSection(uniqueItems, {
   title.className = 'level-section-title';
   title.textContent = 'UNIQUE';
 
-  const inkEl = document.createElement('div');
-  inkEl.className = 'unique-ink';
-  inkEl.title = '墨';
-  const inkValue = document.createElement('span');
-  inkValue.className = 'unique-ink-value';
-  inkValue.textContent = String(
-    typeof resolveInk === 'function' ? resolveInk({ ink }) : Math.max(0, Math.floor(Number(ink) || 0)),
-  );
-  const inkUnit = document.createElement('span');
-  inkUnit.className = 'unique-ink-unit';
-  inkUnit.textContent = '墨';
-  inkEl.append(inkValue, inkUnit);
-
-  titleRow.append(title, inkEl);
+  titleRow.append(title, buildUniqueInkEl(ink, uniqueItems, { withPotential: false }));
 
   const rule = document.createElement('div');
   rule.className = 'level-section-rule';
@@ -4940,19 +5337,7 @@ function buildUniqueSection(uniqueItems, {
 
       titleRow.appendChild(tierTitle);
       if (firstTier) {
-        const inkEl = document.createElement('div');
-        inkEl.className = 'unique-ink';
-        inkEl.title = '墨';
-        const inkValue = document.createElement('span');
-        inkValue.className = 'unique-ink-value';
-        inkValue.textContent = String(
-          typeof resolveInk === 'function' ? resolveInk({ ink }) : Math.max(0, Math.floor(Number(ink) || 0)),
-        );
-        const inkUnit = document.createElement('span');
-        inkUnit.className = 'unique-ink-unit';
-        inkUnit.textContent = '墨';
-        inkEl.append(inkValue, inkUnit);
-        titleRow.appendChild(inkEl);
+        titleRow.appendChild(buildUniqueInkEl(ink, uniqueItems, { withPotential: true }));
         firstTier = false;
       }
 
@@ -5024,7 +5409,6 @@ function renderLevelSummary(chars, data = null) {
     ['等级', levelSum],
     ['经验', xpSum],
     ['次数', countSum],
-    ['总时间', formatHoursDuration(sumSessionsDurationMs(data))],
   ];
 
   el.levelSummary.replaceChildren();
@@ -5040,6 +5424,45 @@ function renderLevelSummary(chars, data = null) {
     item.append(num, tag);
     el.levelSummary.appendChild(item);
   }
+
+  const caoMs = sumLaneDurationMs(data, 'cao');
+  const zhenMs = sumLaneDurationMs(data, 'zhen');
+  const recognizeMs = sumLaneDurationMs(data, 'recognize');
+  const totalMs = caoMs + zhenMs + recognizeMs;
+
+  const totalRow = document.createElement('div');
+  totalRow.className = 'level-summary-duration-total-row';
+  const totalItem = document.createElement('div');
+  totalItem.className = 'level-summary-item';
+  const totalNum = document.createElement('span');
+  totalNum.className = 'level-summary-value';
+  totalNum.textContent = formatHoursDuration(totalMs);
+  const totalTag = document.createElement('span');
+  totalTag.className = 'level-summary-label';
+  totalTag.textContent = '总时间';
+  totalItem.append(totalNum, totalTag);
+  totalRow.appendChild(totalItem);
+  el.levelSummary.appendChild(totalRow);
+
+  const lanesRow = document.createElement('div');
+  lanesRow.className = 'level-summary-duration-lanes';
+  for (const [label, ms] of [
+    ['草书', caoMs],
+    ['真书', zhenMs],
+    ['识别', recognizeMs],
+  ]) {
+    const item = document.createElement('div');
+    item.className = 'level-summary-item';
+    const num = document.createElement('span');
+    num.className = 'level-summary-value';
+    num.textContent = formatHoursDuration(ms);
+    const tag = document.createElement('span');
+    tag.className = 'level-summary-label';
+    tag.textContent = label;
+    item.append(num, tag);
+    lanesRow.appendChild(item);
+  }
+  el.levelSummary.appendChild(lanesRow);
 }
 
 function renderUniqueFilterSummary(uniqueItems, data) {
@@ -5072,7 +5495,8 @@ function renderLevelView(entry, {
   recencyOrder = false,
 } = {}) {
   const data = entry.data || {};
-  const chars = uniqueOnly ? [] : collectLevelChars(data);
+  let chars = uniqueOnly ? [] : collectLevelChars(data);
+  chars = chars.filter((item) => !isZhenCharItem(item));
   // 排序方式 / 字形视图：不展示 unique；卡面视图按 level 并显示 unique
   const hideUnique = levelsOnly || catalogOrder || recencyOrder || imageFilter === 'glyph';
   const allUniqueItems = hideUnique ? [] : collectUniqueCardAppearances(data);
@@ -5084,7 +5508,7 @@ function renderLevelView(entry, {
       ? allUniqueItems
       : allUniqueItems.filter((item) => item.starred));
   const newestUniqueItems = showOverviewUniqueNew
-    ? collectNewestUniqueItems(allUniqueItems, 5)
+    ? collectNewestUniqueItems(allUniqueItems, 6)
     : [];
   const flatOrder = catalogOrder || recencyOrder;
 
@@ -5137,12 +5561,20 @@ function renderLevelView(entry, {
     imageFilterToken += 1;
   }
 
-  if (!uniqueOnly && chars.length === 0 && !imageFilter
+  /** 总览：不展示草书等级分区；UNIQUE NEW 下接「最近练习」 */
+  const isOverview = !uniqueOnly && !levelsOnly && !flatOrder && !imageFilter;
+
+  if (!uniqueOnly && !isOverview && chars.length === 0 && !imageFilter
     && (hideUnique || (uniqueItems.length === 0 && allUniqueItems.length === 0))) {
     const empty = document.createElement('p');
     empty.className = 'empty-state';
     empty.textContent = '暂无字记录';
     el.levelList.appendChild(empty);
+    if (!levelsOnly && !flatOrder) {
+      const snapshotFrag = document.createDocumentFragment();
+      appendOverviewHighlightSections(snapshotFrag, data);
+      el.levelList.appendChild(snapshotFrag);
+    }
     el.levelPanel.classList.remove('hidden');
     el.panel.classList.add('hidden');
     updateLevelOverlays();
@@ -5185,6 +5617,27 @@ function renderLevelView(entry, {
     return;
   }
 
+  if (isOverview) {
+    const topBlock = document.createElement('div');
+    topBlock.className = 'level-top-block';
+    topBlock.appendChild(buildUniqueSection(uniqueItems, {
+      ink: typeof resolveInk === 'function' ? resolveInk(data) : (Number(data?.ink) || 0),
+    }));
+    topBlock.appendChild(buildUniqueNewSection(newestUniqueItems, {
+      imageFilter,
+      imageFilterToken,
+    }));
+    const lastPractice = buildOverviewLastPracticeSection(data);
+    if (lastPractice) topBlock.appendChild(lastPractice);
+    fragment.appendChild(topBlock);
+    appendOverviewHighlightSections(fragment, data);
+    el.levelList.appendChild(fragment);
+    el.levelPanel.classList.remove('hidden');
+    el.panel.classList.add('hidden');
+    updateLevelOverlays();
+    return;
+  }
+
   const groups = new Map();
   if (flatOrder) {
     const sectionKey = catalogOrder ? 'catalog' : 'recency';
@@ -5201,7 +5654,7 @@ function renderLevelView(entry, {
   }
 
   if (!levelsOnly && !catalogOrder && !recencyOrder && imageFilter !== 'glyph') {
-    if (imageFilter || uniqueItems.length > 0 || newestUniqueItems.length > 0 || showOverviewUniqueNew) {
+    if (imageFilter || uniqueItems.length > 0 || newestUniqueItems.length > 0) {
       const topBlock = document.createElement('div');
       topBlock.className = 'level-top-block';
 
@@ -5216,13 +5669,6 @@ function renderLevelView(entry, {
         imageFilterToken,
         ink: typeof resolveInk === 'function' ? resolveInk(data) : (Number(data?.ink) || 0),
       }));
-
-      if (showOverviewUniqueNew) {
-        topBlock.appendChild(buildUniqueNewSection(newestUniqueItems, {
-          imageFilter,
-          imageFilterToken,
-        }));
-      }
 
       fragment.appendChild(topBlock);
     }
@@ -5289,12 +5735,6 @@ function renderLevelView(entry, {
 
     section.append(head, group);
     fragment.appendChild(section);
-  }
-
-  // 总览：全部 level 之后追加「最多 UNIQUE / 最多字数」高光练习
-  const isOverview = !uniqueOnly && !levelsOnly && !flatOrder && !imageFilter;
-  if (isOverview) {
-    appendOverviewHighlightSections(fragment, data);
   }
 
   el.levelList.appendChild(fragment);
@@ -5367,6 +5807,175 @@ function renderRecognizeView(entry) {
   updateLevelOverlays();
 }
 
+function renderZhenSummary(groups, totalCount) {
+  const styleCount = groups.length;
+  const charCount = typeof getZhenZiChars === 'function'
+    ? getZhenZiChars().length
+    : (groups[0]?.items?.length || 0);
+  const stats = [
+    ['风格', styleCount],
+    ['字', charCount],
+    ['次数', totalCount],
+  ];
+  el.levelSummary.replaceChildren();
+  for (const [label, value] of stats) {
+    const item = document.createElement('div');
+    item.className = 'level-summary-item';
+    const num = document.createElement('span');
+    num.className = 'level-summary-value';
+    num.textContent = String(value);
+    const tag = document.createElement('span');
+    tag.className = 'level-summary-label';
+    tag.textContent = label;
+    item.append(num, tag);
+    el.levelSummary.appendChild(item);
+  }
+}
+
+/** 真书 tab 左侧书体行：楷书 → 楷体 */
+function zhenFormTiLabel(form) {
+  const key = typeof normalizeZhenForm === 'function' ? normalizeZhenForm(form) : form;
+  const base = (typeof ZHEN_FORM_LABEL !== 'undefined' && ZHEN_FORM_LABEL[key]) || '';
+  if (!base) return '';
+  if (base.endsWith('体')) return base;
+  if (base.endsWith('书')) return `${base.slice(0, -1)}体`;
+  return `${base}体`;
+}
+
+function buildZhenStyleMeta(style) {
+  const meta = document.createElement('aside');
+  meta.className = 'zhen-style-meta';
+  meta.setAttribute('aria-label', '风格信息');
+
+  const variationLine = document.createElement('p');
+  variationLine.className = 'zhen-meta-line zhen-meta-variation';
+  variationLine.textContent = String(style?.variation || style?.work || '').trim() || '—';
+
+  const subRow = document.createElement('div');
+  subRow.className = 'zhen-meta-subrow';
+
+  const formLine = document.createElement('p');
+  formLine.className = 'zhen-meta-line zhen-meta-form';
+  formLine.textContent = zhenFormTiLabel(style?.form) || '—';
+
+  const sep = document.createElement('span');
+  sep.className = 'zhen-meta-sep';
+  sep.setAttribute('aria-hidden', 'true');
+  sep.textContent = '-';
+
+  const calligrapherLine = document.createElement('p');
+  calligrapherLine.className = 'zhen-meta-line zhen-meta-calligrapher';
+  calligrapherLine.textContent = String(style?.calligrapher || '').trim() || '—';
+
+  subRow.append(formLine, sep, calligrapherLine);
+  meta.append(variationLine, subRow);
+  if (style?.id) meta.title = style.id;
+  return meta;
+}
+
+let zhenViewToken = 0;
+
+async function renderZhenView(entry) {
+  const token = ++zhenViewToken;
+  hideCardPreview();
+  el.levelList.replaceChildren();
+  document.body.classList.toggle('is-card-face-view', false);
+  document.body.classList.toggle('is-glyph-image-view', false);
+  document.body.classList.toggle('is-unique-filter-view', false);
+  document.body.classList.toggle('is-levels-only-view', false);
+  document.body.classList.toggle('is-catalog-sort-view', false);
+
+  const groups = typeof groupZhenEntriesByStyle === 'function'
+    ? groupZhenEntriesByStyle()
+    : [];
+  const data = entry?.data || {};
+  // 真书 tab：一次从 sessions compile，再查各字次数 / 印记
+  const zhenMap = compileZhenMapFromHistory(data);
+  let totalCount = 0;
+  for (const group of groups) {
+    for (const item of group.items || []) {
+      totalCount += resolveZhenRecordFromMap(zhenMap, item).count;
+    }
+  }
+  renderZhenSummary(groups, totalCount);
+
+  if (!groups.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty-state';
+    empty.textContent = '暂无真书风格';
+    el.levelList.appendChild(empty);
+    el.levelPanel.classList.remove('hidden');
+    el.panel.classList.add('hidden');
+    updateLevelOverlays();
+    return;
+  }
+
+  const allEntries = groups.flatMap((group) => group.items || []);
+  await Promise.all(allEntries.map((catalogEntry) => (
+    typeof probeGlyphImageExists === 'function'
+      ? probeGlyphImageExists(catalogEntry)
+      : Promise.resolve(false)
+  )));
+  if (token !== zhenViewToken || levelDisplayMode !== 'zhen') return;
+
+  const fragment = document.createDocumentFragment();
+  for (const group of groups) {
+    const section = document.createElement('section');
+    section.className = 'level-section level-section-zhen zhen-style-row';
+    section.dataset.zhenStyle = group.styleId || group.key;
+
+    const meta = buildZhenStyleMeta(group.style || {
+      id: group.styleId,
+      form: group.items?.[0]?.form,
+      calligrapher: group.items?.[0]?.calligrapher,
+      variation: group.items?.[0]?.variation || group.items?.[0]?.work,
+    });
+
+    const cardGroup = document.createElement('div');
+    cardGroup.className = 'level-group zhen-style-cells';
+    for (const catalogEntry of group.items) {
+      const rec = resolveZhenRecordFromMap(zhenMap, catalogEntry);
+      const count = rec.count;
+      const seals = rec.seals;
+      const hasGlyph = typeof glyphAvailabilityCacheKey === 'function'
+        && glyphImageExistsCache.get(glyphAvailabilityCacheKey(catalogEntry)) === true;
+      const color = hasGlyph ? zhenCountColor(count) : '#c8c8c8';
+      const item = {
+        id: catalogEntry.id,
+        char: catalogEntry.char,
+        script: normalizeItemScript(catalogEntry.script || 'zhen'),
+        form: catalogEntry.form,
+        calligrapher: catalogEntry.calligrapher,
+        variation: catalogEntry.variation,
+        work: catalogEntry.work,
+        styleId: catalogEntry.styleId,
+        unicode: catalogEntry.unicode,
+        count,
+      };
+      const card = createLevelCard(
+        item,
+        { level: 0, xp: 0, need: 1, ratio: 0 },
+        color,
+        { countMode: true, badgeText: String(count) },
+      );
+      if (!hasGlyph) {
+        card.classList.add('is-zhen-inactive', 'is-no-card-image');
+        card.title = '尚未录入字形图，不可练习';
+      }
+      // 真书 tab 只显示累计次数 / 印记数，不画外框（外框表示单次获得，见记录历史）
+      card.appendChild(buildZhenSealCountsEl(seals, color));
+      cardGroup.appendChild(card);
+    }
+    section.append(meta, cardGroup);
+    fragment.appendChild(section);
+  }
+
+  el.levelList.appendChild(fragment);
+  el.levelPanel.classList.remove('hidden');
+  el.panel.classList.add('hidden');
+  updateLevelOverlays();
+}
+
 /** 商店购买写入的 session：进 unique 库，但不进「记录历史」 */
 function isShopPurchaseSession(session) {
   if (!session || typeof session !== 'object') return false;
@@ -5384,10 +5993,66 @@ function getPracticeSessions(data) {
   return list.filter((session) => !isShopPurchaseSession(session) && !isRecognizeSession(session));
 }
 
+/** 从笔画内容推断记录栏（无 filter 或为「集」时） */
+function inferHistoryLaneFromStrokes(session) {
+  const catalogById = getCatalogById();
+  let zhen = 0;
+  let cao = 0;
+  for (const stroke of session?.strokes || []) {
+    if (!stroke?.id) continue;
+    if (isZhenCharItem(catalogById.get(String(stroke.id)))) zhen += 1;
+    else cao += 1;
+  }
+  return zhen > cao ? 'zhen' : 'cao';
+}
+
+/** 记录历史栏：cao | zhen | recognize；商店单不进任何栏 */
+function classifyHistorySessionLane(session) {
+  if (!session || isShopPurchaseSession(session)) return null;
+  if (isRecognizeSession(session)) return 'recognize';
+  const filter = String(session.filter || '').trim();
+  if (filter === 'zhen' || (typeof SCRIPT !== 'undefined' && filter === SCRIPT.zhen)) {
+    return 'zhen';
+  }
+  if (filter === 'cao' || (typeof SCRIPT !== 'undefined' && filter === SCRIPT.cao)) {
+    return 'cao';
+  }
+  return inferHistoryLaneFromStrokes(session);
+}
+
+function getHistorySessionsForLane(data, lane) {
+  const list = Array.isArray(data?.sessions) ? data.sessions : [];
+  return list.filter((session) => classifyHistorySessionLane(session) === lane);
+}
+
 function getLastPracticeSession(data) {
   const sessions = getPracticeSessions(data);
   if (sessions.length === 0) return null;
   return sessions[sessions.length - 1];
+}
+
+/** 总览「最近练习」：最近一次练字 session（草/真，不含识字/商店） */
+function pickLastPracticeSession(data) {
+  const sessions = getPracticeSessions(data);
+  if (!sessions.length) return null;
+  const sessionIndex = sessions.length - 1;
+  const session = sessions[sessionIndex];
+  return {
+    session,
+    sessionIndex,
+    uniqueCount: countSessionUniqueDrops(session)
+      + countPityUniquesForSession(data, sessions, sessionIndex),
+    charCount: sessionDistinctCharCount(session),
+    uniqueValue: sumSessionUniqueDismantleInk(session, data, sessions, sessionIndex),
+    time: sessionCompletedAt(session) || sessionTimeIso(session) || '',
+  };
+}
+
+function buildOverviewLastPracticeSection(data) {
+  const sessions = getPracticeSessions(data);
+  const pick = pickLastPracticeSession(data);
+  if (!pick) return null;
+  return buildOverviewHighlightSessionSection('最近练习', pick, data, sessions);
 }
 
 /** 单次练习包含的字数（去重 id） */
@@ -5462,6 +6127,85 @@ function collectPityItemsForSession(data, sessions, sessionIndex, startOrder = 1
     order += 1;
   }
   return items;
+}
+
+function uniqueDismantleInkOfStyle(cardStyle) {
+  if (!cardStyle) return 0;
+  if (typeof computeUniqueDismantleInk === 'function') {
+    return Math.max(0, Math.floor(Number(computeUniqueDismantleInk(cardStyle)) || 0));
+  }
+  return 0;
+}
+
+/** 仓库内全部 unique 的分解墨合计 */
+function sumUniqueInventoryDismantleInk(uniqueItems) {
+  let total = 0;
+  for (const item of uniqueItems || []) {
+    total += uniqueDismantleInkOfStyle(item?.cardStyle);
+  }
+  return total;
+}
+
+/** 独特 tab 墨显示：当前墨（当前墨+仓库unique价值） */
+function formatUniqueInkDisplay(currentInk, uniqueItems) {
+  const current = typeof resolveInk === 'function'
+    ? resolveInk({ ink: currentInk })
+    : Math.max(0, Math.floor(Number(currentInk) || 0));
+  const potential = current + sumUniqueInventoryDismantleInk(uniqueItems);
+  return `${current}（${potential}）`;
+}
+
+function sumSessionUniqueDismantleInk(session, data, sessions, sessionIndex) {
+  let total = 0;
+  for (const stroke of session?.strokes || []) {
+    if (!isStrokeUniqueDrop(stroke)) continue;
+    total += uniqueDismantleInkOfStyle(stroke.cardStyle);
+  }
+  for (const claim of getUniquePityClaims(data)) {
+    if (!claim?.id || !claim?.cardStyle) continue;
+    if (resolvePityClaimSessionIndex(claim, sessions) !== sessionIndex) continue;
+    total += uniqueDismantleInkOfStyle(claim.cardStyle);
+  }
+  return total;
+}
+
+/**
+ * 价值最高 UNIQUE：分解价值总和最高；
+ * 并列 → unique 数更多；再并列 → 字数更少；再并列 → 时间更远（更早）。
+ */
+function pickHighestValueUniqueSession(data) {
+  const sessions = getPracticeSessions(data);
+  let best = null;
+  for (let i = 0; i < sessions.length; i += 1) {
+    const session = sessions[i];
+    const uniqueValue = sumSessionUniqueDismantleInk(session, data, sessions, i);
+    if (uniqueValue <= 0) continue;
+    const uniqueCount = countSessionUniqueDrops(session)
+      + countPityUniquesForSession(data, sessions, i);
+    const charCount = sessionDistinctCharCount(session);
+    const time = sessionCompletedAt(session) || sessionTimeIso(session) || '';
+    const candidate = { session, sessionIndex: i, uniqueValue, uniqueCount, charCount, time };
+    if (!best) {
+      best = candidate;
+      continue;
+    }
+    if (candidate.uniqueValue !== best.uniqueValue) {
+      if (candidate.uniqueValue > best.uniqueValue) best = candidate;
+      continue;
+    }
+    if (candidate.uniqueCount !== best.uniqueCount) {
+      if (candidate.uniqueCount > best.uniqueCount) best = candidate;
+      continue;
+    }
+    if (candidate.charCount !== best.charCount) {
+      if (candidate.charCount < best.charCount) best = candidate;
+      continue;
+    }
+    if (candidate.time && best.time && candidate.time !== best.time) {
+      if (candidate.time < best.time) best = candidate;
+    }
+  }
+  return best;
 }
 
 /**
@@ -5579,7 +6323,7 @@ function buildHighlightSessionMeta(pick, displayItems, sessions) {
   const completedAt = formatBeijingDateTime(sessionCompletedAt(session)) || '—';
   const sessionNo = `${pick.sessionIndex + 1} / ${sessions.length}`;
 
-  return [
+  const rows = [
     ['编号', sessionNo],
     ['完成', completedAt],
     ['字', charCount],
@@ -5587,12 +6331,16 @@ function buildHighlightSessionMeta(pick, displayItems, sessions) {
     ['UNIQUE', uniqueCount],
     ['时长', formatLongDuration(durationMs)],
   ];
+  if (typeof pick.uniqueValue === 'number') {
+    rows.push(['unique价值', pick.uniqueValue]);
+  }
+  return rows;
 }
 
 function buildOverviewHighlightSessionSection(titleText, pick, data, sessions) {
   if (!pick?.session) return null;
   const items = annotateSessionItemsWithHistoricalLevel(
-    strokesToOrderedItems(pick.session.strokes),
+    strokesToOrderedItems(pick.session.strokes, { includeZhen: true }),
     data,
     pick.session,
   );
@@ -5659,37 +6407,244 @@ function buildOverviewHighlightSessionSection(titleText, pick, data, sessions) {
 
 function appendOverviewHighlightSections(fragment, data) {
   const sessions = getPracticeSessions(data);
-  if (!sessions.length) return;
+  if (sessions.length) {
+    const mostUnique = pickMostUniqueSession(data);
+    const mostUniqueSection = buildOverviewHighlightSessionSection(
+      '最多UNIQUE',
+      mostUnique,
+      data,
+      sessions,
+    );
+    if (mostUniqueSection) fragment.appendChild(mostUniqueSection);
 
-  const mostUnique = pickMostUniqueSession(data);
-  const mostUniqueSection = buildOverviewHighlightSessionSection(
-    '最多UNIQUE',
-    mostUnique,
-    data,
-    sessions,
-  );
-  if (mostUniqueSection) fragment.appendChild(mostUniqueSection);
+    const highestValue = pickHighestValueUniqueSession(data);
+    const highestValueSection = buildOverviewHighlightSessionSection(
+      '价值最高UNIQUE',
+      highestValue,
+      data,
+      sessions,
+    );
+    if (highestValueSection) fragment.appendChild(highestValueSection);
 
-  const mostChars = pickMostCharsSession(data);
-  const mostCharsSection = buildOverviewHighlightSessionSection(
-    '最多字数',
-    mostChars,
-    data,
-    sessions,
-  );
-  if (mostCharsSection) fragment.appendChild(mostCharsSection);
+    const mostChars = pickMostCharsSession(data);
+    const mostCharsSection = buildOverviewHighlightSessionSection(
+      '最多字数',
+      mostChars,
+      data,
+      sessions,
+    );
+    if (mostCharsSection) fragment.appendChild(mostCharsSection);
+  }
+
+  const todaySnapshot = buildTodaySnapshotSection(data);
+  if (todaySnapshot) fragment.appendChild(todaySnapshot);
 }
 
-function resolveHistorySessionIndex(sessions) {
-  if (!sessions.length) return -1;
-  if (
-    historySessionIndex == null
-    || historySessionIndex < 0
-    || historySessionIndex >= sessions.length
-  ) {
-    historySessionIndex = sessions.length - 1;
+function isSameBeijingDay(isoOrMs, nowMs = Date.now()) {
+  const day = formatBeijingDate(isoOrMs);
+  const today = formatBeijingDate(nowMs);
+  return Boolean(day && today && day === today);
+}
+
+function catalogTotalCharCount() {
+  const library = (getLibraryEntries() || []).filter((entry) => !isZhenCharItem(entry));
+  if (library.length) return library.length;
+  if (typeof DEFAULT_ZI_CAO !== 'undefined' && Array.isArray(DEFAULT_ZI_CAO)) {
+    return DEFAULT_ZI_CAO.length;
   }
-  return historySessionIndex;
+  return 0;
+}
+
+/** 北京当日：练习次数 / unique 数与价值 / 去重字数 / 含重复总字数 */
+function uniqueAppearanceKey(item) {
+  const sid = Math.floor(Number(item?.sessionIndex));
+  const tid = Math.floor(Number(item?.strokeIndex));
+  if (Number.isFinite(sid) && Number.isFinite(tid) && sid >= 0 && tid >= 0) {
+    return `s:${sid}:${tid}`;
+  }
+  const id = String(item?.id || '');
+  const at = Number(item?.acquiredAt);
+  const ci = Math.max(1, Math.floor(Number(item?.ciHao) || 1));
+  const kind = item?.isPityUnique ? 'p' : 'a';
+  return `${kind}:${id}:${Number.isFinite(at) ? at : ''}:${ci}`;
+}
+
+function collectTodayUniqueItems(data) {
+  const seen = new Set();
+  const items = [];
+  const push = (item) => {
+    if (!item?.id || !item.cardStyle) return;
+    const key = uniqueAppearanceKey(item);
+    if (seen.has(key)) return;
+    seen.add(key);
+    items.push({ ...item, isUnique: true });
+  };
+
+  for (const item of collectUniqueCardAppearances(data)) {
+    if (!isSameBeijingDay(item.acquiredAt)) continue;
+    push(item);
+  }
+
+  const catalogById = getCatalogById();
+  const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+  const todayPracticeIndexes = new Set();
+  for (let sessionIndex = 0; sessionIndex < sessions.length; sessionIndex += 1) {
+    const session = sessions[sessionIndex];
+    if (isShopPurchaseSession(session) || isRecognizeSession(session)) continue;
+    const at = sessionCompletedAt(session) || sessionTimeIso(session);
+    if (!isSameBeijingDay(at)) continue;
+    todayPracticeIndexes.add(sessionIndex);
+    const strokes = session.strokes || [];
+    for (let strokeIndex = 0; strokeIndex < strokes.length; strokeIndex += 1) {
+      const stroke = strokes[strokeIndex];
+      if (!isStrokeUniqueDrop(stroke)) continue;
+      const id = String(stroke.id);
+      const catalog = catalogById.get(id);
+      push({
+        id,
+        char: catalog?.char || id,
+        script: normalizeItemScript(catalog?.script),
+        cardStyle: typeof normalizeCardStyleRecord === 'function'
+          ? normalizeCardStyleRecord(stroke.cardStyle)
+          : stroke.cardStyle,
+        acquiredAt: estimateUniqueAcquiredAt(session, strokeIndex),
+        ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(stroke) : (Number(stroke.ciHao) || 1),
+        sessionIndex,
+        strokeIndex,
+      });
+    }
+  }
+
+  const practiceSessions = getPracticeSessions(data);
+  for (const claim of getUniquePityClaims(data)) {
+    if (!claim?.id || !claim?.cardStyle) continue;
+    const acquiredMs = typeof claim.acquiredAt === 'number'
+      ? claim.acquiredAt
+      : Date.parse(claim.acquiredAt || '');
+    const pityToday = Number.isFinite(acquiredMs)
+      ? isSameBeijingDay(acquiredMs)
+      : todayPracticeIndexes.has(resolvePityClaimSessionIndex(claim, practiceSessions));
+    if (!pityToday) continue;
+    const id = String(claim.id);
+    const catalog = catalogById.get(id);
+    push({
+      id,
+      char: catalog?.char || id,
+      script: normalizeItemScript(catalog?.script),
+      cardStyle: typeof normalizeCardStyleRecord === 'function'
+        ? normalizeCardStyleRecord(claim.cardStyle)
+        : claim.cardStyle,
+      acquiredAt: Number.isFinite(acquiredMs) ? acquiredMs : null,
+      ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(claim) : (Number(claim.ciHao) || 1),
+      sessionIndex: -1,
+      strokeIndex: -1,
+      isPityUnique: true,
+      streakAtClaim: claim.streakAtClaim,
+    });
+  }
+
+  return sortUniqueItemsByAcquiredAt(items);
+}
+
+function collectTodaySnapshot(data) {
+  const sessions = getPracticeSessions(data);
+  const catalogById = getCatalogById();
+  const charIds = new Set();
+  let sessionCount = 0;
+  let strokeCount = 0;
+
+  for (const session of sessions) {
+    const at = sessionCompletedAt(session) || sessionTimeIso(session);
+    if (!isSameBeijingDay(at)) continue;
+    sessionCount += 1;
+    for (const stroke of session?.strokes || []) {
+      if (!stroke?.id) continue;
+      if (isZhenCharItem(catalogById.get(String(stroke.id)))) continue;
+      charIds.add(String(stroke.id));
+      strokeCount += 1;
+    }
+  }
+
+  const uniqueItems = collectTodayUniqueItems(data);
+  let uniqueValue = 0;
+  for (const item of uniqueItems) {
+    uniqueValue += uniqueDismantleInkOfStyle(item.cardStyle);
+  }
+
+  return {
+    sessionCount,
+    uniqueCount: uniqueItems.length,
+    uniqueValue,
+    charCount: charIds.size,
+    strokeCount,
+    catalogCount: catalogTotalCharCount(),
+    uniqueItems,
+  };
+}
+
+function buildTodaySnapshotSection(data) {
+  const snap = collectTodaySnapshot(data);
+  const section = document.createElement('section');
+  section.className = 'level-section level-section-record level-section-highlight level-section-snapshot';
+  section.dataset.highlight = '当日快照';
+
+  const head = document.createElement('div');
+  head.className = 'level-section-head';
+
+  const titleRow = document.createElement('div');
+  titleRow.className = 'level-section-title-row';
+
+  const title = document.createElement('div');
+  title.className = 'level-section-title';
+  title.textContent = '当日快照';
+  titleRow.appendChild(title);
+
+  const meta = document.createElement('div');
+  meta.className = 'highlight-session-meta';
+  meta.setAttribute('aria-label', '当日快照');
+  const rows = [
+    ['练习', snap.sessionCount],
+    ['UNIQUE', snap.uniqueCount],
+    ['unique价值', snap.uniqueValue],
+    ['字', `${snap.charCount} / ${snap.catalogCount}`],
+    ['总字数', snap.strokeCount],
+  ];
+  for (const [label, value] of rows) {
+    const item = document.createElement('div');
+    item.className = 'highlight-session-meta-item';
+    if (label === '字') item.classList.add('is-ratio');
+    const num = document.createElement('span');
+    num.className = 'highlight-session-meta-value';
+    num.textContent = String(value);
+    const tag = document.createElement('span');
+    tag.className = 'highlight-session-meta-label';
+    tag.textContent = label;
+    item.append(num, tag);
+    meta.appendChild(item);
+  }
+
+  const rule = document.createElement('div');
+  rule.className = 'level-section-rule';
+  head.append(titleRow, meta, rule);
+  section.appendChild(head);
+
+  if (snap.uniqueItems.length) {
+    const group = document.createElement('div');
+    group.className = 'level-group unique-group';
+    appendUniqueCards(group, snap.uniqueItems);
+    section.appendChild(group);
+  }
+  return section;
+}
+
+function resolveHistoryLaneIndex(lane, sessions) {
+  if (!sessions.length) return -1;
+  let index = historyLaneIndex[lane];
+  if (index == null || index < 0 || index >= sessions.length) {
+    index = sessions.length - 1;
+    historyLaneIndex[lane] = index;
+  }
+  return index;
 }
 
 function sessionDurationMs(session) {
@@ -5702,8 +6657,18 @@ function sessionDurationMs(session) {
   );
 }
 
+/** 某记录栏（cao / zhen / recognize）全部 session 时长之和 */
+function sumLaneDurationMs(data, lane) {
+  return getHistorySessionsForLane(data, lane)
+    .reduce((sum, session) => sum + sessionDurationMs(session), 0);
+}
+
+/** 练习总时间：草书 + 真书 + 识别（不含商店） */
 function sumSessionsDurationMs(data) {
-  return getPracticeSessions(data).reduce((sum, session) => sum + sessionDurationMs(session), 0);
+  return HISTORY_LANES.reduce(
+    (sum, lane) => sum + sumLaneDurationMs(data, lane.key),
+    0,
+  );
 }
 
 /**
@@ -5737,10 +6702,14 @@ function formatHoursDuration(ms) {
   return `${hours}时${minutes}分${seconds}秒`;
 }
 
-function strokesToOrderedItems(strokes) {
+function strokesToOrderedItems(strokes, { includeZhen = false } = {}) {
   const catalogById = getCatalogById();
   return (strokes || [])
-    .filter((stroke) => stroke?.id)
+    .filter((stroke) => {
+      if (!stroke?.id) return false;
+      if (includeZhen) return true;
+      return !isZhenCharItem(catalogById.get(String(stroke.id)));
+    })
     .map((stroke, index) => {
       const id = String(stroke.id);
       const catalog = catalogById.get(id);
@@ -5756,11 +6725,20 @@ function strokesToOrderedItems(strokes) {
         id,
         char: catalog?.char || id,
         script: normalizeItemScript(catalog?.script),
+        form: catalog?.form || '',
+        calligrapher: catalog?.calligrapher || '',
+        variation: catalog?.variation || catalog?.work || '',
+        work: catalog?.work || catalog?.variation || '',
+        styleId: catalog?.styleId || '',
+        unicode: catalog?.unicode || '',
         order: index + 1,
         durationMs: Math.max(0, Number(stroke.durationMs) || 0),
         isUnique,
         cardStyle,
         ciHao: typeof resolveCiHao === 'function' ? resolveCiHao(stroke) : (Number(stroke.ciHao) || 1),
+        seal: typeof normalizeZhenSeal === 'function'
+          ? normalizeZhenSeal(stroke.seal)
+          : (stroke.seal || null),
       };
     });
 }
@@ -5775,85 +6753,110 @@ function formatDurationMs(ms) {
   return rest > 0 ? `${min}m ${rest}s` : `${min}m`;
 }
 
-function renderLastSessionSummary(session, items) {
-  const totalDurationMs = sessionDurationMs(session)
-    || items.reduce((sum, item) => sum + item.durationMs, 0);
-  const uniqueIds = new Set(items.map((item) => item.id));
-  const completedText = formatBeijingDateTime(sessionCompletedAt(session)) || '—';
-
-  const stats = [
-    ['完成', completedText],
-    ['次序', items.length],
-    ['字', uniqueIds.size],
-    ['时长', formatLongDuration(totalDurationMs)],
-  ];
-
+function renderHistoryLanesSummary(laneCounts) {
   el.levelSummary.replaceChildren();
-  for (const [label, value] of stats) {
+  for (const lane of HISTORY_LANES) {
     const stat = document.createElement('div');
     stat.className = 'level-summary-item';
-    if (label === '完成') stat.classList.add('is-datetime');
     const num = document.createElement('span');
     num.className = 'level-summary-value';
-    num.textContent = String(value);
+    num.textContent = String(laneCounts[lane.key] || 0);
     const tag = document.createElement('span');
     tag.className = 'level-summary-label';
-    tag.textContent = label;
+    tag.textContent = lane.label;
     stat.append(num, tag);
     el.levelSummary.appendChild(stat);
   }
 }
 
-function shiftHistorySession(delta) {
+function shiftHistoryLane(lane, delta) {
   const entry = fileEntries.find((item) => item.id === activeId);
   if (!entry?.data || levelDisplayMode !== 'lastSession') return;
-  const sessions = getPracticeSessions(entry.data);
+  const sessions = getHistorySessionsForLane(entry.data, lane);
   if (sessions.length === 0) return;
-  const current = resolveHistorySessionIndex(sessions);
+  const current = resolveHistoryLaneIndex(lane, sessions);
   const next = Math.min(sessions.length - 1, Math.max(0, current + delta));
   if (next === current) return;
-  historySessionIndex = next;
+  historyLaneIndex[lane] = next;
   renderLastSessionView(entry);
 }
 
-function renderLastSessionView(entry) {
-  document.body.classList.remove(
-    'is-card-face-view',
-    'is-glyph-image-view',
-    'is-unique-filter-view',
-    'is-levels-only-view',
-    'is-atlas-view',
-  );
-  const data = entry.data || {};
-  const sessions = getPracticeSessions(data);
-  const index = resolveHistorySessionIndex(sessions);
-  const session = index >= 0 ? sessions[index] : null;
-  const items = session
-    ? annotateSessionItemsWithHistoricalLevel(
-      strokesToOrderedItems(session.strokes),
-      data,
-      session,
-    )
-    : [];
-  hideCardPreview();
-  el.levelList.replaceChildren();
+/** 记录历史分栏：当前这条 session 的字数 / 总字数 / 总时间等（与总览高光 meta 同形） */
+function buildHistoryLaneSessionMeta(lane, session, displayItems) {
+  const strokeItems = (displayItems || []).filter((item) => !item.isPityUnique);
+  const charCount = new Set(strokeItems.map((item) => item.id).filter(Boolean)).size;
+  const appearanceCount = strokeItems.length;
+  const durationMs = sessionDurationMs(session)
+    || strokeItems.reduce((sum, item) => sum + (item.durationMs || 0), 0);
 
-  if (!session || items.length === 0) {
-    renderLastSessionSummary(session, items);
-    const empty = document.createElement('p');
-    empty.className = 'empty-state';
-    empty.textContent = sessions.length === 0 ? '暂无练习记录' : '该次记录没有字';
-    el.levelList.appendChild(empty);
-    el.levelPanel.classList.remove('hidden');
-    el.panel.classList.add('hidden');
-    updateLevelOverlays();
-    return;
+  const rows = [
+    ['字', charCount],
+    ['总字数', appearanceCount],
+    ['总时间', formatLongDuration(durationMs)],
+  ];
+
+  if (lane === 'cao') {
+    const uniqueCount = strokeItems.filter((item) => item.isUnique).length
+      + (displayItems || []).filter((item) => item.isPityUnique).length;
+    rows.splice(2, 0, ['UNIQUE', uniqueCount]);
   }
 
-  const zeroLevel = getLevelFromCount(0);
+  if (lane === 'zhen') {
+    let sealCount = 0;
+    for (const stroke of session?.strokes || []) {
+      const seal = typeof normalizeZhenSeal === 'function'
+        ? normalizeZhenSeal(stroke?.seal)
+        : stroke?.seal;
+      if (seal) sealCount += 1;
+    }
+    rows.splice(2, 0, ['印记', sealCount]);
+  }
+
+  return rows;
+}
+
+function appendHighlightSessionMeta(container, rows, ariaLabel) {
+  const meta = document.createElement('div');
+  meta.className = 'highlight-session-meta';
+  if (ariaLabel) meta.setAttribute('aria-label', ariaLabel);
+  for (const [label, value] of rows) {
+    const item = document.createElement('div');
+    item.className = 'highlight-session-meta-item';
+    if (label === '完成') item.classList.add('is-datetime');
+    const num = document.createElement('span');
+    num.className = 'highlight-session-meta-value';
+    num.textContent = String(value);
+    const tag = document.createElement('span');
+    tag.className = 'highlight-session-meta-label';
+    tag.textContent = label;
+    item.append(num, tag);
+    meta.appendChild(item);
+  }
+  container.appendChild(meta);
+  return meta;
+}
+
+function buildHistoryLaneSection(laneDef, data) {
+  const lane = laneDef.key;
+  const sessions = getHistorySessionsForLane(data, lane);
+  const index = resolveHistoryLaneIndex(lane, sessions);
+  const session = index >= 0 ? sessions[index] : null;
+  const includeZhen = lane === 'zhen';
+  const items = session
+    ? (
+      lane === 'zhen'
+        ? strokesToOrderedItems(session.strokes, { includeZhen: true })
+        : annotateSessionItemsWithHistoricalLevel(
+          strokesToOrderedItems(session.strokes, { includeZhen }),
+          data,
+          session,
+        )
+    )
+    : [];
 
   const section = document.createElement('section');
-  section.className = 'level-section level-section-record';
+  section.className = 'level-section level-section-record level-section-history-lane';
+  section.dataset.historyLane = lane;
 
   const head = document.createElement('div');
   head.className = 'level-section-head';
@@ -5863,9 +6866,9 @@ function renderLastSessionView(entry) {
 
   const title = document.createElement('div');
   title.className = 'level-section-title';
-  title.textContent = '记录';
+  title.textContent = laneDef.label;
 
-  const completedAt = formatBeijingDateTime(sessionCompletedAt(session));
+  const completedAt = session ? formatBeijingDateTime(sessionCompletedAt(session)) : '';
   if (completedAt) {
     const timeEl = document.createElement('div');
     timeEl.className = 'record-completed-at';
@@ -5881,53 +6884,136 @@ function renderLastSessionView(entry) {
   const btnPrev = document.createElement('button');
   btnPrev.type = 'button';
   btnPrev.className = 'record-nav-btn';
-  btnPrev.setAttribute('aria-label', '更早一次');
+  btnPrev.setAttribute('aria-label', `${laneDef.label}：更早一次`);
   btnPrev.title = '更早一次';
   btnPrev.textContent = '‹';
-  btnPrev.disabled = index <= 0;
-  btnPrev.addEventListener('click', () => shiftHistorySession(-1));
+  btnPrev.disabled = sessions.length === 0 || index <= 0;
+  btnPrev.addEventListener('click', () => shiftHistoryLane(lane, -1));
 
   const indexLabel = document.createElement('span');
   indexLabel.className = 'record-nav-index';
-  indexLabel.textContent = `${index + 1} / ${sessions.length}`;
+  indexLabel.textContent = sessions.length
+    ? `${index + 1} / ${sessions.length}`
+    : '0 / 0';
 
   const btnNext = document.createElement('button');
   btnNext.type = 'button';
   btnNext.className = 'record-nav-btn';
-  btnNext.setAttribute('aria-label', '更新一次');
+  btnNext.setAttribute('aria-label', `${laneDef.label}：更新一次`);
   btnNext.title = '更新一次';
   btnNext.textContent = '›';
-  btnNext.disabled = index >= sessions.length - 1;
-  btnNext.addEventListener('click', () => shiftHistorySession(1));
+  btnNext.disabled = sessions.length === 0 || index >= sessions.length - 1;
+  btnNext.addEventListener('click', () => shiftHistoryLane(lane, 1));
 
   nav.append(btnPrev, indexLabel, btnNext);
   titleRow.appendChild(nav);
-
-  const rule = document.createElement('div');
-  rule.className = 'level-section-rule';
-
-  head.append(titleRow, rule);
+  head.appendChild(titleRow);
 
   const group = document.createElement('div');
   group.className = 'level-group';
 
-  const displayItems = items.concat(
-    collectPityItemsForSession(data, sessions, index, items.length + 1),
+  if (!session) {
+    appendHighlightSessionMeta(
+      head,
+      [['字', 0], ['总字数', 0], ['总时间', formatLongDuration(0)]],
+      `${laneDef.label}练习信息`,
+    );
+    const rule = document.createElement('div');
+    rule.className = 'level-section-rule';
+    head.appendChild(rule);
+    section.appendChild(head);
+
+    const empty = document.createElement('p');
+    empty.className = 'empty-state history-lane-empty';
+    empty.textContent = `暂无${laneDef.label}记录`;
+    group.appendChild(empty);
+    section.appendChild(group);
+    return section;
+  }
+
+  let displayItems = items;
+  if (lane !== 'recognize') {
+    const practiceSessions = getPracticeSessions(data);
+    const practiceIndex = practiceSessions.indexOf(session);
+    if (practiceIndex >= 0) {
+      displayItems = items.concat(
+        collectPityItemsForSession(data, practiceSessions, practiceIndex, items.length + 1),
+      );
+    }
+  }
+
+  appendHighlightSessionMeta(
+    head,
+    buildHistoryLaneSessionMeta(lane, session, displayItems),
+    `${laneDef.label}练习信息`,
   );
+  const rule = document.createElement('div');
+  rule.className = 'level-section-rule';
+  head.appendChild(rule);
+  section.appendChild(head);
 
-  renderLastSessionSummary(session, displayItems);
+  if (displayItems.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'empty-state history-lane-empty';
+    empty.textContent = '该次记录没有字';
+    group.appendChild(empty);
+    section.appendChild(group);
+    return section;
+  }
 
+  const zeroLevel = getLevelFromCount(0);
+  const zhenRunCounts = new Map();
   for (const item of displayItems) {
     if (item.isUnique) {
       group.appendChild(createLevelCard(item, zeroLevel, levelFrameColor(0), { recordMode: true }));
       continue;
     }
-    const info = item.historicalLevelInfo || zeroLevel;
-    group.appendChild(createLevelCard(item, info, levelFrameColor(info.level), { recordMode: true }));
+    let card;
+    if (lane === 'zhen') {
+      const key = item.styleId
+        ? `${item.id}\0${item.styleId}`
+        : String(item.id || item.char || '');
+      const next = (zhenRunCounts.get(key) || 0) + 1;
+      zhenRunCounts.set(key, next);
+      const color = typeof zhenCountColor === 'function'
+        ? zhenCountColor(next)
+        : levelFrameColor(0);
+      card = createLevelCard(item, zeroLevel, color, { recordMode: true });
+    } else {
+      const info = item.historicalLevelInfo || zeroLevel;
+      card = createLevelCard(item, info, levelFrameColor(info.level), { recordMode: true });
+    }
+    if (item.seal) applyZhenSealFrameToCard(card, item.seal);
+    group.appendChild(card);
   }
 
-  section.append(head, group);
-  el.levelList.appendChild(section);
+  section.appendChild(group);
+  return section;
+}
+
+function renderLastSessionView(entry) {
+  document.body.classList.remove(
+    'is-card-face-view',
+    'is-glyph-image-view',
+    'is-unique-filter-view',
+    'is-levels-only-view',
+    'is-atlas-view',
+  );
+  const data = entry.data || {};
+  hideCardPreview();
+  el.levelList.replaceChildren();
+
+  const laneCounts = {};
+  for (const lane of HISTORY_LANES) {
+    laneCounts[lane.key] = getHistorySessionsForLane(data, lane.key).length;
+  }
+  renderHistoryLanesSummary(laneCounts);
+
+  const fragment = document.createDocumentFragment();
+  for (const lane of HISTORY_LANES) {
+    fragment.appendChild(buildHistoryLaneSection(lane, data));
+  }
+  el.levelList.appendChild(fragment);
   el.levelPanel.classList.remove('hidden');
   el.panel.classList.add('hidden');
   updateLevelOverlays();
@@ -5996,7 +7082,7 @@ async function openEntry(id) {
   if (!entry) return;
 
   activeId = id;
-  historySessionIndex = null;
+  resetHistoryLaneIndexes();
   renderFileList();
   setHint(`正在读取 ${entry.file} …`);
 
@@ -6144,9 +7230,11 @@ function applyInitialViewFromUrl() {
   }
   const modeParam = params.get('mode');
   sortByMode = loadPersistedSortByMode();
-  if (modeParam === 'last') levelDisplayMode = 'lastSession';
+  if (modeParam === 'overview') levelDisplayMode = 'overview';
+  else if (modeParam === 'last') levelDisplayMode = 'lastSession';
   else if (modeParam === 'unique') levelDisplayMode = 'unique';
   else if (modeParam === 'levels') levelDisplayMode = 'levels';
+  else if (modeParam === 'zhen') levelDisplayMode = 'zhen';
   else if (modeParam === 'recognize') levelDisplayMode = 'recognize';
   else if (modeParam === 'sort') {
     levelDisplayMode = 'sort';
@@ -6172,6 +7260,8 @@ function applyInitialViewFromUrl() {
     if (saved) levelDisplayMode = saved;
   }
   persistSortByMode(sortByMode);
+  // 显式 mode（含结算跳转的 overview）写入 session，避免随后刷新又回到旧 tab
+  if (modeParam) persistLevelDisplayMode(levelDisplayMode);
   applyLevelNavUI();
 }
 
@@ -6188,9 +7278,11 @@ const LEVEL_MODE_STORAGE_KEY = 'cao-level-display-mode';
 const SORT_BY_STORAGE_KEY = 'cao-sort-by';
 
 const LEVEL_MODE_TO_PARAM = {
+  overview: 'overview',
   lastSession: 'last',
   unique: 'unique',
   levels: 'levels',
+  zhen: 'zhen',
   recognize: 'recognize',
   sort: 'sort',
   inkHistory: 'ink',
@@ -6298,6 +7390,7 @@ function applyLevelNavUI() {
     [el.levelNavOverview, 'overview'],
     [el.levelNavUnique, 'unique'],
     [el.levelNavLevels, 'levels'],
+    [el.levelNavZhen, 'zhen'],
     [el.levelNavRecognize, 'recognize'],
     [el.levelNavSort, 'sort'],
     [el.levelNavLast, 'lastSession'],
@@ -6320,6 +7413,7 @@ const LEVEL_FILTER_MODES = [
   'overview',
   'unique',
   'levels',
+  'zhen',
   'recognize',
   'sort',
   'lastSession',
@@ -7012,6 +8106,7 @@ function init() {
   el.levelNavOverview?.addEventListener('click', () => setLevelDisplayMode('overview'));
   el.levelNavUnique?.addEventListener('click', () => setLevelDisplayMode('unique'));
   el.levelNavLevels?.addEventListener('click', () => setLevelDisplayMode('levels'));
+  el.levelNavZhen?.addEventListener('click', () => setLevelDisplayMode('zhen'));
   el.levelNavRecognize?.addEventListener('click', () => setLevelDisplayMode('recognize'));
   el.levelNavSort?.addEventListener('click', () => setLevelDisplayMode('sort'));
   el.levelNavLast?.addEventListener('click', () => setLevelDisplayMode('lastSession'));
@@ -7030,6 +8125,11 @@ function init() {
     unlockCardHoverSfx();
     runUnicodeConsistencyCheck();
   });
+  el.btnUnicodeCheckCopy?.addEventListener('click', () => {
+    unlockCardHoverSfx();
+    copyUnicodeCheckErrorLog();
+  });
+  syncUnicodeCheckCopyButton(false);
   el.sfxVolume?.addEventListener('input', () => {
     saveCardSfxVolume(el.sfxVolume.value);
     syncSfxVolumeUI();

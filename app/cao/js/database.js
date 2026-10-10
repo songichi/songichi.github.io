@@ -9,55 +9,74 @@ const STORAGE_KEY = 'caoshu-characters';
 const MODE_STORAGE_KEY = 'caoshu-learning-mode';
 const SCRIPT_FILTER_STORAGE_KEY = 'caoshu-script-filter';
 
-/** 书体标识 */
+/** 书体标识（练习筛选：草 / 真 / 集） */
 const SCRIPT = {
   cao: 'cao',
+  zhen: 'zhen',
+};
+
+/** 真书细分（均写在 zi-catalog-zhen.js） */
+const ZHEN_FORM = {
   kai: 'kai',
+  printKai: 'print-kai',
   ming: 'ming',
+  song: 'song',
   hei: 'hei',
+};
+
+const ZHEN_FORM_LABEL = {
+  [ZHEN_FORM.kai]: '楷书',
+  [ZHEN_FORM.printKai]: '印刷楷书',
+  [ZHEN_FORM.ming]: '明体',
+  [ZHEN_FORM.song]: '宋体',
+  [ZHEN_FORM.hei]: '黑体',
 };
 
 /** 书体筛选：单书体或「集」(全部) */
 const SCRIPT_FILTER = {
   cao: 'cao',
-  kai: 'kai',
-  ming: 'ming',
-  hei: 'hei',
+  zhen: 'zhen',
   all: 'all',
 };
 
 /** 筛选按钮短标签 */
 const SCRIPT_FILTER_LABEL = {
   [SCRIPT_FILTER.cao]: '草',
-  [SCRIPT_FILTER.kai]: '楷',
-  [SCRIPT_FILTER.ming]: '明',
-  [SCRIPT_FILTER.hei]: '黑',
+  [SCRIPT_FILTER.zhen]: '真',
   [SCRIPT_FILTER.all]: '集',
 };
 
-/** 书体短标签（统计用；草体不额外加字） */
+/** 书体短标签（统计用；草/真均只显示汉字，不加后缀） */
 const SCRIPT_LABEL = {
   [SCRIPT.cao]: '',
-  [SCRIPT.kai]: '楷',
-  [SCRIPT.ming]: '明',
-  [SCRIPT.hei]: '黑',
+  [SCRIPT.zhen]: '',
 };
 
 /** 书体中文名 */
 const SCRIPT_NAME = {
   [SCRIPT.cao]: '草体',
-  [SCRIPT.kai]: '楷书',
-  [SCRIPT.ming]: '明体',
-  [SCRIPT.hei]: '黑体',
+  [SCRIPT.zhen]: '真书',
 };
 
 /** 各书体图片目录（相对 app/cao/） */
 const SCRIPT_IMAGE_DIR = {
-  [SCRIPT.cao]: 'images/characters',
-  [SCRIPT.kai]: 'images/characters/kai',
-  [SCRIPT.ming]: 'images/characters/ming',
-  [SCRIPT.hei]: 'images/characters/hei',
+  [SCRIPT.cao]: 'images/characters/cao',
+  [SCRIPT.zhen]: 'images/characters/zhen',
 };
+
+/** 真书字形目录：统一 images/characters/zhen，文件名 {styleId}_{字} */
+const ZHEN_FORM_IMAGE_DIR = {
+  [ZHEN_FORM.kai]: 'images/characters/zhen',
+  [ZHEN_FORM.printKai]: 'images/characters/zhen',
+  [ZHEN_FORM.ming]: 'images/characters/zhen',
+  [ZHEN_FORM.song]: 'images/characters/zhen',
+  [ZHEN_FORM.hei]: 'images/characters/zhen',
+};
+
+const GLYPH_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+
+/** 字形是否存在的探测缓存（键：glyphAvailabilityCacheKey） */
+const glyphImageExistsCache = new Map();
 
 /**
  * 时间模式概率
@@ -102,11 +121,164 @@ function compileCharacters(sources) {
   return parseCharacters(paragraph);
 }
 
-/** 兼容旧版 script 标识 */
+/** 兼容旧版 script 标识：楷/明/黑/宋均归真书 */
+function normalizeZhenForm(form) {
+  const raw = String(form || '').trim().toLowerCase();
+  if (raw === 'printkai' || raw === 'print-kai' || raw === '印刷楷书') return ZHEN_FORM.printKai;
+  if (raw === 'ming' || raw === '明' || raw === '明体') return ZHEN_FORM.ming;
+  if (raw === 'song' || raw === '宋' || raw === '宋体') return ZHEN_FORM.song;
+  if (raw === 'hei' || raw === '黑' || raw === '黑体') return ZHEN_FORM.hei;
+  if (raw === 'kai' || raw === '楷' || raw === '楷书') return ZHEN_FORM.kai;
+  return ZHEN_FORM.kai;
+}
+
 function normalizeScript(script) {
   if (script === 'cursive' || script === 'cao' || !script) return SCRIPT.cao;
-  if (script === 'song') return SCRIPT.ming;
+  if (
+    script === 'zhen'
+    || script === 'kai'
+    || script === 'ming'
+    || script === 'hei'
+    || script === 'song'
+    || script === 'print-kai'
+    || script === 'printKai'
+  ) {
+    return SCRIPT.zhen;
+  }
   return script;
+}
+
+function resolveScriptImageDir(entry) {
+  const script = normalizeScript(entry?.script);
+  if (script === SCRIPT.zhen) {
+    return SCRIPT_IMAGE_DIR[SCRIPT.zhen];
+  }
+  return SCRIPT_IMAGE_DIR[script] || SCRIPT_IMAGE_DIR[SCRIPT.cao];
+}
+
+/** 真书字形文件名主干：{styleId}_{字}，如 zk001_永 */
+function zhenGlyphImageBasenames(entry) {
+  const styleId = String(entry?.styleId || '').trim().toLowerCase();
+  if (!styleId) return [];
+  const forms = typeof glyphImageCharForms === 'function'
+    ? glyphImageCharForms(entry?.char, entry)
+    : [entry?.char, ...(entry?.alternatives || [])].filter(Boolean);
+  const names = [];
+  for (const form of forms) {
+    const ch = String(form || '').trim();
+    if (ch) names.push(`${styleId}_${ch}`);
+  }
+  return names;
+}
+
+function glyphAvailabilityCacheKey(entry) {
+  if (!entry) return '';
+  if (entry.id) return String(entry.id);
+  const script = normalizeScript(entry.script);
+  if (script === SCRIPT.zhen) {
+    return `zhen:${entry.styleId || ''}:${entry.char || ''}`;
+  }
+  return `${script}:${entry.char || ''}`;
+}
+
+/**
+ * 资源路径前缀：练习页在 app/cao/ 为空；用户页在 app/cao/user/ 为 ../
+ * 各页可设全局 CAO_ASSET_PREFIX 覆盖。
+ */
+function caoAssetPrefix() {
+  if (typeof CAO_ASSET_PREFIX === 'string') return CAO_ASSET_PREFIX;
+  return '';
+}
+
+/**
+ * 字形图片候选路径
+ * - 草体：images/characters/cao/{字}.ext
+ * - 真书：images/characters/zhen/{styleId}_{字}.ext
+ */
+function getGlyphImageCandidates(entry) {
+  if (!entry) return [];
+  const prefix = caoAssetPrefix();
+  const dir = resolveScriptImageDir(entry);
+  const script = normalizeScript(entry.script);
+  const basenames = script === SCRIPT.zhen
+    ? zhenGlyphImageBasenames(entry)
+    : (typeof glyphImageCharForms === 'function'
+      ? glyphImageCharForms(entry.char, entry)
+      : [entry.char, ...(entry.alternatives || [])].filter(Boolean));
+
+  const paths = [];
+  const seen = new Set();
+  for (const raw of basenames) {
+    const name = String(raw || '').trim();
+    if (!name) continue;
+    for (const ext of GLYPH_IMAGE_EXTENSIONS) {
+      const path = `${prefix}${dir}/${name}.${ext}`;
+      if (seen.has(path)) continue;
+      seen.add(path);
+      paths.push(path);
+    }
+  }
+  return paths;
+}
+
+/** 探测字形图是否存在（结果写入 glyphImageExistsCache） */
+function probeGlyphImageExists(entry) {
+  const key = glyphAvailabilityCacheKey(entry);
+  if (!key) return Promise.resolve(false);
+  if (glyphImageExistsCache.has(key)) {
+    return Promise.resolve(glyphImageExistsCache.get(key));
+  }
+
+  const candidates = getGlyphImageCandidates(entry);
+  if (candidates.length === 0) {
+    glyphImageExistsCache.set(key, false);
+    return Promise.resolve(false);
+  }
+
+  return new Promise((resolve) => {
+    let index = 0;
+    const tryNext = () => {
+      if (index >= candidates.length) {
+        glyphImageExistsCache.set(key, false);
+        resolve(false);
+        return;
+      }
+      const path = candidates[index++];
+      const probe = new Image();
+      probe.onload = () => {
+        glyphImageExistsCache.set(key, true);
+        resolve(true);
+      };
+      probe.onerror = tryNext;
+      probe.src = path;
+    };
+    tryNext();
+  });
+}
+
+/** 练习库：真书仅保留有字形图的条目；草体原样保留 */
+async function filterPracticeEntriesByGlyph(entries) {
+  const list = Array.isArray(entries) ? entries : [];
+  await Promise.all(list.map((entry) => {
+    if (normalizeScript(entry?.script) !== SCRIPT.zhen) return Promise.resolve(false);
+    return probeGlyphImageExists(entry);
+  }));
+  return list.filter((entry) => {
+    if (normalizeScript(entry?.script) !== SCRIPT.zhen) return true;
+    const key = glyphAvailabilityCacheKey(entry);
+    return glyphImageExistsCache.get(key) === true;
+  });
+}
+
+/** 卡面子目录名：cao / kai / ming / hei / zhen */
+function cardImageSubdir(script, form) {
+  const family = normalizeScript(script);
+  if (family !== SCRIPT.zhen) return family === SCRIPT.cao ? 'cao' : family;
+  const zhenForm = normalizeZhenForm(form || script);
+  if (zhenForm === ZHEN_FORM.hei) return 'hei';
+  if (zhenForm === ZHEN_FORM.ming || zhenForm === ZHEN_FORM.song) return 'ming';
+  if (zhenForm === ZHEN_FORM.kai || zhenForm === ZHEN_FORM.printKai) return 'kai';
+  return 'zhen';
 }
 
 /** 条目唯一键：优先 Zi id，兼容无 id 的旧条目 */
@@ -137,8 +309,8 @@ function getCatalogEntries(script) {
   if (normalized === SCRIPT.cao && typeof getDefaultZiCaoEntries === 'function') {
     return getDefaultZiCaoEntries();
   }
-  if (normalized === SCRIPT.kai && typeof getDefaultZiKaiEntries === 'function') {
-    return getDefaultZiKaiEntries();
+  if (normalized === SCRIPT.zhen && typeof getDefaultZiZhenEntries === 'function') {
+    return getDefaultZiZhenEntries();
   }
   return [];
 }
@@ -170,9 +342,7 @@ function buildLibrary(caoChars) {
 
   return [
     ...caoEntries,
-    ...getCatalogEntries(SCRIPT.kai),
-    ...getCatalogEntries(SCRIPT.ming),
-    ...getCatalogEntries(SCRIPT.hei),
+    ...getCatalogEntries(SCRIPT.zhen),
   ];
 }
 
@@ -215,9 +385,12 @@ function saveCharacters(characters) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(characters));
 }
 
-/** 读取书体筛选：cao | kai | ming | hei | all；默认草体 */
+/** 读取书体筛选：cao | zhen | all；旧的楷/明/黑视为真 */
 function loadScriptFilter() {
   const stored = localStorage.getItem(SCRIPT_FILTER_STORAGE_KEY);
+  if (stored === 'kai' || stored === 'ming' || stored === 'hei' || stored === 'song') {
+    return SCRIPT_FILTER.zhen;
+  }
   if (stored && Object.values(SCRIPT_FILTER).includes(stored)) return stored;
   return SCRIPT_FILTER.cao;
 }
@@ -260,15 +433,48 @@ function buildTimeWeights(order) {
   return weights;
 }
 
-/** 读取学习模式：'default' | 'time' | 'recognize' */
+/** 可选学习模式（UI）；`time` 仍可出现在历史 session 中，但练习页已隐藏入口 */
+const LEARNING_MODE = {
+  default: 'default',
+  random: 'random',
+  time: 'time',
+  recognize: 'recognize',
+};
+
+/** 练习页可选模式（不含已隐藏的时间） */
+const LEARNING_MODE_SELECTABLE = [
+  LEARNING_MODE.default,
+  LEARNING_MODE.random,
+  LEARNING_MODE.recognize,
+];
+
+const LEARNING_MODE_LABEL = {
+  [LEARNING_MODE.default]: '默认',
+  [LEARNING_MODE.random]: '随机',
+  [LEARNING_MODE.time]: '时间',
+  [LEARNING_MODE.recognize]: '识字',
+};
+
+function formatLearningModeLabel(mode) {
+  return LEARNING_MODE_LABEL[mode] || LEARNING_MODE_LABEL[LEARNING_MODE.default];
+}
+
+/**
+ * 读取学习模式：'default' | 'random' | 'recognize'
+ * 旧存盘 `time` 映射为 default（时间模式 UI 已隐藏；历史 session.mode=time 仍保留）
+ */
 function loadLearningMode() {
   const stored = localStorage.getItem(MODE_STORAGE_KEY);
-  if (stored === 'time' || stored === 'recognize') return stored;
-  return 'default';
+  if (stored === LEARNING_MODE.recognize || stored === LEARNING_MODE.random) return stored;
+  // time：入口已隐藏，回退默认；数据里的 time session 不受影响
+  return LEARNING_MODE.default;
 }
 
 /** 保存学习模式 */
 function saveLearningMode(mode) {
+  if (!LEARNING_MODE_SELECTABLE.includes(mode) && mode !== LEARNING_MODE.time) {
+    mode = LEARNING_MODE.default;
+  }
   localStorage.setItem(MODE_STORAGE_KEY, mode);
 }
 
@@ -287,9 +493,7 @@ function findZiEntry(charOrId, script = SCRIPT.cao) {
   const normalized = normalizeScript(script);
   const catalogs = [
     ...getCatalogEntries(SCRIPT.cao),
-    ...getCatalogEntries(SCRIPT.kai),
-    ...getCatalogEntries(SCRIPT.ming),
-    ...getCatalogEntries(SCRIPT.hei),
+    ...getCatalogEntries(SCRIPT.zhen),
   ];
 
   for (const entry of catalogs) {
@@ -309,7 +513,7 @@ function initZiCatalogIds() {
   if (typeof finalizeZiCatalog !== 'function') return;
   const groups = [];
   if (typeof DEFAULT_ZI_CAO !== 'undefined') groups.push(DEFAULT_ZI_CAO);
-  if (typeof DEFAULT_ZI_KAI !== 'undefined') groups.push(DEFAULT_ZI_KAI);
+  if (typeof DEFAULT_ZI_ZHEN !== 'undefined') groups.push(DEFAULT_ZI_ZHEN);
   finalizeZiCatalog(groups);
 }
 

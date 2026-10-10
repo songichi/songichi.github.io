@@ -48,9 +48,9 @@ function loadCatalogMaps() {
     fs.readFileSync(path.join(JS_DIR, 'user-merge.js'), 'utf8'),
     fs.readFileSync(path.join(JS_DIR, 'zi.js'), 'utf8'),
     fs.readFileSync(path.join(JS_DIR, 'zi-catalog-cao.js'), 'utf8'),
-    fs.readFileSync(path.join(JS_DIR, 'zi-catalog-kai.js'), 'utf8'),
-    'finalizeZiCatalog([DEFAULT_ZI_CAO, DEFAULT_ZI_KAI]);',
-    'buildCatalogMapsFromZiGroups([DEFAULT_ZI_CAO, DEFAULT_ZI_KAI]);',
+    fs.readFileSync(path.join(JS_DIR, 'zi-catalog-zhen.js'), 'utf8'),
+    'finalizeZiCatalog([DEFAULT_ZI_CAO, DEFAULT_ZI_ZHEN]);',
+    'buildCatalogMapsFromZiGroups([DEFAULT_ZI_CAO, DEFAULT_ZI_ZHEN]);',
   ].join('\n');
   return vm.runInNewContext(code, {
     console,

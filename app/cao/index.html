@@ -27,15 +27,14 @@
       </button>
       <div class="script-menu hidden" id="script-menu" role="listbox" aria-label="选择书体">
         <button type="button" class="script-menu-btn" data-filter="cao" role="option">草</button>
-        <button type="button" class="script-menu-btn" data-filter="kai" role="option">楷</button>
-        <button type="button" class="script-menu-btn" data-filter="ming" role="option">明</button>
-        <button type="button" class="script-menu-btn" data-filter="hei" role="option">黑</button>
+        <button type="button" class="script-menu-btn" data-filter="zhen" role="option">真</button>
         <button type="button" class="script-menu-btn" data-filter="all" role="option">集</button>
       </div>
     </div>
     <div class="mode-switch" role="group" aria-label="学习模式">
       <button class="mode-switch-btn is-active" id="mode-default" data-mode="default">默认</button>
-      <button class="mode-switch-btn" id="mode-time" data-mode="time">时间</button>
+      <button class="mode-switch-btn" id="mode-random" data-mode="random" title="7/10 默认随机 · 3/10 最久未见">随机</button>
+      <button class="mode-switch-btn hidden" id="mode-time" data-mode="time" hidden aria-hidden="true" tabindex="-1">时间</button>
       <button class="mode-switch-btn" id="mode-recognize" data-mode="recognize" title="看草书，输入对应汉字">识字</button>
     </div>
     <button type="button" class="btn-session-action" id="btn-session-action" aria-label="结算">结算</button>
@@ -69,6 +68,14 @@
     <div class="container">
       <section class="practice-area">
         <div class="character-stage" id="character-stage">
+          <img
+            class="zhen-stage-bg hidden"
+            id="zhen-stage-bg"
+            src="images/ui/zhen_background.png"
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+          >
           <div class="character-display" id="character-display">—</div>
           <img class="glyph-image hidden" id="glyph-image" src="" alt="字形">
           <p class="glyph-placeholder hidden" id="glyph-placeholder">字形图片尚未添加</p>
@@ -97,17 +104,23 @@
           <p class="settlement-meta" id="settlement-meta"></p>
           <div class="settlement-chars" id="settlement-chars"></div>
         </div>
-        <button class="btn-icon btn-eye" id="btn-show" aria-label="显示字形" title="显示字形">
-          <svg class="icon-eye-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-          <svg class="icon-eye-closed" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-            <line x1="1" y1="1" x2="23" y2="23"/>
-          </svg>
-        </button>
+        <div class="glyph-reveal-block" id="glyph-reveal-block">
+          <button class="btn-icon btn-eye" id="btn-show" aria-label="显示字形" title="显示字形">
+            <svg class="icon-eye-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg class="icon-eye-closed" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+          <div class="zhen-practice-meta hidden" id="zhen-practice-meta">
+            <p class="zhen-practice-form" id="zhen-practice-form"></p>
+            <p class="zhen-practice-variation" id="zhen-practice-variation"></p>
+          </div>
+        </div>
         <div class="practice-footer" id="practice-footer">
           <div class="practice-footer-main">
             <button class="btn btn-primary" id="btn-refresh" title="完成当前字并进入下一个" aria-label="完成">完成</button>
@@ -187,7 +200,8 @@
       <p class="dialog-hint">点击任意汉字，直接显示到练习区。</p>
       <div class="char-grid" id="char-grid" role="list"></div>
       <div class="dialog-stats">
-        共 <span id="browse-count">0</span> 字
+        <div>共 <span id="browse-count">0</span> 字</div>
+        <div>近期剔除 <span id="browse-exclude-count">0</span> 字</div>
       </div>
     </div>
   </dialog>
@@ -244,7 +258,7 @@
   <dialog class="dialog" id="settings-dialog">
     <div class="dialog-content">
       <h2 class="dialog-title">字库设置</h2>
-      <p class="dialog-hint">编辑草体/自定义字库，可用空格分隔，也可连续输入。完整字信息（异体、书法家、出处）请在 <code>js/zi-catalog-cao.js</code> 维护；楷 / 明 / 黑见各 <code>zi-catalog-*.js</code>。</p>
+      <p class="dialog-hint">编辑草体/自定义字库，可用空格分隔，也可连续输入。完整字信息（异体、书法家、出处）请在 <code>js/zi-catalog-cao.js</code> 维护；真书（楷书、印刷楷书、明体、宋体、黑体等）统一写在 <code>js/zi-catalog-zhen.js</code>。</p>
       <textarea
         class="dialog-textarea"
         id="characters-input"
@@ -262,13 +276,15 @@
   </dialog>
 
   <script src="js/version.js"></script>
+  <script src="js/unique-drop-rates.js"></script>
+  <script src="js/zhen-seal.js"></script>
   <script src="js/card-style.js"></script>
   <script src="js/card-color-schemes.js"></script>
   <script src="js/card-bases.js"></script>
   <script src="js/card-modifiers.js"></script>
   <script src="js/zi.js"></script>
   <script src="js/zi-catalog-cao.js"></script>
-  <script src="js/zi-catalog-kai.js"></script>
+  <script src="js/zi-catalog-zhen.js"></script>
   <script src="js/database.js"></script>
   <script src="js/session.js"></script>
   <script src="js/user-merge.js"></script>

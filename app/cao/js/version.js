@@ -3,7 +3,7 @@
  * 与 user JSON / snapshot / shop 的 schema version 无关。
  * 格式：主.次.修订（如 1.0.00）
  */
-const CAO_APP_VERSION = '1.0.00';
+const CAO_APP_VERSION = '1.1.00';
 
 function getCaoAppVersion() {
   return CAO_APP_VERSION;

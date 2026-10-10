@@ -6,19 +6,22 @@
  * - char：主字
  * - codePoint：Unicode 码位（由 char 自动得出，写入 id 中间段）
  * - unicode：U+XXXX 字符串（便于查看）
- * - alternatives、style、calligrapher、work
+ * - alternatives、style、form、calligrapher、work、variation（真书：碑帖/风格名）
  *
  * ID 格式：{prefix}.{code5}.{dup2}
  * 示例：c.0662F.01（「是」U+662F，草书第 1 个版本）
  *
- * - prefix：书体单字母 — c 草、k 楷 …
+ * - prefix：书体单字母 — c 草、z 真（旧楷库 k 仍识别为真书）
  * - code5：主字 Unicode 的 5 位十六进制（左侧补 0），由字形锁死
  * - dup2：同书体、同码位主字的版本序号（01–99）
  * - catalog 里不写 id；finalize 时按 unicode + dup 自动生成
+ * - 真书另有 form：kai / print-kai / ming / song / hei
+ * - 真书 style：form + calligrapher + variation；字池与风格分录，再叉乘生成条目
  */
 
 const ZI_STYLE_ID_PREFIX = {
   cao: 'c',
+  zhen: 'z',
   kai: 'k',
 };
 
@@ -119,8 +122,11 @@ class Zi {
     dup = 0,
     alternatives = [],
     style = 'cao',
+    form = '',
     calligrapher = '',
     work = '',
+    variation = '',
+    styleId = '',
   } = {}) {
     this.char = char || '';
     this.codePoint = codePoint || charToCodePoint(this.char);
@@ -128,8 +134,11 @@ class Zi {
     this.dup = dup;
     this.alternatives = Array.isArray(alternatives) ? [...alternatives] : [];
     this.style = style || 'cao';
+    this.form = form || '';
     this.calligrapher = calligrapher || '';
-    this.work = work || '';
+    this.variation = variation || work || '';
+    this.work = work || this.variation || '';
+    this.styleId = styleId || '';
     this.id = id || '';
   }
 
@@ -148,9 +157,12 @@ class Zi {
       unicode: this.unicode,
       dup: this.dup,
       script: this.style,
+      form: this.form,
       alternatives: this.alternatives,
       calligrapher: this.calligrapher,
+      variation: this.variation,
       work: this.work,
+      styleId: this.styleId,
     };
   }
 }
@@ -251,7 +263,10 @@ function enrichEntriesFromCatalog(charList, catalogEntries, defaultScript = 'cao
         script: hit.script || defaultScript,
         alternatives: hit.alternatives || [],
         calligrapher: hit.calligrapher || '',
-        work: hit.work || '',
+        variation: hit.variation || '',
+        work: hit.work || hit.variation || '',
+        form: hit.form || '',
+        styleId: hit.styleId || '',
       };
     }
     const cp = charToCodePoint(ch);
@@ -264,7 +279,10 @@ function enrichEntriesFromCatalog(charList, catalogEntries, defaultScript = 'cao
       script: defaultScript,
       alternatives: [],
       calligrapher: '',
+      variation: '',
       work: '',
+      form: '',
+      styleId: '',
     };
   });
 }

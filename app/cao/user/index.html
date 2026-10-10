@@ -83,8 +83,15 @@
               并核对当前用户记录中的 id 能否在字库中找到。
               只改正 unicode 标注通常不影响已有练习（id 由字形码位生成）。
             </p>
-            <div class="settings-row-control">
+            <div class="settings-row-control settings-unicode-check-actions">
               <button type="button" class="btn-load" id="btn-unicode-check">检测字库</button>
+              <button
+                type="button"
+                class="btn-load"
+                id="btn-unicode-check-copy"
+                disabled
+                title="先检测；有错误时可复制给 AI agent"
+              >复制错误 log</button>
             </div>
             <div class="settings-check-result hidden" id="unicode-check-result" aria-live="polite"></div>
           </div>
@@ -125,6 +132,7 @@
       <button type="button" class="level-nav-btn is-active" id="level-nav-overview" data-level-mode="overview" role="tab" aria-selected="true">总览</button>
       <button type="button" class="level-nav-btn" id="level-nav-unique" data-level-mode="unique" role="tab" aria-selected="false">独特</button>
       <button type="button" class="level-nav-btn" id="level-nav-levels" data-level-mode="levels" role="tab" aria-selected="false">等级</button>
+      <button type="button" class="level-nav-btn" id="level-nav-zhen" data-level-mode="zhen" role="tab" aria-selected="false">真书</button>
       <button type="button" class="level-nav-btn" id="level-nav-recognize" data-level-mode="recognize" role="tab" aria-selected="false">识别</button>
       <button type="button" class="level-nav-btn" id="level-nav-sort" data-level-mode="sort" role="tab" aria-selected="false">排序方式</button>
       <button type="button" class="level-nav-btn" id="level-nav-last" data-level-mode="lastSession" role="tab" aria-selected="false">记录历史</button>
@@ -288,13 +296,15 @@
   </dialog>
 
   <script src="../js/version.js"></script>
+  <script src="../js/unique-drop-rates.js"></script>
+  <script src="../js/zhen-seal.js"></script>
   <script src="../js/card-style.js"></script>
   <script src="../js/card-color-schemes.js"></script>
   <script src="../js/card-bases.js"></script>
   <script src="../js/card-modifiers.js"></script>
   <script src="../js/zi.js"></script>
   <script src="../js/zi-catalog-cao.js"></script>
-  <script src="../js/zi-catalog-kai.js"></script>
+  <script src="../js/zi-catalog-zhen.js"></script>
   <script src="../js/database.js"></script>
   <script src="../js/user-merge.js"></script>
   <script src="../js/shop.js"></script>

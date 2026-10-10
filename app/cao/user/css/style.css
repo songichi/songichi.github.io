@@ -365,10 +365,13 @@ body.is-shop-view .container {
   border-radius: 50%;
 }
 
-/* 其它书体：方形外框 */
+/* 真书：方形外框（含旧楷/明/黑标识） */
+.char-unit.script-zhen .char-glyph,
 .char-unit.script-kai .char-glyph,
 .char-unit.script-ming .char-glyph,
-.char-unit.script-hei .char-glyph {
+.char-unit.script-song .char-glyph,
+.char-unit.script-hei .char-glyph,
+.char-unit.script-print-kai .char-glyph {
   border-radius: 0;
   border-color: #888;
 }
@@ -693,8 +696,20 @@ body.has-level-nav .page {
   letter-spacing: 0.02em;
 }
 
+.settings-unicode-check-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .settings-unicode-check .btn-load {
   min-width: 5.5rem;
+}
+
+.settings-unicode-check .btn-load:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .settings-check-result {
@@ -774,9 +789,161 @@ body.has-level-nav .page {
   letter-spacing: 0.2em;
 }
 
+.level-section-history-lane .level-section-title {
+  text-transform: none;
+  letter-spacing: 0.2em;
+}
+
+.history-lane-empty {
+  margin: 0.25rem 0 0;
+  padding: 0.5rem 0 0.75rem;
+}
+
 .level-section-highlight .level-section-title {
   text-transform: none;
   letter-spacing: 0.12em;
+}
+
+/* 真书 tab：左栏三行风格信息 + 右栏每行 6 字 */
+.level-section.zhen-style-row {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 8rem) minmax(0, 1fr);
+  column-gap: 1.1rem;
+  row-gap: 0;
+  align-items: start;
+  gap: 0 1.25rem;
+  margin-bottom: 1.35rem;
+}
+
+.level-section.zhen-style-row:last-child {
+  margin-bottom: 0;
+}
+
+.zhen-style-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.28rem;
+  min-height: 4rem;
+  padding-top: 0.2rem;
+}
+
+.zhen-meta-line {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  color: #1a1a1a;
+  word-break: break-word;
+}
+
+.zhen-meta-variation {
+  font-size: 1.4rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1.5px;
+}
+
+.zhen-meta-subrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.35rem;
+}
+
+.zhen-meta-subrow .zhen-meta-line {
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+}
+
+.zhen-meta-sep {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: #1a1a1a;
+  user-select: none;
+}
+
+.zhen-seal-counts {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.28rem;
+  margin-top: 0;
+  user-select: none;
+}
+
+body.is-zhen-view .zhen-style-cells .level-card {
+  gap: 0.08rem;
+}
+
+.zhen-seal-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 50%;
+  /* 几何无衬线 + 真 Bold（黑体无字重变体时 font-weight 无效） */
+  font-family: "Avenir Next", Avenir, Futura, "Century Gothic", "Gill Sans", "Trebuchet MS", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-style: normal;
+  font-synthesis: none;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #fff;
+  box-sizing: border-box;
+}
+
+/* 真书印记：单层 / 双层 / 三层红框（贴 cell 边框，圆角与 level-frame 一致） */
+.level-card.has-zhen-seal .level-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.level-card.has-zhen-seal .zhen-seal-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+  border-radius: inherit;
+}
+
+.level-card.has-zhen-seal .zhen-seal-ring {
+  position: absolute;
+  box-sizing: border-box;
+  border: var(--seal-stroke-width, 1.9px) solid #c62828;
+  pointer-events: none;
+}
+
+.zhen-style-cells {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+body.is-zhen-view .zhen-style-cells .level-frame .char-glyph {
+  flex-basis: 1.95rem;
+  width: 1.95rem;
+  height: 1.95rem;
+  font-size: 1.5rem;
+}
+
+body.is-zhen-view .zhen-style-cells .level-badge {
+  font-family: "Heiti SC", "STHeiti", "SimHei", "Microsoft YaHei", "黑体", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+body.is-zhen-view .level-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .highlight-session-meta {
@@ -816,6 +983,10 @@ body.has-level-nav .page {
   font-weight: 700;
   color: var(--text-muted);
   letter-spacing: 0.06em;
+}
+
+.level-section-snapshot .highlight-session-meta-item.is-ratio {
+  min-width: 5.5rem;
 }
 
 .level-section-title-row {
@@ -1907,6 +2078,39 @@ body.is-dismantle-mode .dismantle-tools .dismantle-switch-label {
   background: transparent;
 }
 
+/* 总时间换到下一行；框本身随文字，不拉满整行 */
+.level-summary-duration-total-row {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: stretch;
+}
+
+.level-summary-duration-total-row .level-summary-item {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.level-summary-duration-lanes {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.5rem 0.65rem;
+}
+
+.level-summary-duration-lanes .level-summary-item {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.6rem 0.4rem;
+}
+
+.level-summary-duration-lanes .level-summary-value {
+  font-size: 1.25rem;
+}
+
+.level-summary-duration-lanes .level-summary-label {
+  font-size: 0.7rem;
+}
+
 .level-summary-value {
   font-size: 1.75rem;
   font-weight: 700;
@@ -2400,6 +2604,27 @@ body.is-dismantle-mode .level-section-unique {
   color: #aaa;
 }
 
+/* 真书 tab：无字形图（未 active）浅灰底 */
+.level-card.is-zhen-inactive .level-frame {
+  background: #dddddd !important;
+  border-color: #dddddd !important;
+  filter: none;
+}
+
+.level-card.is-zhen-inactive:hover .level-frame,
+.level-card.is-zhen-inactive.is-kb-selected .level-frame {
+  filter: none;
+}
+
+.level-card.is-zhen-inactive .char-glyph,
+.level-card.is-zhen-inactive .level-badge {
+  color: #b0b0b0;
+}
+
+.level-card.is-zhen-inactive .zhen-seal-dot {
+  color: #b0b0b0;
+}
+
 .level-frame {
   position: relative;
   overflow: hidden;
@@ -2464,6 +2689,15 @@ body.is-atlas-view .level-section-atlas .level-section-title {
   border-radius: 21px;
 }
 
+.level-frame.script-zhen,
+.level-frame.script-kai,
+.level-frame.script-ming,
+.level-frame.script-song,
+.level-frame.script-hei,
+.level-frame.script-print-kai {
+  border-radius: 6px;
+}
+
 .level-badge {
   font-family: "Heiti SC", "STHeiti", "SimHei", "Microsoft YaHei", "黑体", sans-serif;
   font-size: 0.6875rem;
@@ -2525,16 +2759,38 @@ body.is-atlas-view .level-section-atlas .level-section-title {
   .level-group {
     grid-template-columns: repeat(4, 1fr);
   }
+
+  .zhen-style-cells {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 560px) {
   .level-group {
     grid-template-columns: repeat(3, 1fr);
   }
+
+  .level-section.zhen-style-row {
+    grid-template-columns: minmax(4rem, 5.5rem) minmax(0, 1fr);
+    gap: 0 0.75rem;
+  }
+
+  .zhen-style-cells {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 400px) {
   .level-group {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .level-section.zhen-style-row {
+    grid-template-columns: 1fr;
+    gap: 0.55rem 0;
+  }
+
+  .zhen-style-cells {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

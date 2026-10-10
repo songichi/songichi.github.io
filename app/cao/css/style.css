@@ -231,6 +231,11 @@ body {
   box-shadow: var(--shadow);
 }
 
+.mode-switch-btn.hidden,
+.mode-switch-btn[hidden] {
+  display: none !important;
+}
+
 .btn-session-action {
   font-family: inherit;
   font-size: 0.75rem;
@@ -263,7 +268,41 @@ body {
   cursor: not-allowed;
 }
 
-body.is-session-completed .btn-eye {
+body.is-session-completed .btn-eye,
+body.is-session-completed .glyph-reveal-block {
+  display: none;
+}
+
+.glyph-reveal-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.zhen-practice-meta {
+  margin: 0;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.zhen-practice-meta.hidden {
+  display: none;
+}
+
+.zhen-practice-form,
+.zhen-practice-variation {
+  margin: 0;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.zhen-practice-form {
+  color: var(--text);
+}
+
+.zhen-practice-variation.hidden {
   display: none;
 }
 
@@ -342,6 +381,7 @@ body.is-session-completed .practice-area {
 }
 
 .character-stage {
+  position: relative;
   width: min(100%, 280px);
   aspect-ratio: 1;
   display: flex;
@@ -351,6 +391,29 @@ body.is-session-completed .practice-area {
 
 .character-stage.hidden {
   display: none;
+}
+
+/* 真书练习底图：格线在下，字形叠在上 */
+.zhen-stage-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+.zhen-stage-bg.hidden {
+  display: none;
+}
+
+.character-stage .character-display,
+.character-stage .glyph-image,
+.character-stage .glyph-placeholder {
+  position: relative;
+  z-index: 1;
 }
 
 .settlement-panel {
@@ -419,6 +482,35 @@ body.is-session-completed .practice-area {
   background: #f5e6d3;
   border-radius: 4px;
   padding: 0 0.15em;
+}
+
+/* 结算小结：真书印记红框（单层 / 双层 / 三层） */
+.settlement-char.has-seal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.1rem;
+  min-height: 3.1rem;
+  padding: 0.4rem;
+  color: #c62828;
+  box-sizing: border-box;
+}
+
+.settlement-char.has-seal .zhen-seal-frame,
+.settlement-char.has-seal .stats-seal-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.settlement-char.has-seal .settlement-seal-glyph {
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+  color: #c62828;
 }
 
 .settlement-empty {
@@ -528,7 +620,8 @@ body.is-session-completed .practice-area {
   color: var(--text);
 }
 
-body.is-recognize-mode .btn-eye {
+body.is-recognize-mode .btn-eye,
+body.is-recognize-mode .glyph-reveal-block {
   display: none;
 }
 
@@ -761,11 +854,18 @@ body.is-session-completed .practice-footer {
   outline-offset: -1.5px;
 }
 
-.char-grid-item.script-kai {
+.char-grid-item.script-zhen {
   box-shadow: inset 0 -2px 0 #8a8a8a;
 }
 
-.char-grid-item.script-ming {
+/* 真书细分 form：在「真」底色上再区分 */
+.char-grid-item.script-kai,
+.char-grid-item.script-print-kai {
+  box-shadow: inset 0 -2px 0 #8a8a8a;
+}
+
+.char-grid-item.script-ming,
+.char-grid-item.script-song {
   box-shadow: inset 0 -2px 0 #aaa;
 }
 
@@ -833,6 +933,9 @@ body.is-session-completed .practice-footer {
 }
 
 .dialog-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
   font-size: 0.8125rem;
   color: var(--text-muted);
   margin-top: 0.75rem;
@@ -882,7 +985,7 @@ body.is-session-completed .practice-footer {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   align-items: center;
-  min-height: 2.125rem;
+  min-height: 2.65rem;
   padding: 0.375rem 0.25rem;
   font-size: 0.875rem;
   border-bottom: 1px solid var(--border);
@@ -937,6 +1040,35 @@ body.is-session-completed .practice-footer {
 
 .stats-char.is-unique.has-ink-drop {
   border-color: #1a1a1a;
+}
+
+/* 真书印记：单层 / 双层 / 三层红框（外框加大，避免与字碰撞） */
+.stats-char.has-seal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  margin: 0 auto;
+  color: #c62828;
+  box-sizing: border-box;
+}
+
+.stats-char.has-seal .zhen-seal-frame,
+.stats-char.has-seal .stats-seal-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.stats-char.has-seal .stats-seal-glyph {
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+  font-size: 0.95em;
 }
 
 .stats-count {

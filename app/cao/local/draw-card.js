@@ -42,6 +42,7 @@ function loadCardStyleApi() {
   sandbox.globalThis = sandbox;
   const context = vm.createContext(sandbox);
   const files = [
+    'unique-drop-rates.js',
     'card-style.js',
     'card-color-schemes.js',
     'card-bases.js',

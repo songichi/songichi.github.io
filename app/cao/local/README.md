@@ -1,6 +1,6 @@
 # 本地练习账本（个人数据，默认不上传）
 
-应用版本：**v1.0.00**（见 `app/cao/js/version.js`；与本目录 JSON 的 schema `version` 无关）
+应用版本：**v1.1.00**（见 `app/cao/js/version.js`；与本目录 JSON 的 schema `version` 无关）
 
 当前用户数据文件：**`user-yi.json`**
 
@@ -24,12 +24,15 @@
 
 **掉落判定（练字）：** 完成某字并跳到下一字时，以 **8%** 进入 unique 词条判定；本字若翻开过原型则门控 **+2%**。词条全空则保底 +5 墨（记在 `stroke.inkDrop`）。右侧显示「X墨」与黑圆框提示；**账户入账须等结算写入**。
 
+**掉落几率文件 `js/unique-drop-rates.js`：** 只允许写概率、权重、保底墨量、保底连击等**数值常量**；禁止写函数、判定流程、UI 或其它业务逻辑。Unique 判定在 `card-style.js`（`rollDropJudgment`）；真书印记判定与红框展示在 `zhen-seal.js`（`rollZhenSealJudgment` / `createZhenSealFrameSvg`）。
+
 **磁盘格式 v3：** 落盘为**缩进 JSON**（便于阅读）；顶层短键（`v`/`u`/`at`/`sum`…）；`chars` 每字单行 `[字, 次数, first, last]`；`sessions[].s` 每笔单行 `[id, durationMs]`（unique 再跟 `{cs,cb,cm,d,ci}`）；`f`/`m`/`lib`/`cl`/`src` 收成一行。同 UTC 日的 `e` 只写时刻（如 `06:06:47.129Z`），跨日仍写完整 ISO。读写经 `packUserStatsForDisk` / `normalizeUserStats`（`user-merge.js`），内存仍用长键。旧版长键 pretty JSON 仍可读取。
 
 **界面展示（等级 / 统计）：**
 
 - 每个字的次数 = `chars[id].count`（基数）+ **当场从全部 `sessions[].strokes` 合计的次数**
 - 不把 sessions 写回 `chars`；只在打开用户页时计算总和用于等级与次数显示
+- **真书次数 / 印记**：权威在 `sessions[].strokes`（`stroke.seal`）；真书 tab 用 `rebuildZhenFromHistory` 从历史 compile；磁盘 `zhen` 仅为缓存镜像
 
 实现约定：
 
